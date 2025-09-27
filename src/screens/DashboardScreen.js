@@ -1,0 +1,361 @@
+// Ajuste do código para aumentar a distância entre "Medições Recentes" e os botões de navegação
+
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
+  ActivityIndicator,
+  Dimensions,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { listReadings } from '../services/glucoseService';
+import { initDB } from '../services/dbService';
+import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+
+// Componente de mensagem de alerta personalizado
+const MessageOverlay = ({ message, type, onClose }) => {
+  return (
+    <Modal transparent animationType="fade" visible={!!message}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.messageBox}>
+          <MaterialIcons
+            name={type === 'success' ? 'check-circle' : 'error'}
+            size={40}
+            color={type === 'success' ? '#16a34a' : '#dc2626'}
+          />
+          <Text style={styles.messageText}>{message}</Text>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Text style={styles.closeButtonText}>Fechar</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+const WINDOW_HEIGHT = Dimensions.get('window').height;
+
+export default function DashboardScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
+
+  const [readings, setReadings] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [messageType, setMessageType] = useState('success');
+
+  // alturas medidas via onLayout
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const [cardsHeight, setCardsHeight] = useState(0);
+
+  const showMessage = (msg, type = 'success') => {
+    setMessage(msg);
+    setMessageType(type);
+  };
+
+  const clearMessage = () => setMessage(null);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadReadings();
+    });
+
+    (async () => {
+      try {
+        setLoading(true);
+        await initDB();
+        await loadReadings();
+      } catch (err) {
+        console.error('Dashboard - erro inicial:', err);
+        showMessage('Falha ao carregar dados iniciais.', 'error');
+      } finally {
+        setLoading(false);
+      }
+    })();
+
+    return unsubscribe;
+  }, [navigation]);
+
+  const loadReadings = async () => {
+    try {
+      const data = await listReadings();
+      if (Array.isArray(data)) {
+        const sorted = data
+          .map(r => ({ ...r, glucose_level: Number(r.glucose_level) || 0 }))
+          .sort((a, b) => new Date(b.measurement_time) - new Date(a.measurement_time));
+        setReadings(sorted);
+      } else {
+        setReadings([]);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar medições:', error);
+      setReadings([]);
+    }
+  };
+
+  const getReadingStatus = (value) => {
+    const n = Number(value);
+    if (!value || isNaN(n)) return { label: 'Inválido', text: '#6b7280', bg: '#f3f4f6' };
+    if (n < 70) return { label: 'Baixo', text: '#b45309', bg: '#fef3c7' };
+    if (n > 180) return { label: 'Alto', text: '#b91c1c', bg: '#fee2e2' };
+    return { label: 'Normal', text: '#047857', bg: '#d1fae5' };
+  };
+
+  // KPIs
+  const ultima = readings.length > 0 ? readings[0]?.glucose_level ?? '-' : '-';
+  const media = readings.length > 0
+    ? Math.round(readings.reduce((sum, r) => sum + (Number(r.glucose_level) || 0), 0) / readings.length)
+    : '-';
+  const normais = readings.length > 0
+    ? Math.round((readings.filter((r) => Number(r.glucose_level) >= 70 && Number(r.glucose_level) <= 180).length / readings.length) * 100)
+    : 0;
+  const total = readings.length;
+
+  const renderItem = ({ item }) => {
+    const status = getReadingStatus(item.glucose_level);
+    return (
+      <View style={styles.readingCard}>
+        <View style={styles.readingRow}>
+          <Text style={styles.readingValue}>
+            {item.glucose_level} mg/dL
+          </Text>
+          <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
+            <Text style={[styles.readingStatus, { color: status.text }]}>{status.label}</Text>
+          </View>
+        </View>
+        <Text style={styles.readingDate}>
+          {item.measurement_time ? new Date(item.measurement_time).toLocaleString() : 'Sem data'}
+        </Text>
+      </View>
+    );
+  };
+
+  // Ajustes para subir o bloco
+  const BOTTOM_SAFE_GAP = 80; // aumento o valor para subir mais (80px de margem extra)
+  const MAX_HEIGHT_RATIO = 0.75; // diminui um pouco o tamanho da lista
+
+  const EXTRA_TOP_GAP = 16; // pequena margem entre KPIs e lista
+  const EXTRA_BOTTOM_GAP = BOTTOM_SAFE_GAP + insets.bottom; // mais espaço na parte inferior
+
+  let availableHeight = WINDOW_HEIGHT - headerHeight - cardsHeight - EXTRA_TOP_GAP - EXTRA_BOTTOM_GAP;
+
+  const LIST_MIN_HEIGHT = 120;
+  const LIST_MAX_HEIGHT = Math.round(WINDOW_HEIGHT * MAX_HEIGHT_RATIO);
+
+  const listHeight = Math.max(LIST_MIN_HEIGHT, Math.min(LIST_MAX_HEIGHT, availableHeight));
+
+  return (
+    <SafeAreaView style={[styles.safe, { paddingBottom: insets.bottom + 12 }]} edges={['top', 'bottom']}>
+      {/* Subtítulo e botão */}
+      <View
+        style={styles.headerRow}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          setHeaderHeight(h);
+        }}
+      >
+        <View style={{ flexShrink: 1 }}>
+          <Text style={styles.pageSubtitle}>
+            Acompanhe sua glicemia e mantenha sua saúde em dia
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => navigation.navigate('AddReading')}
+        >
+          <Text style={styles.addButtonText}>+ Nova Medição</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* KPIs */}
+      <View
+        style={styles.cardsContainer}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          setCardsHeight(h);
+        }}
+      >
+        <LinearGradient colors={['#eff6ff', '#dbeafe']} style={styles.card}>
+          <View style={[styles.iconCircle, { backgroundColor: '#3b82f6' }]}>
+            <MaterialIcons name="show-chart" size={20} color="#fff" />
+          </View>
+          <Text style={styles.cardLabel}>Última Medição</Text>
+          <Text style={styles.cardValue}>{ultima} <Text style={styles.unit}>mg/dL</Text></Text>
+        </LinearGradient>
+
+        <LinearGradient colors={['#ecfdf5', '#d1fae5']} style={styles.card}>
+          <View style={[styles.iconCircle, { backgroundColor: '#10b981' }]}>
+            <Ionicons name="stats-chart" size={20} color="#fff" />
+          </View>
+          <Text style={styles.cardLabel}>Média Geral</Text>
+          <Text style={styles.cardValue}>{media} <Text style={styles.unit}>mg/dL</Text></Text>
+        </LinearGradient>
+
+        <LinearGradient colors={['#faf5ff', '#ede9fe']} style={styles.card}>
+          <View style={[styles.iconCircle, { backgroundColor: '#8b5cf6' }]}>
+            <FontAwesome5 name="bullseye" size={18} color="#fff" />
+          </View>
+          <Text style={styles.cardLabel}>Medições Normais</Text>
+          <Text style={styles.cardValue}>{normais} <Text style={styles.unit}>%</Text></Text>
+        </LinearGradient>
+
+        <LinearGradient colors={['#fff7ed', '#ffedd5']} style={styles.card}>
+          <View style={[styles.iconCircle, { backgroundColor: '#f97316' }]}>
+            <MaterialIcons name="history" size={20} color="#fff" />
+          </View>
+          <Text style={styles.cardLabel}>Total de Medições</Text>
+          <Text style={styles.cardValue}>{total} <Text style={styles.unit}>registros</Text></Text>
+        </LinearGradient>
+      </View>
+
+      {loading ? (
+        <ActivityIndicator size="large" color="#2563eb" style={{ marginTop: 20 }} />
+      ) : (
+        <View style={[styles.recentBox, { maxHeight: listHeight }]}>
+          <Text style={styles.sectionTitle}>Medições Recentes</Text>
+
+          <FlatList
+            data={readings}
+            keyExtractor={(item) => (item.id ? item.id.toString() : `${item.measurement_time}-${Math.random()}`)}
+            renderItem={renderItem}
+            contentContainerStyle={{ paddingBottom: 24 }}
+            showsVerticalScrollIndicator
+            initialNumToRender={8}
+            maxToRenderPerBatch={12}
+            windowSize={10}
+            ListEmptyComponent={
+              <View>
+                <Text style={styles.empty}>Nenhuma medição registrada.</Text>
+              </View>
+            }
+          />
+        </View>
+      )}
+
+      <MessageOverlay message={message} type={messageType} onClose={clearMessage} />
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: '#f0f6ff',
+    paddingHorizontal: 20,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  pageSubtitle: { fontSize: 14, color: '#6b7280', maxWidth: 220 },
+
+  addButton: {
+    backgroundColor: '#2563eb',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    elevation: 3,
+  },
+  addButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+
+  cardsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  card: {
+    flexBasis: '48%',
+    borderRadius: 14,
+    padding: 18,
+    marginBottom: 12,
+    elevation: 3,
+  },
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  cardLabel: { color: '#374151', fontSize: 14, marginBottom: 6 },
+  cardValue: { color: '#111827', fontSize: 20, fontWeight: '700' },
+  unit: { fontSize: 13, fontWeight: '400', color: '#6b7280' },
+
+  recentBox: {
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 12,
+    elevation: 2,
+    marginTop: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 10,
+    color: '#111827',
+  },
+  list: { marginBottom: 20 },
+  empty: { textAlign: 'center', color: '#9ca3af', marginTop: 20 },
+
+  readingCard: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    elevation: 1,
+  },
+  readingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  readingValue: { fontSize: 18, fontWeight: 'bold', color: '#111827' },
+  statusBadge: {
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  readingStatus: { fontSize: 13, fontWeight: '700' },
+  readingDate: { fontSize: 12, color: '#6b7280', marginTop: 4 },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  messageBox: {
+    width: 300,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    elevation: 5,
+  },
+  messageText: {
+    marginTop: 10,
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#333',
+  },
+  closeButton: {
+    marginTop: 20,
+    backgroundColor: '#2563eb',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+});

@@ -1,0 +1,76 @@
+{
+  "expo": {
+    "name": "GlucoCare",
+    "slug": "glucocare",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
+
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+
+    "assetBundlePatterns": ["**/*"],
+
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.eduabjr.glucocare",
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "O GlucoCare usa o Bluetooth para conectar a dispositivos de glicemia.",
+        "NSLocationWhenInUseUsageDescription": "O GlucoCare precisa da sua localização para detectar dispositivos Bluetooth próximos.",
+        "NSFaceIDUsageDescription": "O GlucoCare usa Face ID/Touch ID para autenticação rápida e segura."
+      }
+    },
+
+    "android": {
+      "package": "com.eduabjr.glucocare",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "INTERNET",
+        "BLUETOOTH",
+        "BLUETOOTH_ADMIN",
+        "BLUETOOTH_CONNECT",
+        "BLUETOOTH_SCAN",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ]
+    },
+
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "minSdkVersion": 24
+          },
+          "ios": {
+            "deploymentTarget": "13.0"
+          }
+        }
+      ],
+      "expo-local-authentication"
+    ],
+
+    "extra": {
+      "expoClientId": "360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com",
+      "eas": {
+        "projectId": "bb849c02-0bbc-4d34-ac66-441748aa2550"
+      }
+    }
+  }
+}
