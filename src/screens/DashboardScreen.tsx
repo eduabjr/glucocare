@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import {
+import { useEffect, useState } from 'react';
+import { // Removida a importação 'React'
   View,
   Text,
   FlatList,
@@ -10,12 +10,19 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { listReadings, initDB, deleteReading } from '../services/dbService'; // Adicionando função deleteReading
+import { listReadings, initDB, deleteReading } from '../services/dbService'; 
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
+// CORREÇÃO 1.2: Adicionando tipagem para os props
+interface MessageOverlayProps {
+  message: string | null;
+  type: 'success' | 'error';
+  onClose: () => void;
+}
+
 // Componente de mensagem de alerta personalizado
-const MessageOverlay = ({ message, type, onClose }) => {
+const MessageOverlay = ({ message, type, onClose }: MessageOverlayProps) => {
   return (
     <Modal transparent animationType="fade" visible={!!message}>
       <View style={styles.modalOverlay}>
@@ -37,7 +44,15 @@ const MessageOverlay = ({ message, type, onClose }) => {
 
 const WINDOW_HEIGHT = Dimensions.get('window').height;
 
-export default function DashboardScreen({ navigation }) {
+// CORREÇÃO 1.5: Adicionando a tipagem do navigation
+type DashboardScreenProps = {
+  navigation: { 
+    addListener: (event: 'focus', callback: () => void) => () => void;
+    navigate: (screen: string) => void;
+  };
+};
+
+export default function DashboardScreen({ navigation }: DashboardScreenProps) {
   const insets = useSafeAreaInsets();
 
   const [readings, setReadings] = useState<any[]>([]);
@@ -84,7 +99,8 @@ export default function DashboardScreen({ navigation }) {
       if (Array.isArray(data)) {
         const sorted = data
           .map((r) => ({ ...r, glucose_level: Number(r.glucose_level) || 0 }))
-          .sort((a, b) => new Date(b.measurement_time) - new Date(a.measurement_time));
+          // CORREÇÃO 1.3: Usando getTime() para garantir comparação numérica
+          .sort((a, b) => new Date(b.measurement_time).getTime() - new Date(a.measurement_time).getTime()); 
         setReadings(sorted);
       } else {
         setReadings([]);
@@ -123,10 +139,14 @@ export default function DashboardScreen({ navigation }) {
 
   const renderItem = ({ item }: { item: any }) => {
     const status = getReadingStatus(item.glucose_level);
+    
+    // CORREÇÃO 1.4: Trocando View por TouchableOpacity para suportar onLongPress
     return (
-      <View
+      <TouchableOpacity
         style={styles.readingCard}
         onLongPress={() => handleLongPress(item.id)} // Inicia a exclusão ao pressionar por 5 segundos
+        onPressOut={() => setLongPressId(null)} // Cancela a exibição se o usuário soltar rápido
+        activeOpacity={0.9} 
       >
         <View style={styles.readingRow}>
           <Text style={styles.readingValue}>{item.glucose_level} mg/dL</Text>
@@ -145,7 +165,7 @@ export default function DashboardScreen({ navigation }) {
             <Text style={styles.deleteButtonText}>Excluir Medição</Text>
           </TouchableOpacity>
         )}
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -163,12 +183,16 @@ export default function DashboardScreen({ navigation }) {
     try {
       await deleteReading(id); // Função de exclusão da medição
       showMessage('Medição excluída com sucesso!', 'success');
+      setLongPressId(null); // Fecha o botão de exclusão
       loadReadings(); // Recarrega as leituras após a exclusão
     } catch (err) {
       console.error('Erro ao excluir medição:', err);
       showMessage('Falha ao excluir medição.', 'error');
     }
   };
+
+  // CORREÇÃO 2.1: Cálculo da altura disponível para a FlatList
+  const listHeight = WINDOW_HEIGHT - insets.top - insets.bottom - headerHeight - cardsHeight - 120; // 120 é uma estimativa de paddings e margens
 
   return (
     <SafeAreaView style={[styles.safe, { paddingBottom: insets.bottom + 12 }]} edges={['top', 'bottom']}>
@@ -245,7 +269,8 @@ export default function DashboardScreen({ navigation }) {
       {loading ? (
         <ActivityIndicator size="large" color="#2563eb" style={{ marginTop: 20 }} />
       ) : (
-        <View style={[styles.recentBox, { maxHeight: listHeight }]}>
+        // CORREÇÃO 2.1: Usando o listHeight calculado
+        <View style={[styles.recentBox, { maxHeight: listHeight }]}> 
           <Text style={styles.sectionTitle}>Medições Recentes</Text>
 
           <FlatList
@@ -402,5 +427,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-
-export default DashboardScreen;

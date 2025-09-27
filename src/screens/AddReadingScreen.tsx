@@ -10,13 +10,15 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker, { Event } from '@react-native-community/datetimepicker';
+// CORREÇÃO 2: Importa o tipo correto DateTimePickerEvent
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'; 
 import { Picker } from '@react-native-picker/picker';
 import { v4 as uuidv4 } from 'uuid';
 import * as SecureStore from 'expo-secure-store';
 
 import { addReading } from '../services/dbService';
-import { uploadReadingsToDrive } from '../services/googleSync';
+// CORREÇÃO 1: Mudar para importação padrão do serviço
+import GoogleSyncService from '../services/googleSync'; 
 
 type MealContext = '' | 'jejum' | 'pre-refeicao' | 'pos-refeicao' | 'antes-dormir' | 'madrugada';
 
@@ -80,7 +82,8 @@ export default function AddReadingScreen({ navigation }: AddReadingScreenProps) 
       const token = await SecureStore.getItemAsync('google_token');
       if (token) {
         try {
-          await uploadReadingsToDrive(token);
+          // CORREÇÃO 1: Chamar a função através do objeto importado
+          await GoogleSyncService.uploadReadingsToDrive(token); 
           console.log('Medições sincronizadas com Google Drive!');
         } catch (err) {
           console.warn('Falha ao sincronizar com Drive:', err);
@@ -96,7 +99,8 @@ export default function AddReadingScreen({ navigation }: AddReadingScreenProps) 
     }
   };
 
-  const onDateChange = (event: Event, selectedDate: Date | undefined) => {
+  // CORREÇÃO 2: Usa o tipo correto DateTimePickerEvent (e resolve aviso 'event')
+  const onDateChange = (event: DateTimePickerEvent, selectedDate: Date | undefined) => { 
     if (selectedDate) {
       setShowDate(false);
       setDate(selectedDate);

@@ -22,6 +22,9 @@ interface Reading {
   measurement_time: string;
 }
 
+// CORREÇÃO 1: Definição do tipo para as chaves do objeto 'ranges'
+type ProfileTypeKey = 'prediabetes' | 'tipo1' | 'tipo2';
+
 const CGMChartScreen: React.FC = () => {
   const [readings, setReadings] = useState<Reading[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -119,8 +122,9 @@ const CGMChartScreen: React.FC = () => {
   const chartWidth = Math.max(screenWidth - 32, labels.length * 60);
   const chartHeight = 260;
 
-  const userType = profile?.type || 'prediabetes';
-  const ranges = {
+  // CORREÇÃO 1: Usa o novo tipo ProfileTypeKey para userType e ranges
+  const userType: ProfileTypeKey = (profile?.type || 'prediabetes') as ProfileTypeKey;
+  const ranges: Record<ProfileTypeKey, { min: number; max: number }> = {
     prediabetes: { min: 70, max: 180 },
     tipo1: { min: 80, max: 150 },
     tipo2: { min: 90, max: 160 },
@@ -195,7 +199,8 @@ const CGMChartScreen: React.FC = () => {
             fromZero
             style={styles.chart}
             segments={4}
-            getDotColor={(dataPoint, index) => {
+            // CORREÇÃO 2: Usa _ para indicar que dataPoint não é usado
+            getDotColor={(_, index) => { 
               if (highlight?.type === 'highest' && index === highestIndex) {
                 return 'red';
               }

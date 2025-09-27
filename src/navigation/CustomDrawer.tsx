@@ -13,12 +13,24 @@ import {
 } from "@expo/vector-icons";
 import { useAuthContext } from "../context/AuthContext"; // 🔹 Usar useAuthContext
 
-// Tipagem do props.navigation
-type CustomDrawerProps = {
-  navigation: DrawerNavigationProp<any>; // Tipagem do navigation
+type DrawerParamList = {
+  Dashboard: undefined;
+  AddReading: undefined;
+  DeviceConnection: undefined;
+  Charts: undefined;
+  Nutrition: undefined;
+  Settings: undefined;
+  ProfileSetup: undefined;
 };
 
-type IconName = 
+// Corrigido para o tipo correto
+type CustomDrawerProps = {
+  navigation: DrawerNavigationProp<DrawerParamList>; // Tipagem do navigation com DrawerParamList
+  onLogout: () => void; // Tipagem de onLogout
+};
+
+// Tipagem dos ícones do drawer usando 'typeof' para referenciar os tipos dos componentes
+type IconName =
   | "dashboard"
   | "add-circle-outline"
   | "bluetooth-outline"
@@ -28,19 +40,23 @@ type IconName =
   | "person"
   | "logout"; // Tipagem para os ícones do drawer
 
-export default function CustomDrawer(props: CustomDrawerProps) {
+// Tipo para o componente de ícone, usando 'typeof'
+type IconLib = typeof MaterialIcons | typeof Ionicons | typeof FontAwesome5 | typeof Feather;
+
+export default function CustomDrawer({ navigation, onLogout }: CustomDrawerProps) {
   const { logout } = useAuthContext(); // 🔹 Pega o logout do contexto através do hook useAuthContext
 
   /** 🔹 Helper para navegar para uma tela do Drawer */
-  const navigateTo = (screenName: string) => {
-    props.navigation.navigate(screenName);
-    props.navigation.closeDrawer?.();
+  const navigateTo = (screenName: keyof DrawerParamList) => {
+    navigation.navigate(screenName);
+    navigation.closeDrawer();
   };
 
   /** 🔹 Logout usando o contexto */
   const handleLogout = async () => {
     try {
       await logout(); // 👉 Centralizado no AuthContext
+      onLogout(); // Chama a função onLogout passada como prop
     } catch (err) {
       Alert.alert("Erro", "Não foi possível sair da conta.");
       console.error("Logout error:", err);
@@ -51,24 +67,23 @@ export default function CustomDrawer(props: CustomDrawerProps) {
   const renderItem = (
     label: string,
     icon: IconName,
-    screen: string,
-    iconLib: any = MaterialIcons
+    screen: keyof DrawerParamList,
+    iconLib: IconLib = MaterialIcons
   ) => (
     <DrawerItem
       label={label}
       labelStyle={styles.label}
-      icon={({ color }) => (
-        <iconLib name={icon} color={color} size={20} />
-      )}
+      icon={({ color }) => {
+        // Usando iconLib como um componente de ícone
+        const IconComponent = iconLib;
+        return <IconComponent name={icon} color={color} size={20} />;
+      }}
       onPress={() => navigateTo(screen)}
     />
   );
 
   return (
-    <DrawerContentScrollView
-      {...props}
-      contentContainerStyle={styles.container}
-    >
+    <DrawerContentScrollView {...navigation} contentContainerStyle={styles.container}>
       {/* Cabeçalho */}
       <View style={styles.header}>
         <Image source={require("../../assets/icon.png")} style={styles.logo} />
@@ -92,9 +107,7 @@ export default function CustomDrawer(props: CustomDrawerProps) {
         <DrawerItem
           label="Sair"
           labelStyle={[styles.label, { color: "#dc2626" }]}
-          icon={() => (
-            <MaterialIcons name="logout" size={20} color="#dc2626" />
-          )}
+          icon={() => <MaterialIcons name="logout" size={20} color="#dc2626" />}
           onPress={handleLogout}
         />
       </View>

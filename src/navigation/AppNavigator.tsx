@@ -46,19 +46,14 @@ const Drawer = createDrawerNavigator<DrawerParamList>();
 
 // Tipagem do componente MenuButton
 type MenuButtonProps = {
-  navigation: DrawerNavigationProp<DrawerParamList>; // Tipagem do navigation
+  navigation: DrawerNavigationProp<DrawerParamList>;
 };
 
 // Botão de menu no header
 function MenuButton({ navigation }: MenuButtonProps) {
   return (
     <TouchableOpacity onPress={() => navigation.openDrawer()}>
-      <MaterialIcons
-        name="menu"
-        size={26}
-        color="#fff"
-        style={{ marginLeft: 12 }}
-      />
+      <MaterialIcons name="menu" size={26} color="#fff" style={{ marginLeft: 12 }} />
     </TouchableOpacity>
   );
 }
@@ -78,23 +73,24 @@ const drawerIcon = (name: IconName) => ({ color, size }: { color: string; size: 
   <MaterialIcons name={name} color={color} size={size} />
 );
 
-// Navegador do Drawer
 function DrawerRoutes({ onLogout }: { onLogout: () => void }) {
   const insets = useSafeAreaInsets();
 
   return (
     <Drawer.Navigator
-      drawerContent={(props) => <CustomDrawer {...props} onLogout={onLogout} />}
+      drawerContent={(props) => (
+        <CustomDrawer
+          {...props}
+          onLogout={onLogout}
+          navigation={props.navigation as unknown as DrawerNavigationProp<DrawerParamList>}
+        />
+      )}
       screenOptions={({ navigation }) => ({
         headerStyle: {
           backgroundColor: "#2563eb",
           elevation: 4,
           shadowOpacity: 0.2,
-          height:
-            56 +
-            (Platform.OS === "android"
-              ? StatusBar.currentHeight ?? 0
-              : insets.top),
+          height: 56 + (Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : insets.top),
         },
         headerTintColor: "#fff",
         headerTitleStyle: { fontWeight: "700", fontSize: 18 },
@@ -209,9 +205,7 @@ export default function AppNavigator() {
       ) : (
         <>
           <Stack.Screen name="Login">
-            {(props) => (
-              <LoginScreen {...props} onLogin={() => setIsAuthenticated(true)} />
-            )}
+            {(props) => <LoginScreen {...props} onLogin={() => setIsAuthenticated(true)} />}
           </Stack.Screen>
           <Stack.Screen name="Register" component={RegisterScreen} />
           <Stack.Screen name="BiometricSetup" component={BiometricSetupScreen} />

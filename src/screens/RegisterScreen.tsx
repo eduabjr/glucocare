@@ -1,5 +1,5 @@
 import 'react-native-get-random-values';
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Text,
   TextInput,
@@ -26,11 +26,6 @@ WebBrowser.maybeCompleteAuthSession();
 interface NavigationProp {
   navigate: (screen: string) => void;
   replace: (screen: string) => void;
-}
-
-interface GoogleResponse {
-  type: string;
-  authentication: { accessToken: string };
 }
 
 export default function RegisterScreen({ navigation }: { navigation: NavigationProp }) {
@@ -86,11 +81,9 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
             restriction: '',
           };
 
-          await SecureStore.multiSet([
-            ['registered_email', user.email],
-            ['user_profile', JSON.stringify(profile)],
-            ['biometric_enabled', 'false'],
-          ]);
+          await SecureStore.setItemAsync('registered_email', user.email);
+          await SecureStore.setItemAsync('user_profile', JSON.stringify(profile));
+          await SecureStore.setItemAsync('biometric_enabled', 'false');
 
           Alert.alert('Sucesso', 'Conta criada com Google!');
           navigation.replace('ProfileSetup');
@@ -166,11 +159,9 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
         restriction: '',
       };
 
-      await SecureStore.multiSet([
-        ['registered_email', email.trim()],
-        ['registered_password', passwordHash],
-        ['user_profile', JSON.stringify(profile)],
-      ]);
+      await SecureStore.setItemAsync('registered_email', email.trim());
+      await SecureStore.setItemAsync('registered_password', passwordHash);
+      await SecureStore.setItemAsync('user_profile', JSON.stringify(profile));
 
       try {
         const hasHardware = await LocalAuthentication.hasHardwareAsync();

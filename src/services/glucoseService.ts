@@ -51,7 +51,10 @@ export async function createReading({
         tx.executeSql(
           `INSERT INTO readings (id, measurement_time, glucose_level, meal_context, time_since_meal, notes) VALUES (?, ?, ?, ?, ?, ?);`,
           [id, normalizedTime, level, meal_context, time_since_meal, notes],
-          (_, result) => resolve({ id, measurement_time: normalizedTime, glucose_level: level, meal_context, time_since_meal, notes }), // Garantir que todas as propriedades sejam passadas
+          (_, result) => {
+            console.log("Resultado da inserção:", result);  // Usando a variável `result`
+            resolve({ id, measurement_time: normalizedTime, glucose_level: level, meal_context, time_since_meal, notes });
+          },
           (_, error: SQLite.SQLError) => {
             console.error('createReading - sql error:', error);
             reject(error);

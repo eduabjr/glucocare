@@ -62,9 +62,11 @@ interface Profile {
   name: string;
   condition: string;
   birthDate: string;
-  height: number;
-  weight: number;
-  restriction: string;
+  height: number | undefined;  // Alterado para 'undefined'
+  weight: number | undefined;  // Alterado para 'undefined'
+  restriction: string | null;
+  age?: number;
+  imc?: string | null;
 }
 
 export default function NutritionScreen() {

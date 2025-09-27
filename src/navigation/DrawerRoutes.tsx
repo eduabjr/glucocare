@@ -1,11 +1,7 @@
-import React from "react";
 import { createDrawerNavigator, DrawerNavigationProp } from "@react-navigation/drawer";
 import { MaterialIcons } from "@expo/vector-icons";
-import { TouchableOpacity, Platform, StatusBar } from "react-native";
+import { Platform, StatusBar } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-// Drawer customizado
-import CustomDrawer from "./CustomDrawer";
 
 // Telas
 import DashboardScreen from "../screens/DashboardScreen";
@@ -15,6 +11,10 @@ import ChartsScreen from "../screens/ChartsScreen";
 import NutritionScreen from "../screens/NutritionScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import ProfileSetupScreen from "../screens/ProfileSetupScreen";
+
+// Drawer customizado
+import CustomDrawer from "./CustomDrawer";
+import MenuButton from "../components/MenuButton";  // Ajuste o caminho conforme necessário
 
 // Tipagem do Drawer Navigator
 type DrawerParamList = {
@@ -27,58 +27,26 @@ type DrawerParamList = {
   ProfileSetup: undefined;
 };
 
-// Tipagem do componente MenuButton
-type MenuButtonProps = {
-  navigation: DrawerNavigationProp<DrawerParamList>; // Tipagem do navigation
-};
-
 const Drawer = createDrawerNavigator<DrawerParamList>();
 
-// Botão de menu no header
-function MenuButton({ navigation }: MenuButtonProps) {
-  return (
-    <TouchableOpacity onPress={() => navigation.openDrawer()}>
-      <MaterialIcons
-        name="menu"
-        size={26}
-        color="#fff"
-        style={{ marginLeft: 12 }}
-      />
-    </TouchableOpacity>
-  );
-}
-
-// Tipagem para os ícones do drawer
-type IconName = 
-  | "dashboard"
-  | "add-circle-outline"
-  | "bluetooth"
-  | "show-chart"
-  | "restaurant-menu"
-  | "settings"
-  | "person";
-
-// Helper para ícones do drawer
-const drawerIcon = (name: IconName) => ({ color, size }: { color: string; size: number }) => (
-  <MaterialIcons name={name} color={color} size={size} />
-);
-
-export default function DrawerRoutes() {
+function DrawerRoutes({ onLogout }: { onLogout: () => void }) {
   const insets = useSafeAreaInsets();
 
   return (
     <Drawer.Navigator
-      drawerContent={(props) => <CustomDrawer {...props} />}
+      drawerContent={(props) => (
+        <CustomDrawer
+          {...props}
+          onLogout={onLogout}
+          navigation={props.navigation as unknown as DrawerNavigationProp<DrawerParamList>}
+        />
+      )}
       screenOptions={({ navigation }) => ({
         headerStyle: {
           backgroundColor: "#2563eb",
           elevation: 4,
           shadowOpacity: 0.2,
-          height:
-            56 +
-            (Platform.OS === "android"
-              ? StatusBar.currentHeight ?? 0
-              : insets.top),
+          height: 56 + (Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : insets.top),
         },
         headerTintColor: "#fff",
         headerTitleStyle: { fontWeight: "700", fontSize: 18 },
@@ -95,7 +63,6 @@ export default function DrawerRoutes() {
         component={DashboardScreen}
         options={{
           title: "Dashboard",
-          drawerIcon: drawerIcon("dashboard"),
         }}
       />
       <Drawer.Screen
@@ -103,7 +70,6 @@ export default function DrawerRoutes() {
         component={AddReadingScreen}
         options={{
           title: "Nova Medição",
-          drawerIcon: drawerIcon("add-circle-outline"),
         }}
       />
       <Drawer.Screen
@@ -111,7 +77,6 @@ export default function DrawerRoutes() {
         component={DeviceConnectionScreen}
         options={{
           title: "Conectar Dispositivo",
-          drawerIcon: drawerIcon("bluetooth"),
         }}
       />
       <Drawer.Screen
@@ -119,7 +84,6 @@ export default function DrawerRoutes() {
         component={ChartsScreen}
         options={{
           title: "Gráficos",
-          drawerIcon: drawerIcon("show-chart"),
         }}
       />
       <Drawer.Screen
@@ -127,7 +91,6 @@ export default function DrawerRoutes() {
         component={NutritionScreen}
         options={{
           title: "Alimentação",
-          drawerIcon: drawerIcon("restaurant-menu"),
         }}
       />
       <Drawer.Screen
@@ -135,7 +98,6 @@ export default function DrawerRoutes() {
         component={SettingsScreen}
         options={{
           title: "Configurações",
-          drawerIcon: drawerIcon("settings"),
         }}
       />
       <Drawer.Screen
@@ -143,9 +105,10 @@ export default function DrawerRoutes() {
         component={ProfileSetupScreen}
         options={{
           title: "Perfil",
-          drawerIcon: drawerIcon("person"),
         }}
       />
     </Drawer.Navigator>
   );
 }
+
+export default DrawerRoutes;

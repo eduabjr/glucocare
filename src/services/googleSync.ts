@@ -69,6 +69,9 @@ async function uploadReadingsToDrive(accessToken: string): Promise<boolean> {
       if (searchData.files && searchData.files.length > 0) {
         fileId = searchData.files[0].id;
       }
+    } else {
+      // Aqui você pode tratar se a busca falhar, como uma falha na API
+      throw new Error(`Falha ao buscar arquivos no Drive. Status: ${searchResp.status}`);
     }
 
     // Decide se cria ou atualiza o arquivo

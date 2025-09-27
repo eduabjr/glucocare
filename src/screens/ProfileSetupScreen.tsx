@@ -1,5 +1,5 @@
 import 'react-native-get-random-values';
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react'; // Removido importação do React
 import {
   View,
   Text,
@@ -12,22 +12,39 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { Feather } from '@expo/vector-icons';
-import { initDB, saveOrUpdateUser, getUser } from '../services/dbService';
+import { initDB, saveOrUpdateUser, getUser } from '../services/dbService'; 
 import { v4 as uuidv4 } from 'uuid';
 import GoogleSyncService from '../services/googleSync';
 
-// Tipagem para o perfil do usuário
-interface Profile {
+interface UserProfile {
   id: string;
   name: string;
   birthDate: string;
   condition: string;
-  height: number;
-  weight: number;
-  restriction: string[];
+  height: number | null; 
+  weight: number | null; 
+  restriction: string; 
+  email: string; 
+  googleId: string; 
+  onboardingCompleted: boolean;
+  biometricEnabled: boolean;
+}
+
+interface SecureStoreProfile {
+  id?: string;
+  name?: string;
+  birthDate?: string;
+  condition?: string;
+  height?: number; 
+  weight?: number; 
+  restriction?: string;
+  email?: string;
+  googleId?: string;
+  onboardingCompleted?: boolean;
+  biometricEnabled?: boolean;
 }
 
 export default function ProfileSetupScreen({ navigation }: { navigation: any }) {
@@ -36,8 +53,8 @@ export default function ProfileSetupScreen({ navigation }: { navigation: any }) 
   const [birthDate, setBirthDate] = useState<Date>(new Date(1990, 0, 1));
   const [showDate, setShowDate] = useState<boolean>(false);
   const [condition, setCondition] = useState<string>('');
-  const [height, setHeight] = useState<string>('');
-  const [weight, setWeight] = useState<string>('');
+  const [height, setHeight] = useState<string>('');  
+  const [weight, setWeight] = useState<string>('');  
   const [restrictions, setRestrictions] = useState<string[]>([]);
 
   const restrictionOptions = [
@@ -50,7 +67,6 @@ export default function ProfileSetupScreen({ navigation }: { navigation: any }) 
     'Frutos Secos',
   ];
 
-  // Carregar perfil existente
   useEffect(() => {
     (async () => {
       try {
@@ -59,23 +75,39 @@ export default function ProfileSetupScreen({ navigation }: { navigation: any }) 
 
         if (user) {
           setUserId(user.id);
-          setName(user.name || '');
-          setBirthDate(user.birthDate ? new Date(user.birthDate) : new Date(1990, 0, 1));
-          setCondition(user.condition || '');
-          setHeight(user.height ? String(user.height) : '');
-          setWeight(user.weight ? String(user.weight) : '');
-          setRestrictions(user.restriction ? user.restriction.split(',') : []);
+          setName(user.name); 
+
+          const dateString = user.birthDate;
+          setBirthDate(dateString ? new Date(dateString) : new Date(1990, 0, 1));
+
+          setCondition(user.condition);
+
+          setHeight(user.height !== null ? String(user.height) : ''); 
+          setWeight(user.weight !== null ? String(user.weight) : '');   
+          
+          const userRestrictions = user.restriction;
+          setRestrictions(userRestrictions.split(',').filter(r => r));
+            
         } else {
           const saved = await SecureStore.getItemAsync('user_profile');
           if (saved) {
-            const profile = JSON.parse(saved);
-            setUserId(profile.id || uuidv4());
-            setName(profile.name || '');
-            setBirthDate(profile.birthDate ? new Date(profile.birthDate) : new Date(1990, 0, 1));
-            setCondition(profile.condition || '');
-            setHeight(profile.height ? String(profile.height) : '');
-            setWeight(profile.weight ? String(profile.weight) : '');
-            setRestrictions(profile.restriction ? profile.restriction.split(',') : []);
+            const profile: SecureStoreProfile = JSON.parse(saved); 
+            
+            // Verificação explícita de undefined
+            setUserId(profile.id !== undefined ? profile.id : uuidv4()); // Se profile.id for undefined, usa uuidv4()
+            setName(profile.name !== undefined ? profile.name : ''); // Se profile.name for undefined, usa string vazia
+            
+            const dateSaved = profile.birthDate;
+            setBirthDate(dateSaved ? new Date(dateSaved) : new Date(1990, 0, 1));
+            
+            setCondition(profile.condition !== undefined ? profile.condition : ''); // Se profile.condition for undefined, usa string vazia
+
+            setHeight(profile.height ? String(profile.height) : '');  
+            setWeight(profile.weight ? String(profile.weight) : '');   
+            
+            const savedRestrictions = profile.restriction ?? '';
+            setRestrictions(savedRestrictions.split(',').filter(r => r));
+
           } else {
             setUserId(uuidv4());
           }
@@ -86,47 +118,70 @@ export default function ProfileSetupScreen({ navigation }: { navigation: any }) 
     })();
   }, []);
 
-  // Alternar restrição alimentar
   const toggleRestriction = (item: string) => {
     setRestrictions((prev) =>
       prev.includes(item) ? prev.filter((r) => r !== item) : [...prev, item]
     );
   };
 
-  // Salvar perfil
+  const parsedHeight = height ? Number(height) : 0;  
+  const parsedWeight = weight ? Number(weight) : 0;  
+
+  const handleDateInputChange = (text: string) => {
+    const parts = text.split('/');
+    if (parts.length === 3) {
+      const dia = parseInt(parts[0], 10);
+      const mes = parseInt(parts[1], 10);
+      const ano = parseInt(parts[2], 10);
+        
+      if (!isNaN(dia) && !isNaN(mes) && !isNaN(ano)) {
+        const novaData = new Date(ano, mes - 1, dia);
+        if (!isNaN(novaData.getTime())) {
+          setBirthDate(novaData);
+        }
+      }
+    }
+  };
+
+  const onDateChange = (_event: DateTimePickerEvent, selected: Date | undefined) => {
+    setShowDate(false);
+    if (selected) {
+      setBirthDate(selected);
+    }
+  };
+
   const handleSave = async () => {
     try {
-      // Validações
       if (!name.trim()) return Alert.alert('Erro', 'Digite seu nome.');
       if (!birthDate || isNaN(birthDate.getTime()))
         return Alert.alert('Erro', 'Informe sua data de nascimento.');
       if (!condition) return Alert.alert('Erro', 'Selecione sua condição.');
-      if (!height.trim() || isNaN(Number(height)) || Number(height) < 50 || Number(height) > 250)
-        return Alert.alert('Erro', 'Altura inválida (use cm).');
-      if (!weight.trim() || isNaN(Number(weight)) || Number(weight) <= 0)
-        return Alert.alert('Erro', 'Peso inválido.');
+      if (parsedHeight <= 0 || isNaN(parsedHeight)) return Alert.alert('Erro', 'Altura inválida (use cm).');
+      if (parsedWeight <= 0 || isNaN(parsedWeight)) return Alert.alert('Erro', 'Peso inválido.');
 
-      const profile: Profile = {
+      const profile: UserProfile = {
         id: userId || uuidv4(),
         name: name.trim(),
         birthDate: birthDate.toISOString(),
         condition,
-        height: Number(height),
-        weight: Number(weight),
-        restriction: restrictions,
+        height: parsedHeight,
+        weight: parsedWeight,
+        restriction: restrictions.join(','), 
+        email: 'user@example.com',  
+        googleId: 'google-1234',  
+        
+        onboardingCompleted: false,  
+        biometricEnabled: false,  
       };
 
       const savedUser = await saveOrUpdateUser(profile);
       await SecureStore.setItemAsync('user_profile', JSON.stringify(savedUser));
 
-      // 🛑 LINHAS CORRIGIDAS/VERIFICADAS 🛑
       try {
         const token = await SecureStore.getItemAsync('google_token');
-        // A função é chamada no objeto importado.
         if (token && GoogleSyncService && typeof GoogleSyncService.uploadReadingsToDrive === 'function') {
-          await GoogleSyncService.uploadReadingsToDrive(token);
+          await GoogleSyncService.uploadReadingsToDrive(token); 
         } else if (token) {
-          // A função não é acessível, logamos para debug
           console.warn('GoogleSyncService ou uploadReadingsToDrive não é uma função.');
         }
       } catch (err) {
@@ -175,18 +230,7 @@ export default function ProfileSetupScreen({ navigation }: { navigation: any }) 
               placeholder="DD/MM/AAAA"
               keyboardType="numeric"
               value={birthDate.toLocaleDateString('pt-BR')}
-              onChangeText={(text) => {
-                const parts = text.split('/');
-                if (parts.length === 3) {
-                  const [dia, mes, ano] = parts.map((p) => parseInt(p, 10));
-                  if (!isNaN(dia) && !isNaN(mes) && !isNaN(ano)) {
-                    const novaData = new Date(ano, mes - 1, dia);
-                    if (!isNaN(novaData.getTime())) {
-                      setBirthDate(novaData);
-                    }
-                  }
-                }
-              }}
+              onChangeText={handleDateInputChange} 
             />
             <TouchableOpacity onPress={() => setShowDate(true)}>
               <Feather name="calendar" size={20} color="#2563eb" />
@@ -197,10 +241,7 @@ export default function ProfileSetupScreen({ navigation }: { navigation: any }) 
               value={birthDate}
               mode="date"
               display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              onChange={(event, selected) => {
-                setShowDate(false);
-                if (selected) setBirthDate(selected);
-              }}
+              onChange={onDateChange} 
             />
           )}
 
