@@ -1,0 +1,13 @@
+# Pastas de dependências
+node_modules/
+
+# Logs e arquivos de cache
+npm-debug.log*
+yarn-error.log
+
+# Arquivos de IDE (VS Code)
+.vscode/
+
+# Builds e pacotes
+/android/build/
+/ios/build/
