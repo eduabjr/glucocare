@@ -1,0 +1,46 @@
+{
+  "compilerOptions": {
+    // Layout de Arquivos
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    // Configurações do Ambiente
+    "module": "nodenext", 
+    "target": "esnext", 
+    "types": ["react", "react-native"], // Tipos para React e React Native
+    "jsx": "react-jsx", // JSX moderno
+
+    // Outras Saídas
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+
+    // Opções de Typechecking mais rigorosas
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    // Opções de Estilo
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+
+    // Opções recomendadas
+    "strict": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "nodeNext", // Corrigido aqui
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "src/**/*" // Certifique-se de que sua pasta src existe
+  ],
+  "exclude": [
+    "node_modules" // Excluir node_modules para não ser processado
+  ]
+}
