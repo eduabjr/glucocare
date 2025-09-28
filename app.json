@@ -15,6 +15,9 @@
 
     "assetBundlePatterns": ["**/*"],
 
+    
+    "scheme": "glucocare", 
+
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.eduabjr.glucocare",

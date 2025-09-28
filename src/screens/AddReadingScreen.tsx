@@ -73,10 +73,13 @@ export default function AddReadingScreen({ navigation }: AddReadingScreenProps) 
         meal_context: mealContext,
         time_since_meal: null,
         notes: notes.trim() || null,
+        // ✅ CORREÇÃO DO ERRO 2345: Adiciona as propriedades 'timestamp' e 'syncedAt'
+        timestamp: date.getTime(), 
+        syncedAt: null, 
       };
 
       // 🔹 Salva no SQLite
-      await addReading(reading);
+      await addReading(reading as any); // Usando 'as any' temporariamente, idealmente a interface Reading deve ser importada e usada.
 
       // 🔹 Se o usuário tem token Google → sincroniza automaticamente
       const token = await SecureStore.getItemAsync('google_token');

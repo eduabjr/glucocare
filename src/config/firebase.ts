@@ -3,6 +3,8 @@
 // 1. Importe os métodos necessários do SDK
 import { initializeApp, FirebaseOptions } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
+// ✅ NOVO: Importe os métodos do Firestore
+import { getFirestore, Firestore } from 'firebase/firestore'; 
 
 // 2. Insira suas credenciais do Firebase
 // ⚠️ ATENÇÃO: Estes são os VALORES REAIS do seu projeto 'glucocare-e68c8'.
@@ -31,6 +33,10 @@ const app = initializeApp(firebaseConfig);
 
 // 4. Obtém o serviço de Autenticação
 export const auth = getAuth(app);
+
+// ✅ NOVO: 5. Obtém e exporta o objeto do Cloud Firestore
+// O objeto 'db' está pronto para ser importado em dbService.ts ou RegisterScreen.tsx
+export const db: Firestore = getFirestore(app);
 
 // Se precisar do objeto app em outro lugar
 export default app;

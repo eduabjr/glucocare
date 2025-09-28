@@ -8,24 +8,26 @@ import Constants from "expo-constants";
 WebBrowser.maybeCompleteAuthSession();
 
 // ----------------------------------------------------
-// AuthService Class
+// AuthService - Abordagem Funcional (Contorno para TS4094)
 // ----------------------------------------------------
 
-// CORREÇÃO TS4094: Exportar a classe garante que o TypeScript reconheça 
-// corretamente o tipo, independentemente dos modificadores de acesso.
-export class AuthService {
-    // Mantido público para corresponder ao seu último código
-    public ensureCodeIsSetupAsync() {
-        console.log('Configurando o código...');
-    }
-
-    public setupAsync() {
-        this.ensureCodeIsSetupAsync(); // Chama a função pública internamente
-    }
+/**
+ * Função interna que antes era o método privado.
+ */
+function ensureCodeIsSetupAsync() {
+    console.log('Configurando o código...');
 }
 
-// Exportando a instância da classe AuthService para uso fácil
-export const authService = new AuthService();
+/**
+ * Serviço de Autenticação exposto como um objeto simples (Singleton Funcional).
+ * Isso elimina os problemas de tipagem de classes anônimas exportadas.
+ */
+export const authService = {
+    // Este é o método público que será chamado externamente.
+    setupAsync() {
+        ensureCodeIsSetupAsync(); // Chama a função interna
+    },
+};
 
 // ----------------------------------------------------
 // Google Auth Hook

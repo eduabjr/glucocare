@@ -15,7 +15,6 @@ import * as SecureStore from 'expo-secure-store';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { Feather } from '@expo/vector-icons';
-// 🚀 CORREÇÃO PRINCIPAL: Importar UserProfile
 import { initDB, saveOrUpdateUser, getUser, UserProfile } from '../services/dbService'; 
 import { v4 as uuidv4 } from 'uuid';
 import GoogleSyncService from '../services/googleSync';
@@ -24,11 +23,7 @@ import { RootStackParamList } from '../navigation/RootNavigator';
 
 type ProfileSetupScreenProps = NativeStackScreenProps<RootStackParamList, 'ProfileSetup'>;
 
-// 🛑 REMOVIDO: A definição da interface UserProfile localmente. 
-// Ela agora é importada do dbService.
-
-// Manter SecureStoreProfile tipado localmente, pois reflete os dados salvos em SecureStore, 
-// que podem ser incompletos (undefined)
+// Reflete os dados potencialmente incompletos salvos no SecureStore
 interface SecureStoreProfile {
     id?: string;
     name?: string;
@@ -39,12 +34,13 @@ interface SecureStoreProfile {
     restriction?: string;
     email?: string;
     googleId?: string;
-    provider?: 'manual' | 'google'; 
-    onboardingCompleted?: boolean;
-    biometricEnabled?: boolean;
+    // Removido 'provider' e 'biometricEnabled' daqui para evitar confusão se eles não forem salvos no DB
+    // provider?: 'manual' | 'google'; 
+    // onboardingCompleted?: boolean; // Mantendo apenas o que realmente é necessário para carregar
+    // biometricEnabled?: boolean;
 }
 
-// Criar uma interface para o objeto de rascunho de perfil (antes de normalizar)
+// Rascunho de perfil usado internamente, permitindo googleId opcional/nulo antes da persistência
 interface DraftProfile {
     id: string;
     name: string;
@@ -54,9 +50,10 @@ interface DraftProfile {
     weight: number | null; 
     restriction: string; 
     email: string;
-    googleId: string | null; // Permite null no rascunho
+    googleId: string | null; 
     onboardingCompleted: boolean;
     biometricEnabled: boolean;
+    syncedAt: string; // Adicionado 'syncedAt'
 }
 
 export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenProps) {
@@ -67,8 +64,8 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
     const [birthDate, setBirthDate] = useState<Date>(new Date(1990, 0, 1));
     const [showDate, setShowDate] = useState<boolean>(false);
     const [condition, setCondition] = useState<string>('');
-    const [height, setHeight] = useState<string>('');  
-    const [weight, setWeight] = useState<string>('');  
+    const [height, setHeight] = useState<string>(''); 
+    const [weight, setWeight] = useState<string>(''); 
     const [restrictions, setRestrictions] = useState<string[]>([]);
 
     const restrictionOptions = [
@@ -88,22 +85,23 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                 const user = await getUser();
 
                 if (user) {
-                    // Os dados do DB já são UserProfile (googleId: string)
+                    // Carrega do DB (UserProfile)
                     setUserId(user.id);
                     setName(user.name); 
                     setEmail(user.email);
-                    setGoogleId(user.googleId); // user.googleId é string ('')
+                    setGoogleId(user.googleId || null);
                     
                     const dateString = user.birthDate;
                     setBirthDate(dateString ? new Date(dateString) : new Date(1990, 0, 1));
                     setCondition(user.condition);
                     setHeight(user.height !== null ? String(user.height) : ''); 
-                    setWeight(user.weight !== null ? String(user.weight) : '');   
+                    setWeight(user.weight !== null ? String(user.weight) : ''); 
                     
                     const userRestrictions = user.restriction;
                     setRestrictions(userRestrictions.split(',').filter(r => r));
                         
                 } else {
+                    // Tenta carregar do SecureStore
                     const saved = await SecureStore.getItemAsync('user_profile');
                     if (saved) {
                         const profile: SecureStoreProfile = JSON.parse(saved); 
@@ -111,14 +109,14 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                         setUserId(profile.id ?? uuidv4()); 
                         setName(profile.name ?? ''); 
                         setEmail(profile.email ?? ''); 
-                        setGoogleId(profile.googleId ?? null); // Permite null/undefined virar null aqui
+                        setGoogleId(profile.googleId ?? null);
                         
                         const dateSaved = profile.birthDate;
                         setBirthDate(dateSaved ? new Date(dateSaved) : new Date(1990, 0, 1));
                         
                         setCondition(profile.condition ?? ''); 
-                        setHeight(profile.height ? String(profile.height) : '');  
-                        setWeight(profile.weight ? String(profile.weight) : '');   
+                        setHeight(profile.height ? String(profile.height) : ''); 
+                        setWeight(profile.weight ? String(profile.weight) : ''); 
                         
                         const savedRestrictions = profile.restriction ?? '';
                         setRestrictions(savedRestrictions.split(',').filter(r => r));
@@ -128,7 +126,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                     }
                 }
             } catch (err) {
-                console.error('Erro init profile:', err);
+                console.error('Erro ao inicializar perfil:', err);
                 setUserId(uuidv4());
             }
         })();
@@ -140,8 +138,8 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
         );
     };
 
-    const parsedHeight = height ? Number(height.replace(',', '.')) : 0;  
-    const parsedWeight = weight ? Number(weight.replace(',', '.')) : 0;  
+    const parsedHeight = height ? Number(height.replace(',', '.')) : 0; 
+    const parsedWeight = weight ? Number(weight.replace(',', '.')) : 0; 
 
     const onDateChange = (_event: DateTimePickerEvent, selected: Date | undefined) => {
         setShowDate(false);
@@ -159,9 +157,13 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
             if (parsedHeight <= 0 || isNaN(parsedHeight)) return Alert.alert('Erro', 'Altura inválida (use cm).');
             if (parsedWeight <= 0 || isNaN(parsedWeight)) return Alert.alert('Erro', 'Peso inválido.');
 
-            const finalEmail = email.trim() || await SecureStore.getItemAsync('registered_email') || 'placeholder@app.com';
+            const registeredEmail = await SecureStore.getItemAsync('registered_email');
+            const finalEmail = email.trim() || registeredEmail || 'placeholder@app.com';
+            
+            // Define a data de sincronização atual (necessária pelo UserProfile)
+            const currentSyncedAt = new Date().toISOString(); 
 
-            // 🚀 AJUSTE CRÍTICO: Cria-se um rascunho (DraftProfile) que permite googleId: string | null.
+            // 1. Cria o rascunho (DraftProfile: googleId pode ser null)
             const draftProfile: DraftProfile = {
                 id: userId || uuidv4(),
                 name: name.trim(),
@@ -171,36 +173,35 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                 weight: parsedWeight,
                 restriction: restrictions.join(','), 
                 email: finalEmail, 
-                googleId: googleId, // Pode ser null aqui
-                
+                googleId: googleId, 
                 onboardingCompleted: true, 
-                biometricEnabled: false,  
+                biometricEnabled: false, 
+                syncedAt: currentSyncedAt, // Inicializa 'syncedAt'
             };
 
-            // 🚀 AJUSTE FINAL: Normaliza o googleId para string ('') antes de passar para saveOrUpdateUser, 
-            // satisfazendo a interface UserProfile importada do dbService (onde googleId é string).
+            // 2. Normaliza para UserProfile (UserProfile.googleId é string).
             const profileToSave: UserProfile = {
                 ...draftProfile,
-                email: draftProfile.email,
-                googleId: draftProfile.googleId ?? '', // Garante que é string
+                height: draftProfile.height ?? 0, // Garante que height é number
+                weight: draftProfile.weight ?? 0, // Garante que weight é number
+                googleId: draftProfile.googleId ?? '', // Garante que googleId é string
             }
-
-            const savedUser = await saveOrUpdateUser(profileToSave);
             
-            // ... (Resto do código de salvamento e navegação)
+            // Usamos o objeto que tem apenas as propriedades permitidas por UserProfile
+            // Nota: O TypeScript agora deve estar feliz se 'UserProfile' inclui
+            // 'id', 'name', 'birthDate', 'condition', 'height', 'weight', 'restriction', 
+            // 'email', 'googleId', 'onboardingCompleted', 'biometricEnabled', e 'syncedAt'.
+            const savedUser = await saveOrUpdateUser(profileToSave);
             
             if (typeof savedUser !== 'boolean') {
                  await SecureStore.setItemAsync('user_profile', JSON.stringify(savedUser));
             }
 
-
-            // Lógica de sincronização do Google Drive (inalterada)
+            // Lógica de sincronização do Google Drive
             try {
                 const token = await SecureStore.getItemAsync('google_token');
                 if (token && GoogleSyncService && typeof GoogleSyncService.uploadReadingsToDrive === 'function') {
                     await GoogleSyncService.uploadReadingsToDrive(token); 
-                } else if (token) {
-                    console.warn('GoogleSyncService ou uploadReadingsToDrive não é uma função.');
                 }
             } catch (err) {
                 console.warn('Falha ao sincronizar perfil (erro de execução do Drive):', err);
@@ -267,6 +268,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                     <View style={styles.inputWrapper}>
                         <Feather name="list" size={18} color="#9ca3af" style={styles.inputIcon} />
                         {Platform.OS === 'ios' ? (
+                            // Wrapper de texto para iOS
                             <TextInput
                                 style={styles.input}
                                 placeholder="Selecione a Condição"

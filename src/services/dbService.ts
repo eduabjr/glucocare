@@ -1,48 +1,63 @@
 import * as SQLite from 'expo-sqlite';
+// ✅ CORREÇÃO 1: Importação ajustada para o caminho mais provável
+import { db, auth } from '../config/firebase'; 
+import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore'; 
+import { User as FirebaseAuthUser } from 'firebase/auth'; 
+// ✅ CORREÇÃO 2: Importe a tipagem para transação do SQLite
+import { SQLTransaction, SQLResultSetRowList } from 'expo-sqlite'; 
 
 // Definindo o nome do banco
 const DB_NAME = 'glucocare.db';
-let db: SQLite.Database | null = null;
+let dbInstance: SQLite.Database | null = null; 
 
-// Tipo para um usuário
-// CORREÇÃO: name, email, googleId são estritamente 'string' para satisfazer o ProfileSetupScreen.
-// A lógica de normalização (normalizeUserRow) garante que os valores NULL do DB se tornem '' (string vazia).
+// ----------------------
+// TIPAGEM
+// ----------------------
+
 export interface UserProfile {
     id: string;
-    name: string; // Estritamente string
-    email: string; // Estritamente string
-    googleId: string; // Estritamente string
+    name: string;
+    email: string;
+    googleId: string;
     onboardingCompleted: boolean;
     biometricEnabled: boolean;
     weight: number | null;
     height: number | null;
-    birthDate: string; // Estritamente string
-    condition: string; // Estritamente string
-    restriction: string; // Estritamente string
+    birthDate: string;
+    condition: string;
+    restriction: string;
+    syncedAt: string | null;
 }
 
-// Tipo para uma leitura
+/**
+ * Interface de Leitura adaptada para o uso da propriedade 'timestamp'
+ * para importação de arquivos (usada no fileParsingService).
+ */
 export interface Reading {
     id: string;
-    measurement_time: string;
+    // Campo usado para salvar no SQLite (ISO string)
+    measurement_time: string; 
+    // Novo campo: Usado pelo parser de arquivos (milissegundos UNIX)
+    timestamp: number; 
     glucose_level: number;
     meal_context: string | null;
     time_since_meal: string | null;
     notes: string | null;
+    syncedAt: string | null; 
 }
 
 // ----------------------
-// FUNÇÕES DE SERVIÇO
+// FUNÇÕES DE SERVIÇO BÁSICAS
 // ----------------------
 
 /**
  * Retorna instância única do DB
  */
 export function getDB(): SQLite.Database {
-    if (!db) {
-        db = SQLite.openDatabase(DB_NAME);
+    if (!dbInstance) {
+        dbInstance = SQLite.openDatabase(DB_NAME);
     }
-    return db;
+    return dbInstance;
 }
 
 /**
@@ -53,7 +68,7 @@ export async function initDB(): Promise<boolean> {
         const database = getDB();
 
         database.transaction(
-            (tx) => {
+            (tx: SQLTransaction) => { // Tx tipado
                 // Usuários
                 tx.executeSql(
                     `CREATE TABLE IF NOT EXISTS users (
@@ -67,7 +82,8 @@ export async function initDB(): Promise<boolean> {
                         height REAL,
                         birth_date TEXT,
                         diabetes_condition TEXT,
-                        restriction TEXT
+                        restriction TEXT,
+                        synced_at TEXT DEFAULT NULL 
                     );`
                 );
 
@@ -79,7 +95,8 @@ export async function initDB(): Promise<boolean> {
                         glucose_level REAL,
                         meal_context TEXT,
                         time_since_meal TEXT,
-                        notes TEXT
+                        notes TEXT,
+                        synced_at TEXT DEFAULT NULL 
                     );`
                 );
 
@@ -103,14 +120,13 @@ export async function initDB(): Promise<boolean> {
     });
 }
 
-/**
- * Normaliza linha de usuário -> objeto usado no app
- * Garante que todas as propriedades 'string' sejam strings, convertendo NULL para ''
- */
+// ----------------------
+// FUNÇÕES DE NORMALIZAÇÃO
+// ----------------------
+
 function normalizeUserRow(row: any): UserProfile {
     return {
         id: row.id,
-        // Usamos Nullish coalescing (??) para pegar null ou undefined, e convertemos para string
         name: String(row.full_name ?? ''), 
         email: String(row.email ?? ''), 
         googleId: String(row.google_id ?? ''), 
@@ -120,30 +136,170 @@ function normalizeUserRow(row: any): UserProfile {
         height: row.height ?? null, 
         birthDate: String(row.birth_date ?? ''), 
         condition: String(row.diabetes_condition ?? ''), 
-        restriction: String(row.restriction ?? ''), 
+        restriction: String(row.restriction ?? ''),
+        syncedAt: row.synced_at ?? null, 
     };
 }
 
+function normalizeReadingRow(row: any): Reading {
+    // 💡 Ao normalizar do SQLite, preenchemos o timestamp para ser consistente
+    const timestamp = row.measurement_time ? new Date(row.measurement_time).getTime() : Date.now();
+    
+    return {
+        id: row.id,
+        measurement_time: String(row.measurement_time),
+        timestamp: timestamp, // Preenchemos o campo timestamp a partir da string
+        glucose_level: row.glucose_level,
+        meal_context: row.meal_context ?? null,
+        time_since_meal: row.time_since_meal ?? null,
+        notes: row.notes ?? null,
+        syncedAt: row.synced_at ?? null, 
+    };
+}
+
+// ----------------------
+// FUNÇÕES DE SINCRONIZAÇÃO (FIREBASE)
+// ----------------------
+
 /**
- * Salvar ou atualizar usuário
- * Retorna UserProfile ou false (se a busca por getUser falhar após a transação)
+ * Retorna o UID do usuário logado no Firebase Auth.
+ */
+function getFirebaseUID(): string | null {
+    return auth.currentUser?.uid || null;
+}
+
+/**
+ * Sincroniza o objeto UserProfile com o Cloud Firestore.
+ */
+export async function syncUserProfileToFirestore(profile: UserProfile): Promise<void> {
+    const uid = getFirebaseUID();
+
+    if (!uid) {
+        console.warn("Usuário não autenticado no Firebase. Sincronização de perfil ignorada.");
+        return;
+    }
+
+    try {
+        const userRef = doc(db, 'users', uid);
+
+        const profileData = {
+            full_name: profile.name,
+            email: profile.email,
+            google_id: profile.googleId,
+            onboarding_completed: profile.onboardingCompleted,
+            biometric_enabled: profile.biometricEnabled,
+            weight: profile.weight,
+            height: profile.height,
+            birth_date: profile.birthDate,
+            diabetes_condition: profile.condition,
+            restriction: profile.restriction,
+            syncedAt: serverTimestamp(), 
+        };
+
+        await setDoc(userRef, profileData, { merge: true });
+
+        // Atualiza a marca d'água de sincronização no SQLite
+        await new Promise<void>((resolve, reject) => {
+            getDB().transaction(
+                (tx: SQLTransaction) => { 
+                    tx.executeSql(
+                        `UPDATE users SET synced_at = ? WHERE id = ?;`,
+                        [new Date().toISOString(), profile.id],
+                        () => resolve(), 
+                        (_, err) => { reject(err); return false; } 
+                    );
+                },
+                (err) => reject(err), 
+                () => resolve() 
+            );
+        });
+
+        console.log(`Perfil do usuário ${uid} sincronizado no Firestore.`);
+    } catch (error) {
+        console.error("Erro ao sincronizar perfil do usuário com Firestore:", error);
+        throw error;
+    }
+}
+
+
+/**
+ * Sincroniza o objeto Reading com o Cloud Firestore.
+ */
+export async function syncReadingToFirestore(reading: Reading): Promise<void> {
+    const uid = getFirebaseUID();
+
+    if (!uid) {
+        console.warn("Usuário não autenticado no Firebase. Sincronização de leitura ignorada.");
+        return;
+    }
+
+    try {
+        const readingRef = doc(db, 'users', uid, 'readings', reading.id);
+        
+        // 💡 CONVERSÃO: O Firestore deve usar a hora Unix (number) ou o ISO String.
+        // Já que a interface Reading usa 'timestamp' (number) e 'measurement_time' (string),
+        // vamos usar o 'timestamp' para o Firestore, que é mais fácil de ordenar.
+        const readingData = {
+            id: reading.id,
+            glucose_level: reading.glucose_level,
+            meal_context: reading.meal_context,
+            time_since_meal: reading.time_since_meal,
+            notes: reading.notes,
+            timestamp: reading.timestamp, // Usa o timestamp (number)
+            measurement_time_iso: reading.measurement_time, // Guarda a string como referência
+            syncedAt: serverTimestamp(), 
+            userId: uid,
+        };
+        
+        await setDoc(readingRef, readingData);
+
+        // Atualiza a marca d'água de sincronização no SQLite
+        await new Promise<void>((resolve, reject) => {
+            getDB().transaction(
+                (tx: SQLTransaction) => {
+                    tx.executeSql(
+                        `UPDATE readings SET synced_at = ? WHERE id = ?;`,
+                        [new Date().toISOString(), reading.id],
+                        () => resolve(), 
+                        (_, err) => { reject(err); return false; } 
+                    );
+                },
+                (err) => reject(err), 
+                () => resolve() 
+            );
+        });
+
+        console.log(`Leitura ${reading.id} sincronizada no Firestore.`);
+    } catch (error) {
+        console.error("Erro ao sincronizar leitura com Firestore:", error);
+        throw error;
+    }
+}
+
+// ----------------------
+// FUNÇÕES DE MANIPULAÇÃO DE DADOS
+// ----------------------
+
+/**
+ * Salvar ou atualizar usuário (Chama Sincronização)
  */
 export async function saveOrUpdateUser(profile: UserProfile): Promise<UserProfile | boolean> {
     const database = getDB();
 
     return new Promise((resolve, reject) => {
         database.transaction(
-            (tx) => {
+            (tx: SQLTransaction) => {
+                // CORREÇÃO: Adiciona 'synced_at' à lista de colunas e parâmetros do INSERT OR REPLACE
                 tx.executeSql(
                     `INSERT OR REPLACE INTO users 
-                      (id, full_name, email, google_id, onboarding_completed, biometric_enabled,
-                       weight, height, birth_date, diabetes_condition, restriction)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+                     (id, full_name, email, google_id, onboarding_completed, biometric_enabled,
+                      weight, height, birth_date, diabetes_condition, restriction, synced_at)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`, // Adicionado um '?'
                     [
                         profile.id,
-                        profile.name || null, // Se for '' (string vazia), insere NULL no DB
-                        profile.email || null, // Se for '' (string vazia), insere NULL no DB
-                        profile.googleId || null, // Se for '' (string vazia), insere NULL no DB
+                        profile.name || null,
+                        profile.email || null,
+                        profile.googleId || null,
                         profile.onboardingCompleted ? 1 : 0,
                         profile.biometricEnabled ? 1 : 0,
                         profile.weight || null,
@@ -151,6 +307,7 @@ export async function saveOrUpdateUser(profile: UserProfile): Promise<UserProfil
                         profile.birthDate || null, 
                         profile.condition || null, 
                         profile.restriction || null, 
+                        profile.syncedAt || null, // Novo parâmetro
                     ]
                 );
             },
@@ -160,17 +317,71 @@ export async function saveOrUpdateUser(profile: UserProfile): Promise<UserProfil
             },
             async () => {
                 try {
-                    // Pega o usuário recém-salvo e normaliza 
                     const user = await getUser(); 
                     if (user) {
-                        resolve(user); // retorna já normalizado e tipado corretamente
+                        // Chama a sincronização APÓS salvar localmente
+                        await syncUserProfileToFirestore(user); 
+                        resolve(user);
                     } else {
-                        resolve(false);  
+                        resolve(false); 
                     }
                 } catch (err) {
-                    // Se a busca falhar, ainda resolve (mas com false)
-                    console.error('saveOrUpdateUser - erro ao buscar usuário após salvar:', err);
-                    resolve(false);  
+                    console.error('saveOrUpdateUser - erro ao buscar ou sincronizar:', err);
+                    // Se a sincronização falhar, ainda consideramos o salvamento local um sucesso
+                    const user = await getUser();
+                    resolve(user || false); 
+                }
+            }
+        );
+    });
+}
+
+/**
+ * Inserir leitura (Chama Sincronização)
+ */
+export async function addReading(reading: Reading): Promise<boolean> {
+    const database = getDB();
+
+    // 💡 CONVERSÃO PRINCIPAL: Garante que a measurement_time seja uma string ISO
+    // usando o 'timestamp' (milissegundos) que vem do fileParsingService.
+    const isoTime = new Date(reading.timestamp).toISOString();
+    
+    // Sobrescreve o campo measurement_time na Reading antes de sincronizar/salvar
+    const readingToSave: Reading = {
+        ...reading,
+        measurement_time: isoTime,
+    };
+
+    return new Promise((resolve, reject) => {
+        database.transaction(
+            (tx: SQLTransaction) => {
+                tx.executeSql(
+                    `INSERT INTO readings 
+                         (id, measurement_time, glucose_level, meal_context, time_since_meal, notes)
+                         VALUES (?, ?, ?, ?, ?, ?)`,
+                    [
+                        readingToSave.id,
+                        readingToSave.measurement_time, // String ISO
+                        readingToSave.glucose_level,
+                        readingToSave.meal_context || null,
+                        readingToSave.time_since_meal || null,
+                        readingToSave.notes || null,
+                    ]
+                );
+            },
+            (err) => {
+                console.error('addReading - erro transaction:', err);
+                reject(err);
+            },
+            async () => {
+                try {
+                    // Chama a sincronização APÓS salvar localmente
+                    await syncReadingToFirestore(readingToSave); 
+                    resolve(true);
+                } catch (error) {
+                    // A falha na sincronização não impede o sucesso local
+                    console.warn('Atenção: Falha na sincronização da leitura. Salvo apenas localmente.');
+                    resolve(true);
                 }
             }
         );
@@ -184,16 +395,15 @@ export async function getUser(): Promise<UserProfile | null> {
     const database = getDB();
 
     return new Promise((resolve, reject) => {
-        database.transaction((tx) => {
+        database.transaction((tx: SQLTransaction) => {
             tx.executeSql(
                 `SELECT * FROM users LIMIT 1;`,
                 [],
-                (_, { rows }: { rows: SQLite.SQLResultSetRowList }) => {
+                (_, { rows }: { rows: SQLResultSetRowList }) => {
                     if (rows.length > 0) {
-                        // Chama normalizeUserRow que garante que strings são strings (não null/undefined)
                         resolve(normalizeUserRow(rows._array[0])); 
                     } else {
-                        resolve(null); // Resolve como null se não encontrar usuário
+                        resolve(null); 
                     }
                 },
                 (_, err) => {
@@ -207,38 +417,6 @@ export async function getUser(): Promise<UserProfile | null> {
 }
 
 /**
- * Inserir leitura
- */
-export async function addReading(reading: Reading): Promise<boolean> {
-    const database = getDB();
-
-    return new Promise((resolve, reject) => {
-        database.transaction(
-            (tx) => {
-                tx.executeSql(
-                    `INSERT INTO readings 
-                       (id, measurement_time, glucose_level, meal_context, time_since_meal, notes)
-                       VALUES (?, ?, ?, ?, ?, ?)`,
-                    [
-                        reading.id,
-                        reading.measurement_time,
-                        reading.glucose_level,
-                        reading.meal_context || null,
-                        reading.time_since_meal || null,
-                        reading.notes || null,
-                    ]
-                );
-            },
-            (err) => {
-                console.error('addReading - erro transaction:', err);
-                reject(err);
-            },
-            () => resolve(true)
-        );
-    });
-}
-
-/**
  * Listar leituras
  */
 export async function listReadings(): Promise<Reading[]> {
@@ -246,12 +424,14 @@ export async function listReadings(): Promise<Reading[]> {
 
     return new Promise((resolve, reject) => {
         database.transaction(
-            (tx) => {
+            (tx: SQLTransaction) => {
                 tx.executeSql(
                     `SELECT * FROM readings ORDER BY datetime(measurement_time) DESC;`,
                     [],
                     (_, result) => {
-                        resolve(result.rows._array || []);
+                        // Mapeia os resultados para o tipo Reading
+                        const readings = (result.rows._array || []).map(normalizeReadingRow);
+                        resolve(readings);
                     }
                 );
             },
@@ -271,12 +451,12 @@ export async function deleteReading(id: string): Promise<boolean> {
 
     return new Promise((resolve, reject) => {
         database.transaction(
-            (tx) => {
+            (tx: SQLTransaction) => {
                 tx.executeSql(
                     'DELETE FROM readings WHERE id = ?;',
                     [id],
                     (_, result) => {
-                        // Verifica se alguma linha foi afetada. Se rowsAffected for > 0, foi um sucesso.
+                        // Verifica se alguma linha foi afetada
                         resolve(result.rowsAffected > 0); 
                     },
                     (_, error) => {
@@ -291,7 +471,7 @@ export async function deleteReading(id: string): Promise<boolean> {
                 reject(error);
             },
             () => {
-                resolve(true); // Se a transação fechar sem erro SQL, considera sucesso
+                resolve(true);
             } 
         );
     });
