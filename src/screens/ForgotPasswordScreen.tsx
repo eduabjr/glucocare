@@ -10,20 +10,22 @@ import {
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-// 💡 Importe as tipagens necessárias do React Navigation e do seu AppNavigator
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../navigation/RootNavigator"; // Certifique-se de que este caminho está correto
+import { RootStackParamList } from "../navigation/RootNavigator"; // Confirme o caminho
+import { sendPasswordResetEmail } from "firebase/auth"; // ⚠️ Removida a importação incorreta de FirebaseError
+import { FirebaseError } from "firebase/app"; // 💡 Importação correta para tipagem do erro
 
-// 💡 Defina o tipo de props usando as tipagens importadas
+// 💡 Importa o objeto de autenticação configurado
+import { auth } from "../config/firebase";
+
 // O segundo argumento, 'ForgotPassword', especifica que esta tela é a rota "ForgotPassword"
 type ForgotPasswordScreenProps = NativeStackScreenProps<RootStackParamList, 'ForgotPassword'>;
-
 
 const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation }) => {
     const [email, setEmail] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(false);
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => { // ⚠️ Tornando a função assíncrona
         if (!email) {
             Alert.alert("Erro", "Por favor, insira um e-mail.");
             return;
@@ -38,13 +40,49 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
 
         setIsLoading(true);
 
-        // Aqui você pode integrar com sua lógica de envio de e-mail (API call)
-        setTimeout(() => {
-            setIsLoading(false);
-            Alert.alert("Link de redefinição enviado", "Verifique seu e-mail para redefinir a senha.");
-            // Volta para a tela de login após o envio (tipagem segura agora)
+        try {
+            // 🚀 FUNÇÃO REAL DO FIREBASE: Envia o e-mail de redefinição de senha
+            await sendPasswordResetEmail(auth, email.trim());
+
+            // Mensagem de sucesso (aparece mesmo se o e-mail não existir por motivos de segurança)
+            Alert.alert(
+                "Link de Redefinição Enviado", 
+                "Verifique seu e-mail. Se a conta existir, você receberá um link para redefinir sua senha."
+            );
+            
+            // Navega de volta para o login
             navigation.navigate("Login"); 
-        }, 2000); // Simula um atraso para mostrar o carregamento
+
+        } catch (error) {
+            console.error("Erro ao enviar e-mail de redefinição:", error);
+            
+            // 💡 Tratamento de erros: Verificamos se o erro é uma instância de FirebaseError
+            if (error instanceof FirebaseError) {
+                let errorMessage = "Ocorreu um erro desconhecido.";
+                
+                switch (error.code) {
+                    case 'auth/user-not-found':
+                    case 'auth/invalid-email':
+                        // Por segurança, mostramos uma mensagem genérica para não revelar a existência da conta
+                        errorMessage = "Se o e-mail estiver registrado, um link será enviado.";
+                        break;
+                    case 'auth/too-many-requests':
+                        errorMessage = "Tentativas excessivas. Tente novamente mais tarde.";
+                        break;
+                    default:
+                        // Mostra o código do erro para debug, caso seja um erro não esperado.
+                        errorMessage = `Erro de Auth (${error.code}): ${error.message}`;
+                }
+                
+                Alert.alert("Erro de Envio", errorMessage);
+            } else {
+                // Erro de rede ou outro erro desconhecido
+                Alert.alert("Erro", "Não foi possível conectar ao servidor de autenticação.");
+            }
+
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -62,6 +100,7 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
                             keyboardType="email-address"
                             value={email}
                             onChangeText={setEmail}
+                            editable={!isLoading} // Desabilita edição enquanto carrega
                         />
                     </View>
 
