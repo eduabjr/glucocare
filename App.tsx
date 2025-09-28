@@ -1,65 +1,50 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import React from 'react';
+import { StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { SafeAreaProvider } from 'react-native-safe-area-context'; // 🔹 IMPORTANTE
-import * as SecureStore from 'expo-secure-store';
+import { SafeAreaProvider } from 'react-native-safe-area-context'; 
 
-import AuthStack from './src/navigation/AuthStack';
-import DrawerRoutes from './src/navigation/DrawerRoutes';
-import { AuthProvider } from './src/context/AuthContext'; // 🔹 Importando o AuthProvider
+// 🚀 ESSENCIAL: Importa o AuthProvider
+import { AuthProvider } from './src/context/AuthContext'; 
+
+// 🚀 NOVO: Importa o RootNavigator (que você havia chamado de AppNavigator ou RootNavigator)
+// 💡 Supondo que você o renomeou para RootNavigator, como sugerido, para evitar confusão.
+// Caso contrário, use o nome original (ex: import AppNavigator from './src/navigation/AppNavigator';)
+import RootNavigator from './src/navigation/RootNavigator'; 
+
+// ❌ Removido: import { View, Text, ActivityIndicator } from 'react-native'; 
+// ❌ Removido: import * as SecureStore from 'expo-secure-store';
+// ❌ Removido: import AuthStack from './src/navigation/AuthStack';
+// ❌ Removido: import DrawerRoutes from './src/navigation/DrawerRoutes';
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loading, setLoading] = useState(true);
+    // ❌ REMOVIDO: Toda a lógica de estado (useState) e o useEffect foram movidos para AuthContext.tsx
+    // ❌ REMOVIDO: O bloco 'if (loading)' foi movido para RootNavigator.tsx (onde usa o useAuth().loading)
 
-  useEffect(() => {
-    const checkLoginStatus = async () => {
-      try {
-        const storedProfile = await SecureStore.getItemAsync('user_profile');
-        const token = await SecureStore.getItemAsync('google_token');
-        setIsLoggedIn(!!storedProfile || !!token);
-      } catch (err) {
-        console.error("Erro ao verificar login:", err);
-        setIsLoggedIn(false);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkLoginStatus();
-  }, []);
-
-  if (loading) {
     return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={styles.text}>Carregando...</Text>
-      </View>
+        <SafeAreaProvider>
+            {/* 1. AuthProvider: Gerencia o estado isAuthenticated e loading para todo o app */}
+            <AuthProvider>
+                <NavigationContainer>
+                    {/* 2. RootNavigator: Componente que usa o useAuth() e decide renderizar Login/Drawer */}
+                    <RootNavigator />
+                </NavigationContainer>
+            </AuthProvider>
+        </SafeAreaProvider>
     );
-  }
-
-  return (
-    // 🔹 Agora o app inteiro está dentro do SafeAreaProvider e AuthProvider
-    <SafeAreaProvider>
-      <AuthProvider> {/* Envolvendo o app com AuthProvider */}
-        <NavigationContainer>
-          {isLoggedIn ? <DrawerRoutes /> : <AuthStack />}
-        </NavigationContainer>
-      </AuthProvider>
-    </SafeAreaProvider>
-  );
 }
 
+// 💡 Mantemos os estilos aqui, embora o 'loader' não seja mais usado neste arquivo,
+// a menos que você queira usá-los em outros componentes de carregamento.
 const styles = StyleSheet.create({
-  loader: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  text: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#333',
-  },
+    loader: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+    },
+    text: {
+        marginTop: 10,
+        fontSize: 16,
+        color: '#333',
+    },
 });

@@ -1,155 +1,165 @@
 import React from "react";
 import { View, Text, StyleSheet, Image, Alert } from "react-native";
 import {
-  DrawerContentScrollView,
-  DrawerItem,
-  DrawerNavigationProp,
+    DrawerContentScrollView,
+    DrawerItem,
+    // Importação da tipagem base
+    DrawerContentComponentProps, 
+    DrawerNavigationProp, // Mantemos o import, mas não o usamos na interface CustomDrawerProps
 } from "@react-navigation/drawer";
 import {
-  MaterialIcons,
-  Ionicons,
-  FontAwesome5,
-  Feather,
+    MaterialIcons,
+    Ionicons,
+    FontAwesome5,
+    Feather,
 } from "@expo/vector-icons";
-import { useAuthContext } from "../context/AuthContext"; // 🔹 Usar useAuthContext
+import { useAuth } from "../context/AuthContext"; 
 
+// --- Tipagem do Navegador ---
 type DrawerParamList = {
-  Dashboard: undefined;
-  AddReading: undefined;
-  DeviceConnection: undefined;
-  Charts: undefined;
-  Nutrition: undefined;
-  Settings: undefined;
-  ProfileSetup: undefined;
+    Dashboard: undefined;
+    AddReading: undefined;
+    DeviceConnection: undefined;
+    Charts: undefined;
+    Nutrition: undefined;
+    Settings: undefined;
+    ProfileSetup: undefined;
 };
 
-// Corrigido para o tipo correto
-type CustomDrawerProps = {
-  navigation: DrawerNavigationProp<DrawerParamList>; // Tipagem do navigation com DrawerParamList
-  onLogout: () => void; // Tipagem de onLogout
-};
+// ✅ CORRIGIDO: Removemos o parâmetro genérico. 
+// CustomDrawerProps AGORA SÓ ESTENDE DrawerContentComponentProps.
+// O TypeScript infere o resto da tipagem do contexto do Drawer.Navigator.
+type CustomDrawerProps = DrawerContentComponentProps; 
 
-// Tipagem dos ícones do drawer usando 'typeof' para referenciar os tipos dos componentes
+
+// Tipagem dos ícones do drawer (mantida)
 type IconName =
-  | "dashboard"
-  | "add-circle-outline"
-  | "bluetooth-outline"
-  | "bar-chart"
-  | "utensils"
-  | "settings"
-  | "person"
-  | "logout"; // Tipagem para os ícones do drawer
+    | "dashboard"
+    | "add-circle-outline"
+    | "bluetooth-outline"
+    | "bar-chart"
+    | "utensils"
+    | "settings"
+    | "person"
+    | "logout";
 
-// Tipo para o componente de ícone, usando 'typeof'
 type IconLib = typeof MaterialIcons | typeof Ionicons | typeof FontAwesome5 | typeof Feather;
 
-export default function CustomDrawer({ navigation, onLogout }: CustomDrawerProps) {
-  const { logout } = useAuthContext(); // 🔹 Pega o logout do contexto através do hook useAuthContext
+// --- Componente Principal ---
+// O tipo 'navigation' é inferido de dentro de CustomDrawerProps
+export default function CustomDrawer({ navigation, ...rest }: CustomDrawerProps) {
+    const { logout } = useAuth();
 
-  /** 🔹 Helper para navegar para uma tela do Drawer */
-  const navigateTo = (screenName: keyof DrawerParamList) => {
-    navigation.navigate(screenName);
-    navigation.closeDrawer();
-  };
+    /** Helper para navegar e fechar o drawer */
+    // Para resolver a compatibilidade, podemos fazer um pequeno cast na navegação.
+    const typedNavigation = navigation as unknown as DrawerNavigationProp<DrawerParamList>;
 
-  /** 🔹 Logout usando o contexto */
-  const handleLogout = async () => {
-    try {
-      await logout(); // 👉 Centralizado no AuthContext
-      onLogout(); // Chama a função onLogout passada como prop
-    } catch (err) {
-      Alert.alert("Erro", "Não foi possível sair da conta.");
-      console.error("Logout error:", err);
-    }
-  };
+    const navigateTo = (screenName: keyof DrawerParamList) => {
+        typedNavigation.navigate(screenName as any);
+        typedNavigation.closeDrawer();
+    };
 
-  /** 🔹 Helper para criar itens do Drawer */
-  const renderItem = (
-    label: string,
-    icon: IconName,
-    screen: keyof DrawerParamList,
-    iconLib: IconLib = MaterialIcons
-  ) => (
-    <DrawerItem
-      label={label}
-      labelStyle={styles.label}
-      icon={({ color }) => {
-        // Usando iconLib como um componente de ícone
-        const IconComponent = iconLib;
-        return <IconComponent name={icon} color={color} size={20} />;
-      }}
-      onPress={() => navigateTo(screen)}
-    />
-  );
+    /** Função de Logout, usando o contexto */
+    const handleLogout = async () => {
+        try {
+            await logout(); 
+        } catch (err) {
+            Alert.alert("Erro", "Não foi possível sair da conta.");
+            console.error("Logout error:", err);
+        }
+    };
 
-  return (
-    <DrawerContentScrollView {...navigation} contentContainerStyle={styles.container}>
-      {/* Cabeçalho */}
-      <View style={styles.header}>
-        <Image source={require("../../assets/icon.png")} style={styles.logo} />
-        <View>
-          <Text style={styles.appName}>GlucoCare</Text>
-          <Text style={styles.subtitle}>Controle de Glicemia</Text>
-        </View>
-      </View>
-
-      {/* Menu */}
-      <View style={styles.menu}>
-        {renderItem("Dashboard", "dashboard", "Dashboard")}
-        {renderItem("Nova Medição", "add-circle-outline", "AddReading")}
-        {renderItem("Conectar Dispositivo", "bluetooth-outline", "DeviceConnection", Ionicons)}
-        {renderItem("Gráficos", "bar-chart", "Charts")}
-        {renderItem("Alimentação", "utensils", "Nutrition", FontAwesome5)}
-        {renderItem("Configurações", "settings", "Settings", Feather)}
-        {renderItem("Perfil", "person", "ProfileSetup")}
-
-        {/* 🔴 Botão de Logout */}
+    /** Helper para criar itens do Drawer. */
+    const renderItem = (
+        label: string,
+        icon: IconName,
+        screen: keyof DrawerParamList,
+        iconLib: IconLib
+    ) => (
         <DrawerItem
-          label="Sair"
-          labelStyle={[styles.label, { color: "#dc2626" }]}
-          icon={() => <MaterialIcons name="logout" size={20} color="#dc2626" />}
-          onPress={handleLogout}
+            key={screen} 
+            label={label}
+            labelStyle={styles.label}
+            icon={({ color }) => {
+                const IconComponent = iconLib;
+                // @ts-ignore
+                return <IconComponent name={icon} color={color} size={20} />;
+            }}
+            onPress={() => navigateTo(screen)}
         />
-      </View>
-    </DrawerContentScrollView>
-  );
+    );
+
+    return (
+        // Espalha as props restantes ('rest')
+        <DrawerContentScrollView {...rest} contentContainerStyle={styles.container}>
+            {/* Cabeçalho do Drawer */}
+            <View style={styles.header}>
+                <Image source={require("../../assets/icon.png")} style={styles.logo} />
+                <View>
+                    <Text style={styles.appName}>GlucoCare</Text>
+                    <Text style={styles.subtitle}>Controle de Glicemia</Text>
+                </View>
+            </View>
+
+            {/* Menu de Navegação */}
+            <View style={styles.menu}>
+                {renderItem("Dashboard", "dashboard", "Dashboard", MaterialIcons)}
+                {renderItem("Nova Medição", "add-circle-outline", "AddReading", Ionicons)}
+                {renderItem("Conectar Dispositivo", "bluetooth-outline", "DeviceConnection", Ionicons)}
+                {renderItem("Gráficos", "bar-chart", "Charts", MaterialIcons)}
+                {renderItem("Alimentação", "utensils", "Nutrition", FontAwesome5)}
+                {renderItem("Configurações", "settings", "Settings", Feather)}
+                {renderItem("Perfil", "person", "ProfileSetup", MaterialIcons)}
+
+                {/* Botão de Logout */}
+                <DrawerItem
+                    key="logout"
+                    label="Sair"
+                    labelStyle={[styles.label, { color: "#dc2626" }]}
+                    icon={() => <MaterialIcons name="logout" size={20} color="#dc2626" />}
+                    onPress={handleLogout}
+                />
+            </View>
+        </DrawerContentScrollView>
+    );
 }
 
+// --- Estilos ---
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f0f6ff",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderColor: "#f0f0f0",
-  },
-  logo: {
-    width: 44,
-    height: 44,
-    marginRight: 12,
-    borderRadius: 8,
-  },
-  appName: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  subtitle: {
-    fontSize: 13,
-    color: "#6b7280",
-    marginTop: 2,
-  },
-  menu: {
-    marginTop: 8,
-  },
-  label: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#111827",
-  },
+    container: {
+        flex: 1,
+        backgroundColor: "#f0f6ff",
+    },
+    header: {
+        flexDirection: "row",
+        alignItems: "center",
+        padding: 20,
+        backgroundColor: "#fff",
+        borderBottomWidth: 1,
+        borderColor: "#f0f0f0",
+    },
+    logo: {
+        width: 44,
+        height: 44,
+        marginRight: 12,
+        borderRadius: 8,
+    },
+    appName: {
+        fontSize: 16,
+        fontWeight: "700",
+        color: "#111827",
+    },
+    subtitle: {
+        fontSize: 13,
+        color: "#6b7280",
+        marginTop: 2,
+    },
+    menu: {
+        marginTop: 8,
+    },
+    label: {
+        fontSize: 15,
+        fontWeight: "500",
+        color: "#111827",
+    },
 });

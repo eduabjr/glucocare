@@ -1,84 +1,127 @@
 import * as WebBrowser from 'expo-web-browser';
-
-// Criando uma classe nomeada
-class AuthService {
-  // Tornando a função ensureCodeIsSetupAsync privada para evitar o erro
-  private ensureCodeIsSetupAsync() {
-    // Lógica da função
-    console.log('Configurando o código...');
-  }
-
-  // Método público que pode ser chamado externamente
-  public setupAsync() {
-    this.ensureCodeIsSetupAsync(); // Chama a função privada internamente
-  }
-}
-
-// Exportando a instância da classe AuthService
-export const authService = new AuthService();
-
-// Função principal de autenticação com Google
 import * as Google from "expo-auth-session/providers/google";
 import { useEffect, useState } from "react";
 import Constants from "expo-constants";
+// REMOVIDO: import { AuthRequest } from 'expo-auth-session'; // TS6133: Variável não utilizada
 
 // Necessário para completar a sessão de autenticação
 WebBrowser.maybeCompleteAuthSession();
 
-interface AuthenticationResponse {
-  accessToken: string;
-}
+// ----------------------------------------------------
+// AuthService Class
+// ----------------------------------------------------
 
-interface AuthError {
-  message: string;
-  code?: string;
-  description?: string; // Para descrição mais detalhada do erro
-}
-
-export function useGoogleAuth() {
-  // Estado para controlar o token de acesso
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [error, setError] = useState<AuthError | null>(null);  // Estado para erros com informações adicionais
-
-  // Tipos de request, response e promptAsync
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    expoClientId: Constants.expoConfig?.extra?.['expoClientId'],  // Usando a notação de índice
-    iosClientId: Constants.expoConfig?.extra?.['iosClientId'],    // Usando a notação de índice
-    androidClientId: Constants.expoConfig?.extra?.['androidClientId'],  // Usando a notação de índice
-    scopes: ["profile", "email"],
-  });
-
-  useEffect(() => {
-    if (response?.type === "success") {
-      const { authentication } = response;
-
-      // Verificando a estrutura de authentication para garantir que o accessToken esteja presente
-      if (authentication && authentication.accessToken) {
-        const auth: AuthenticationResponse = authentication;
-        setAccessToken(auth.accessToken);  // Armazenar o accessToken no estado
-        console.log("Google AccessToken:", auth.accessToken);
-        setError(null); // Limpar erro anterior, se houver
-      } else {
-        setError({
-          message: "Access token não encontrado na resposta.",
-          description: "A resposta não contém um access token válido.",
-        });
-      }
-    } else if (response?.type === "error") {
-      // Se houver um erro, armazenar a mensagem de erro com informações adicionais
-      const errorMessage = response.error?.message || "Erro desconhecido";
-      const errorCode = response.error?.code || "Desconhecido";
-      const errorDescription = response.error?.description || "Sem descrição adicional.";
-
-      setError({
-        message: errorMessage,
-        code: errorCode,
-        description: errorDescription,
-      });
-
-      console.error("Erro na autenticação:", errorMessage, "Código:", errorCode, "Descrição:", errorDescription);
+// CORREÇÃO TS4094: Exportar a classe garante que o TypeScript reconheça 
+// corretamente o tipo, independentemente dos modificadores de acesso.
+export class AuthService {
+    // Mantido público para corresponder ao seu último código
+    public ensureCodeIsSetupAsync() {
+        console.log('Configurando o código...');
     }
-  }, [response]);
 
-  return { request, response, promptAsync, accessToken, error };
+    public setupAsync() {
+        this.ensureCodeIsSetupAsync(); // Chama a função pública internamente
+    }
+}
+
+// Exportando a instância da classe AuthService para uso fácil
+export const authService = new AuthService();
+
+// ----------------------------------------------------
+// Google Auth Hook
+// ----------------------------------------------------
+interface AuthenticationResponse {
+    accessToken: string;
+}
+
+export interface AuthError {
+    message: string;
+    code?: string;
+    description?: string;
+}
+
+/**
+ * Hook customizado para gerenciar o fluxo de autenticação do Google com Expo.
+ * @returns {object} Contém request, response, promptAsync, accessToken, error e loading.
+ */
+export function useGoogleAuth() {
+    const [accessToken, setAccessToken] = useState<string | null>(null);
+    const [error, setError] = useState<AuthError | null>(null);
+    const [loading, setLoading] = useState<boolean>(false);
+    
+    // O tipo retornado para 'request' é GoogleAuthRequest
+    const [request, response, promptAsync] = Google.useAuthRequest({
+        expoClientId: Constants.expoConfig?.extra?.['expoClientId'],
+        iosClientId: Constants.expoConfig?.extra?.['iosClientId'],
+        androidClientId: Constants.expoConfig?.extra?.['androidClientId'],
+        scopes: ["profile", "email"],
+    });
+
+    // Função de promptAsync ajustada para gerenciar o estado de loading
+    const handlePromptAsync = async () => {
+        if (!request) {
+            setError({ message: "Requisição de autenticação não está pronta." });
+            return;
+        }
+        setLoading(true);
+        try {
+            // Chama o prompt real
+            await promptAsync();
+            // O estado de loading será resetado no useEffect quando a 'response' for recebida
+        } catch (e) {
+            console.error("Erro ao iniciar prompt:", e);
+            setError({ message: "Falha ao iniciar o fluxo de autenticação." });
+            setLoading(false);
+        }
+    }
+
+
+    useEffect(() => {
+        // Verifica a configuração inicial
+        if (!Constants.expoConfig?.extra) {
+            setError({ message: "Configuração do Expo (expoClientId, etc.) não encontrada no app.json/app.config.js" });
+            setLoading(false);
+            return;
+        }
+
+        if (response?.type) {
+            setLoading(false); // Sempre desliga o loading quando há uma resposta
+        }
+        
+        if (response?.type === "success") {
+            const { authentication } = response;
+            if (authentication?.accessToken) {
+                const auth: AuthenticationResponse = authentication;
+                setAccessToken(auth.accessToken);
+                console.log("Google AccessToken:", auth.accessToken);
+                setError(null);
+            } else {
+                setError({
+                    message: "Access token não encontrado na resposta.",
+                    description: "A resposta não contém um access token válido.",
+                });
+            }
+        } else if (response?.type === "error") {
+            const errorMessage = response.error?.message || "Erro desconhecido";
+            const errorCode = response.error?.code || "Desconhecido";
+            const errorDescription = response.error?.description || "Sem descrição adicional.";
+
+            setError({
+                message: errorMessage,
+                code: errorCode,
+                description: errorDescription,
+            });
+
+            console.error("Erro na autenticação:", errorMessage, "Código:", errorCode, "Descrição:", errorDescription);
+        }
+    }, [response]);
+
+    return { 
+        request, 
+        response, 
+        promptAsync: handlePromptAsync, // Retorna a função ajustada
+        accessToken, 
+        error, 
+        loading 
+    };
 }

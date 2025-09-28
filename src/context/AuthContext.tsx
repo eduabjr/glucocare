@@ -1,47 +1,74 @@
-import { createContext, useState, useContext, ReactNode, useEffect } from 'react'; // Removeu a importação desnecessária do React
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
 
-// Definindo o tipo do contexto
+// 1. Definição da Tipagem do Contexto (Corrigindo login e adicionando loading)
 interface AuthContextType {
-  logout: () => void;
-  isAuthenticated: boolean;
-  setIsAuthenticated: (auth: boolean) => void;
+    isAuthenticated: boolean;
+    loading: boolean;        // 🚀 Adicionado loading para o RootNavigator
+    login: () => Promise<void>; // ✅ Assinatura Simples: Não requer argumentos
+    logout: () => Promise<void>;
 }
 
-// Criando o contexto
+// 2. Criação do Contexto
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+interface AuthProviderProps {
+    children: ReactNode;
+}
 
-  // Recuperando o status de autenticação do SecureStore (ou qualquer outro método persistente)
-  useEffect(() => {
-    const checkAuthentication = async () => {
-      const storedProfile = await SecureStore.getItemAsync('user_profile');
-      setIsAuthenticated(!!storedProfile); // Simulando que o usuário está autenticado se houver um perfil armazenado
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [loading, setLoading] = useState(true); // 🚀 Inicializa como true
+
+    // Função auxiliar para verificar o perfil no SecureStore
+    const checkAndSetLogin = async () => {
+        try {
+            const profile = await SecureStore.getItemAsync('user_profile');
+            // !!profile retorna true se a string não for nula ou vazia
+            setIsAuthenticated(!!profile);
+        } catch (error) {
+            console.error("Erro ao verificar SecureStore:", error);
+            setIsAuthenticated(false);
+        } finally {
+            // Garante que o estado de loading seja desligado, mesmo em caso de erro
+            setLoading(false); 
+        }
     };
 
-    checkAuthentication();
-  }, []);
+    // Função chamada pelo LoginScreen. Simplesmente verifica se o perfil está lá.
+    const login = async () => {
+        await checkAndSetLogin(); 
+    };
 
-  // Função de logout
-  const logout = async () => {
-    setIsAuthenticated(false); // Deslogar o usuário
-    await SecureStore.deleteItemAsync('user_profile'); // Remover dados do usuário
-  };
+    const logout = async () => {
+        // Lógica de limpeza
+        await SecureStore.deleteItemAsync('user_profile');
+        await SecureStore.deleteItemAsync('google_token');
+        await SecureStore.deleteItemAsync('registered_email');
+        await SecureStore.deleteItemAsync('registered_password');
+        await SecureStore.deleteItemAsync('biometric_enabled');
+        
+        setIsAuthenticated(false);
+    };
 
-  return (
-    <AuthContext.Provider value={{ logout, isAuthenticated, setIsAuthenticated }}>
-      {children}
-    </AuthContext.Provider>
-  );
+    useEffect(() => {
+        // Verifica o estado inicial ao carregar o provedor
+        checkAndSetLogin();
+    }, []);
+
+    // 4. Retorna o valor do contexto (com o loading)
+    return (
+        <AuthContext.Provider value={{ isAuthenticated, loading, login, logout }}>
+            {children}
+        </AuthContext.Provider>
+    );
 };
 
-// Hook para consumir o contexto
-export const useAuthContext = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuthContext must be used within an AuthProvider');
-  }
-  return context;
+// 5. O Hook Customizado (useAuth)
+export const useAuth = (): AuthContextType => {
+    const context = useContext(AuthContext);
+    if (context === undefined) {
+        throw new Error('useAuth deve ser usado dentro de um AuthProvider');
+    }
+    return context;
 };
