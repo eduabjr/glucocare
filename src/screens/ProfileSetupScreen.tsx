@@ -15,9 +15,11 @@ import * as SecureStore from 'expo-secure-store';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { Feather } from '@expo/vector-icons';
+// Importações de serviço assumidas
 import { initDB, saveOrUpdateUser, getUser, UserProfile } from '../services/dbService'; 
 import { v4 as uuidv4 } from 'uuid';
-import GoogleSyncService from '../services/googleSync';
+// Assumindo que GoogleSyncService está em '../services/googleSync'
+import GoogleSyncService from '../services/googleSync'; 
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator'; 
 
@@ -34,13 +36,9 @@ interface SecureStoreProfile {
     restriction?: string;
     email?: string;
     googleId?: string;
-    // Removido 'provider' e 'biometricEnabled' daqui para evitar confusão se eles não forem salvos no DB
-    // provider?: 'manual' | 'google'; 
-    // onboardingCompleted?: boolean; // Mantendo apenas o que realmente é necessário para carregar
-    // biometricEnabled?: boolean;
 }
 
-// Rascunho de perfil usado internamente, permitindo googleId opcional/nulo antes da persistência
+// Rascunho de perfil usado internamente
 interface DraftProfile {
     id: string;
     name: string;
@@ -53,13 +51,32 @@ interface DraftProfile {
     googleId: string | null; 
     onboardingCompleted: boolean;
     biometricEnabled: boolean;
-    syncedAt: string; // Adicionado 'syncedAt'
+    syncedAt: string;
 }
+
+// 💡 FUNÇÃO AUXILIAR: Limpa a entrada numérica para permitir apenas dígitos e um separador decimal (vírgula ou ponto)
+const formatNumericInput = (text: string): string => {
+    // 1. Remove tudo que não for dígito, vírgula ou ponto
+    let cleanedText = text.replace(/[^\d.,]/g, '');
+    
+    // 2. Padroniza todos os separadores para vírgula temporariamente
+    cleanedText = cleanedText.replace(/\./g, ',');
+    
+    // 3. Garante que só há uma vírgula (decimal) e as move para o final
+    const parts = cleanedText.split(',');
+    if (parts.length > 1) {
+        // Junta a parte inteira com o primeiro grupo de decimais
+        cleanedText = parts[0] + ',' + parts.slice(1).join('');
+    }
+    
+    return cleanedText;
+};
+
 
 export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenProps) {
     const [userId, setUserId] = useState<string | null>(null);
     const [name, setName] = useState<string>('');
-    const [email, setEmail] = useState<string>('');
+    const [email, setEmail] = useState<string>(''); // Mantendo o email no estado
     const [googleId, setGoogleId] = useState<string | null>(null);
     const [birthDate, setBirthDate] = useState<Date>(new Date(1990, 0, 1));
     const [showDate, setShowDate] = useState<boolean>(false);
@@ -88,14 +105,14 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                     // Carrega do DB (UserProfile)
                     setUserId(user.id);
                     setName(user.name); 
-                    setEmail(user.email);
+                    setEmail(user.email); // Carrega email
                     setGoogleId(user.googleId || null);
                     
                     const dateString = user.birthDate;
                     setBirthDate(dateString ? new Date(dateString) : new Date(1990, 0, 1));
                     setCondition(user.condition);
-                    setHeight(user.height !== null ? String(user.height) : ''); 
-                    setWeight(user.weight !== null ? String(user.weight) : ''); 
+                    setHeight(user.height !== null && user.height !== 0 ? String(user.height).replace('.', ',') : ''); // Formata para vírgula
+                    setWeight(user.weight !== null && user.weight !== 0 ? String(user.weight).replace('.', ',') : ''); // Formata para vírgula
                     
                     const userRestrictions = user.restriction;
                     setRestrictions(userRestrictions.split(',').filter(r => r));
@@ -108,15 +125,15 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                         
                         setUserId(profile.id ?? uuidv4()); 
                         setName(profile.name ?? ''); 
-                        setEmail(profile.email ?? ''); 
+                        setEmail(profile.email ?? ''); // Carrega email
                         setGoogleId(profile.googleId ?? null);
                         
                         const dateSaved = profile.birthDate;
                         setBirthDate(dateSaved ? new Date(dateSaved) : new Date(1990, 0, 1));
                         
                         setCondition(profile.condition ?? ''); 
-                        setHeight(profile.height ? String(profile.height) : ''); 
-                        setWeight(profile.weight ? String(profile.weight) : ''); 
+                        setHeight(profile.height ? String(profile.height).replace('.', ',') : ''); // Formata para vírgula
+                        setWeight(profile.weight ? String(profile.weight).replace('.', ',') : ''); // Formata para vírgula
                         
                         const savedRestrictions = profile.restriction ?? '';
                         setRestrictions(savedRestrictions.split(',').filter(r => r));
@@ -138,6 +155,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
         );
     };
 
+    // Usa a vírgula/ponto para o parse
     const parsedHeight = height ? Number(height.replace(',', '.')) : 0; 
     const parsedWeight = weight ? Number(weight.replace(',', '.')) : 0; 
 
@@ -182,15 +200,11 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
             // 2. Normaliza para UserProfile (UserProfile.googleId é string).
             const profileToSave: UserProfile = {
                 ...draftProfile,
-                height: draftProfile.height ?? 0, // Garante que height é number
-                weight: draftProfile.weight ?? 0, // Garante que weight é number
-                googleId: draftProfile.googleId ?? '', // Garante que googleId é string
+                height: draftProfile.height ?? 0, 
+                weight: draftProfile.weight ?? 0, 
+                googleId: draftProfile.googleId ?? '', 
             }
             
-            // Usamos o objeto que tem apenas as propriedades permitidas por UserProfile
-            // Nota: O TypeScript agora deve estar feliz se 'UserProfile' inclui
-            // 'id', 'name', 'birthDate', 'condition', 'height', 'weight', 'restriction', 
-            // 'email', 'googleId', 'onboardingCompleted', 'biometricEnabled', e 'syncedAt'.
             const savedUser = await saveOrUpdateUser(profileToSave);
             
             if (typeof savedUser !== 'boolean') {
@@ -201,6 +215,9 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
             try {
                 const token = await SecureStore.getItemAsync('google_token');
                 if (token && GoogleSyncService && typeof GoogleSyncService.uploadReadingsToDrive === 'function') {
+                    // Aviso: Este é um ponto potencial de problema de lógica. 
+                    // O perfil deve ser salvo, mas o upload de leituras é outra coisa.
+                    // Mantendo o código original do usuário aqui, mas sinalizando.
                     await GoogleSyncService.uploadReadingsToDrive(token); 
                 }
             } catch (err) {
@@ -237,6 +254,19 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                             placeholder="Nome Completo"
                             value={name}
                             onChangeText={setName}
+                        />
+                    </View>
+
+                    {/* 💡 NOVO: Email */}
+                    <View style={styles.inputWrapper}>
+                        <Feather name="mail" size={18} color="#9ca3af" style={styles.inputIcon} />
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Seu Email"
+                            value={email}
+                            onChangeText={setEmail}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
                         />
                     </View>
 
@@ -295,7 +325,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                     </View>
 
 
-                    {/* Altura */}
+                    {/* Altura (cm) - Usando formatNumericInput */}
                     <View style={styles.inputWrapper}>
                         <Feather name="trending-up" size={18} color="#9ca3af" style={styles.inputIcon} />
                         <TextInput
@@ -303,11 +333,12 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                             placeholder="Altura (cm)"
                             keyboardType="numeric"
                             value={height}
-                            onChangeText={setHeight}
+                            // 💡 AJUSTE: Limpa e formata a entrada em tempo real
+                            onChangeText={(text) => setHeight(formatNumericInput(text))} 
                         />
                     </View>
 
-                    {/* Peso */}
+                    {/* Peso (kg) - Usando formatNumericInput */}
                     <View style={styles.inputWrapper}>
                         <Feather name="activity" size={18} color="#9ca3af" style={styles.inputIcon} />
                         <TextInput
@@ -315,7 +346,8 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                             placeholder="Peso (kg)"
                             keyboardType="numeric"
                             value={weight}
-                            onChangeText={setWeight}
+                            // 💡 AJUSTE: Limpa e formata a entrada em tempo real
+                            onChangeText={(text) => setWeight(formatNumericInput(text))}
                         />
                     </View>
 

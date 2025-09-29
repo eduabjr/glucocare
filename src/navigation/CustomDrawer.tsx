@@ -3,9 +3,9 @@ import { View, Text, StyleSheet, Image, Alert } from "react-native";
 import {
     DrawerContentScrollView,
     DrawerItem,
-    // Importação da tipagem base
+    // Tipagem base obrigatória para drawerContent
     DrawerContentComponentProps, 
-    DrawerNavigationProp, // Mantemos o import, mas não o usamos na interface CustomDrawerProps
+    DrawerNavigationProp,
 } from "@react-navigation/drawer";
 import {
     MaterialIcons,
@@ -26,32 +26,23 @@ type DrawerParamList = {
     ProfileSetup: undefined;
 };
 
-// ✅ CORRIGIDO: Removemos o parâmetro genérico. 
-// CustomDrawerProps AGORA SÓ ESTENDE DrawerContentComponentProps.
-// O TypeScript infere o resto da tipagem do contexto do Drawer.Navigator.
+// Usa a tipagem padrão para conteúdos customizados
 type CustomDrawerProps = DrawerContentComponentProps; 
 
 
-// Tipagem dos ícones do drawer (mantida)
-type IconName =
-    | "dashboard"
-    | "add-circle-outline"
-    | "bluetooth-outline"
-    | "bar-chart"
-    | "utensils"
-    | "settings"
-    | "person"
-    | "logout";
-
+// --- Tipagem de Ícones ---
 type IconLib = typeof MaterialIcons | typeof Ionicons | typeof FontAwesome5 | typeof Feather;
+type IconConfig = {
+    name: string;
+    lib: IconLib;
+};
 
 // --- Componente Principal ---
-// O tipo 'navigation' é inferido de dentro de CustomDrawerProps
 export default function CustomDrawer({ navigation, ...rest }: CustomDrawerProps) {
     const { logout } = useAuth();
 
     /** Helper para navegar e fechar o drawer */
-    // Para resolver a compatibilidade, podemos fazer um pequeno cast na navegação.
+    // Cast para tipagem específica do Drawer para habilitar métodos como closeDrawer
     const typedNavigation = navigation as unknown as DrawerNavigationProp<DrawerParamList>;
 
     const navigateTo = (screenName: keyof DrawerParamList) => {
@@ -59,7 +50,7 @@ export default function CustomDrawer({ navigation, ...rest }: CustomDrawerProps)
         typedNavigation.closeDrawer();
     };
 
-    /** Função de Logout, usando o contexto */
+    /** Função de Logout */
     const handleLogout = async () => {
         try {
             await logout(); 
@@ -72,25 +63,23 @@ export default function CustomDrawer({ navigation, ...rest }: CustomDrawerProps)
     /** Helper para criar itens do Drawer. */
     const renderItem = (
         label: string,
-        icon: IconName,
         screen: keyof DrawerParamList,
-        iconLib: IconLib
+        iconConfig: IconConfig
     ) => (
         <DrawerItem
             key={screen} 
             label={label}
             labelStyle={styles.label}
             icon={({ color }) => {
-                const IconComponent = iconLib;
-                // @ts-ignore
-                return <IconComponent name={icon} color={color} size={20} />;
+                const IconComponent = iconConfig.lib;
+                // @ts-ignore: Permite o uso de strings genéricas para o nome do ícone entre as bibliotecas.
+                return <IconComponent name={iconConfig.name as any} color={color} size={20} />;
             }}
             onPress={() => navigateTo(screen)}
         />
     );
 
     return (
-        // Espalha as props restantes ('rest')
         <DrawerContentScrollView {...rest} contentContainerStyle={styles.container}>
             {/* Cabeçalho do Drawer */}
             <View style={styles.header}>
@@ -103,20 +92,20 @@ export default function CustomDrawer({ navigation, ...rest }: CustomDrawerProps)
 
             {/* Menu de Navegação */}
             <View style={styles.menu}>
-                {renderItem("Dashboard", "dashboard", "Dashboard", MaterialIcons)}
-                {renderItem("Nova Medição", "add-circle-outline", "AddReading", Ionicons)}
-                {renderItem("Conectar Dispositivo", "bluetooth-outline", "DeviceConnection", Ionicons)}
-                {renderItem("Gráficos", "bar-chart", "Charts", MaterialIcons)}
-                {renderItem("Alimentação", "utensils", "Nutrition", FontAwesome5)}
-                {renderItem("Configurações", "settings", "Settings", Feather)}
-                {renderItem("Perfil", "person", "ProfileSetup", MaterialIcons)}
+                {renderItem("Dashboard", "Dashboard", { name: "dashboard", lib: MaterialIcons })}
+                {renderItem("Nova Medição", "AddReading", { name: "add-circle-outline", lib: Ionicons })}
+                {renderItem("Conectar Dispositivo", "DeviceConnection", { name: "bluetooth", lib: Ionicons })}
+                {renderItem("Gráficos", "Charts", { name: "bar-chart", lib: MaterialIcons })}
+                {renderItem("Alimentação", "Nutrition", { name: "utensils", lib: FontAwesome5 })}
+                {renderItem("Configurações", "Settings", { name: "settings", lib: Feather })}
+                {renderItem("Perfil", "ProfileSetup", { name: "person", lib: MaterialIcons })}
 
                 {/* Botão de Logout */}
                 <DrawerItem
                     key="logout"
                     label="Sair"
                     labelStyle={[styles.label, { color: "#dc2626" }]}
-                    icon={() => <MaterialIcons name="logout" size={20} color="#dc2626" />}
+                    icon={({ color }) => <MaterialIcons name="logout" size={20} color="#dc2626" />}
                     onPress={handleLogout}
                 />
             </View>

@@ -11,16 +11,15 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../navigation/RootNavigator"; // Confirme o caminho
+import { RootStackParamList } from "../navigation/RootNavigator"; 
 import { confirmPasswordReset } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
 import { auth } from "../config/firebase";
 
-// O segundo argumento, 'ResetPassword', especifica que esta tela é a rota "ResetPassword"
+// Tipagem para a tela de redefinição de senha
 type ResetPasswordScreenProps = NativeStackScreenProps<RootStackParamList, 'ResetPassword'>;
 
 const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ route, navigation }) => {
-    // O oobCode é lido dos parâmetros da rota, que vem do Deep Link
     const { oobCode } = route.params;
 
     const [newPassword, setNewPassword] = useState<string>("");
@@ -28,7 +27,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ route, naviga
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
 
-    // 💡 Efeito para verificar o código quando a tela é carregada
+    // Efeito para verificar se o código está presente
     useEffect(() => {
         if (!oobCode) {
             setError("Código de redefinição inválido ou ausente. Tente novamente.");
@@ -47,8 +46,8 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ route, naviga
         }
 
         if (newPassword.length < 6) {
-             Alert.alert("Erro", "A senha deve ter pelo menos 6 caracteres.");
-             return;
+            Alert.alert("Erro", "A senha deve ter pelo menos 6 caracteres.");
+            return;
         }
 
         if (!oobCode) {
@@ -60,7 +59,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ route, naviga
         setError(null);
 
         try {
-            // 🚀 FUNÇÃO REAL DO FIREBASE: Confirma a redefinição de senha
+            // Redefinir a senha usando o código de redefinição
             await confirmPasswordReset(auth, oobCode, newPassword);
 
             Alert.alert(
@@ -68,7 +67,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ route, naviga
                 "Sua senha foi redefinida com sucesso. Faça login com sua nova senha."
             );
             
-            // Navega para a tela de Login
+            // Navega para a tela de login após sucesso
             navigation.navigate("Login");
 
         } catch (err) {
@@ -153,7 +152,6 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ route, naviga
                             </TouchableOpacity>
                         </>
                     ) : (
-                        // Mostra apenas o erro se o oobCode estiver ausente ou inválido.
                         <View style={{ marginTop: 20 }}>
                             <Text style={styles.errorTextLarge}>
                                 {error || "Aguardando o código de redefinição..."}

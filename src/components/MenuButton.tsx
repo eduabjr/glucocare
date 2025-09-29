@@ -1,30 +1,27 @@
 import React from "react";
 import { TouchableOpacity, StyleSheet } from "react-native";
-// ✅ Corrigido: Usando MaterialIcons, que é o ícone padrão que você estava usando
+// Importa o ícone
 import { MaterialIcons } from "@expo/vector-icons"; 
-// Importações necessárias
+// Importações necessárias para navegação desacoplada
 import { useNavigation, DrawerActions } from "@react-navigation/native";
 
 /**
  * Botão para abrir o Drawer Navigator.
- *
- * Este componente usa o hook `useNavigation` para acessar
- * a navegação sem precisar receber a prop `navigation`.
+ * * Este componente usa o hook `useNavigation` para acessar
+ * o contexto de navegação e despachar a ação de abertura do Drawer.
  */
 export default function MenuButton() {
-    // 💡 O useNavigation pega a navegação do contexto.
+    // 💡 O useNavigation pega a navegação do contexto (neste caso, o DrawerNavigator mais próximo).
     const navigation = useNavigation();
 
     const handlePress = () => {
-        // Envia a ação para abrir o drawer.
-        // Isso resolve o erro de tipagem anterior no DrawerRoutes.tsx
+        // ✅ Ação correta: Despacha a abertura do Drawer, eliminando a dependência de props.
         navigation.dispatch(DrawerActions.openDrawer());
     };
 
     return (
-        // ✅ Corrigido: Usando o estilo in-line para marginLeft para corresponder ao DrawerRoutes
         <TouchableOpacity onPress={handlePress}>
-            {/* Ícone de menu. Cor Branca (#fff) para combinar com headerStyle: { headerTintColor: '#fff' } */}
+            {/* O estilo com `marginLeft: 12` garante o espaçamento correto no header. */}
             <MaterialIcons name="menu" size={26} color="#fff" style={styles.icon} />
         </TouchableOpacity>
     );
@@ -32,6 +29,6 @@ export default function MenuButton() {
 
 const styles = StyleSheet.create({
     icon: {
-        marginLeft: 12, // Mantém o espaçamento que você tinha na prop headerLeft
+        marginLeft: 12, // Mantém o espaçamento no lado esquerdo do header
     },
 });

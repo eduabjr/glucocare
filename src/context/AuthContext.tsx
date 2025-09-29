@@ -1,198 +1,171 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User as FirebaseUser, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
-// ✅ IMPORTAÇÕES ESSENCIAIS
-import { auth } from '../config/firebase'; 
-import { initDB, saveOrUpdateUser, getUser, UserProfile } from '../services/dbService'; // Serviço de DB
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
-import { Alert } from 'react-native'; // Usaremos Alert para erros simples no contexto
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
-WebBrowser.maybeCompleteAuthSession();
-
-// Definição de Tipos
-interface AuthContextType {
-    user: FirebaseUser | null;
-    profile: UserProfile | null; // O perfil local, sincronizado
-    isAuthenticated: boolean;
-    isLoading: boolean; // Controla o carregamento inicial (Corrigido para ser consistente)
-    login: (email: string, password: string) => Promise<void>;
-    register: (email: string, password: string, name: string) => Promise<void>;
-    logout: () => Promise<void>;
-    loginWithGoogle: () => Promise<void>; // Assinatura mantida para futuras implementações
-    // ✅ Novo método para atualizar o perfil após o onboarding/edição de dados
-    updateProfileLocally: (updatedProfile: UserProfile) => void;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// -------------------------------------------------------------
-// FUNÇÃO AUXILIAR DE SINCRONIZAÇÃO E CRIAÇÃO DE PERFIL
-// -------------------------------------------------------------
+// --- MOCK DE DEPENDÊNCIAS NATIVAS ---
+// Usando o localStorage do navegador para simular SecureStore em um ambiente web/mock.
 
 /**
- * Cria/carrega o perfil local (SQLite) e sincroniza com o Firestore após a autenticação.
- */
-async function handleUserInitialization(firebaseUser: FirebaseUser, name?: string): Promise<UserProfile | null> {
-    try {
-        const existingProfile = await getUser();
+ * Mock para 'expo-secure-store'.
+ */
+const SecureStore = {
+    async getItemAsync(key: string): Promise<string | null> {
+        // Verifica se o localStorage está disponível para evitar erros em ambientes sem ele
+        if (typeof window !== 'undefined' && window.localStorage) {
+            return Promise.resolve(window.localStorage.getItem(key));
+        }
+        return Promise.resolve(null);
+    },
+    async setItemAsync(key: string, value: string): Promise<void> {
+        if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem(key, value);
+        }
+        return Promise.resolve();
+    },
+    async deleteItemAsync(key: string): Promise<void> {
+        if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.removeItem(key);
+        }
+        return Promise.resolve();
+    },
+};
 
-        if (existingProfile && existingProfile.id === firebaseUser.uid) {
-            // Se o perfil local existe E pertence ao usuário atual, usa-o.
-            console.log("Perfil local encontrado.");
-            return existingProfile;
-        }
-
-        // Caso contrário, cria um novo perfil e salva/sincroniza.
-        const newProfile: UserProfile = {
-            id: firebaseUser.uid,
-            name: name || firebaseUser.displayName || 'Usuário GlucoCare',
-            email: firebaseUser.email || '',
-            googleId: '', 
-            onboardingCompleted: false, // Inicia como falso
-            biometricEnabled: false,
-            weight: null,
-            height: null,
-            birthDate: '',
-            condition: '',
-            restriction: '',
-            syncedAt: null,
-        };
-        // Salva no SQLite E sincroniza com o Firestore
-        const savedProfile = await saveOrUpdateUser(newProfile); 
-        console.log("Novo perfil criado e sincronizado.");
-        return savedProfile as UserProfile;
-
-    } catch (error) {
-        console.error("Erro no handleUserInitialization (SQLite/Firestore):", error);
-        Alert.alert("Erro de Dados", "Não foi possível carregar ou criar o perfil do usuário localmente. Tente novamente.");
-        return null;
-    }
+// A interface UserProfile é definida aqui.
+export interface UserProfile {
+    id: string;
+    name: string;
+    email: string;
+    googleId?: string;
+    onboardingCompleted?: boolean;
+    biometricEnabled?: boolean;
+    weight?: number | null;
+    height?: number | null;
+    birthDate?: string;
+    condition?: string;
+    restriction?: string;
+    syncedAt?: string | null;
 }
 
-// -------------------------------------------------------------
-// PROVIDER
-// -------------------------------------------------------------
+// Mock da função de limpeza de DB que seria importada do dbService.
+const clearUser = async (): Promise<void> => {
+    return Promise.resolve();
+};
 
+// --- FIM DOS MOCKS ---
+
+
+// --- Constantes de Armazenamento ---
+const PROFILE_KEY = 'user_profile';
+const GOOGLE_TOKEN_KEY = 'google_token';
+const REGISTERED_EMAIL_KEY = 'registered_email';
+
+// 1. Definição da Tipagem do Contexto
+interface AuthContextType {
+    isAuthenticated: boolean;
+    user: UserProfile | null;
+    isLoading: boolean;
+    login: (profile: UserProfile) => Promise<void>;
+    logout: () => Promise<void>;
+    // Adicionar um setter para o usuário pode ser útil para atualizações de perfil
+    setUser: React.Dispatch<React.SetStateAction<UserProfile | null>>;
+}
+
+// 2. Criação do Contexto
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// 3. O Provedor (Componente que irá encapsular o App)
 interface AuthProviderProps {
-    children: ReactNode;
+    children: React.ReactNode;
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-    const [user, setUser] = useState<FirebaseUser | null>(null);
-    const [profile, setProfile] = useState<UserProfile | null>(null);
-    const [isLoading, setIsLoading] = useState(true); // Controla o carregamento inicial
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [user, setUser] = useState<UserProfile | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // 1. Inicializa o DB Local (SQLite)
-    useEffect(() => {
-        initDB().catch(err => console.error("Erro fatal ao inicializar o DB local:", err));
-    }, []);
+    // Função para verificar o estado de login no armazenamento seguro
+    const checkAuthStatus = async () => {
+        try {
+            const storedProfile = await SecureStore.getItemAsync(PROFILE_KEY);
+            
+            if (storedProfile) {
+                const profile: UserProfile = JSON.parse(storedProfile);
+                setIsAuthenticated(true);
+                setUser(profile);
+            } else {
+                setIsAuthenticated(false);
+                setUser(null);
+            }
+        } catch (error) {
+            console.error("Erro ao verificar status de autenticação:", error);
+            setIsAuthenticated(false);
+            setUser(null);
+        } finally {
+            // Garante que o loading seja sempre desabilitado no final da checagem
+            setIsLoading(false); 
+        }
+    };
 
-    // 2. Listener de Autenticação do Firebase (Detecta Login/Logout)
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-            if (firebaseUser) {
-                try {
-                    // Se autenticado no Firebase, sincroniza/carrega o perfil local
-                    const userProfile = await handleUserInitialization(firebaseUser);
-                    
-                    if (userProfile) {
-                        setUser(firebaseUser);
-                        setProfile(userProfile);
-                    } else {
-                        // Se falhar ao obter o perfil, forçamos o logout
-                        await signOut(auth);
-                    }
-                } catch (error) {
-                    console.error("Erro ao carregar perfil após login:", error);
-                    await signOut(auth); // Força logout em caso de erro de DB
-                }
-            } else {
-                // Usuário deslogado
-                setUser(null);
-                setProfile(null);
-            }
-            // Desliga o loading inicial após a primeira checagem de auth
-            setIsLoading(false); 
-        });
+    /**
+     * Define o usuário como logado e armazena o perfil no SecureStore.
+     */
+    const login = async (profile: UserProfile) => {
+        try {
+            // Atualiza o SecureStore com o perfil mais recente
+            await SecureStore.setItemAsync(PROFILE_KEY, JSON.stringify(profile));
+            setIsAuthenticated(true);
+            setUser(profile);
+        } catch (error) {
+            console.error("Erro ao executar login:", error);
+            // Reverte o estado em caso de falha de armazenamento
+            setIsAuthenticated(false);
+            setUser(null);
+        }
+    };
 
-        return () => unsubscribe();
-    }, []);
+    /**
+     * Executa o logout, limpa SecureStore e limpa dados locais (SQLite).
+     */
+    const logout = async () => {
+        try {
+            // 1. Limpeza do SecureStore (removendo todos os tokens/perfis)
+            await SecureStore.deleteItemAsync(PROFILE_KEY);
+            await SecureStore.deleteItemAsync(GOOGLE_TOKEN_KEY);
+            await SecureStore.deleteItemAsync(REGISTERED_EMAIL_KEY); 
+            await SecureStore.deleteItemAsync('registered_password'); 
+            
+            // 2. Limpeza do SQLite (usando nosso mock)
+            await clearUser(); 
 
-    // Implementação das funções de autenticação
-    const login = async (email: string, password: string) => {
-        setIsLoading(true);
-        try {
-            // O Firebase Auth faz o login
-            await signInWithEmailAndPassword(auth, email, password);
-            // O onAuthStateChanged (acima) cuidará de carregar o perfil e setar o estado
-        } catch (error: any) {
-            console.error("Erro ao fazer login:", error);
-            setIsLoading(false); // Desliga o loading em caso de falha
-            // Re-throw o erro para que o componente LoginScreen possa lidar com a mensagem de erro
-            throw error; 
-        }
-    };
+            // 3. Limpeza do estado
+            setIsAuthenticated(false);
+            setUser(null);
+        } catch (error) {
+            console.error("Erro durante o logout:", error);
+            // Em caso de erro, a melhor prática é forçar o logout do estado
+            setIsAuthenticated(false);
+            setUser(null);
+        }
+    };
 
-    const register = async (email: string, password: string, name: string) => {
-        setIsLoading(true);
-        try {
-            // 1. Cria o usuário no Firebase Auth
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            
-            // 2. Cria o perfil no SQLite e Firestore (passando o nome inicial)
-            const userProfile = await handleUserInitialization(userCredential.user, name);
-            
-            // 3. Atualiza o estado local
-            setUser(userCredential.user);
-            setProfile(userProfile);
-            
-        } catch (error: any) {
-            console.error("Erro ao registrar:", error);
-            setIsLoading(false); // Desliga o loading em caso de falha
-            throw error;
-        }
-    };
-    
-    // Funções de Perfil
-    const updateProfileLocally = (updatedProfile: UserProfile) => {
-        setProfile(updatedProfile);
-        // Não precisamos chamar saveOrUpdateUser aqui,
-        // pois a função que chama updateProfileLocally (ex: ProfileScreen)
-        // já deve ter chamado saveOrUpdateUser antes.
-    };
-    
+    useEffect(() => {
+        checkAuthStatus();
+    }, []);
 
-    const loginWithGoogle = async () => {
-        // Implementação do Google Sign-In viria aqui.
-        // Após a autenticação bem-sucedida, o onAuthStateChanged é acionado
-        // e chama handleUserInitialization.
-        console.warn("Google Auth não implementado.");
-    };
-
-    const logout = async () => {
-        try {
-            await signOut(auth);
-            // O onAuthStateChanged (acima) cuidará de resetar user/profile e isLoading
-        } catch (error) {
-            console.error("Erro ao fazer logout:", error);
-            throw error;
-        }
-    };
-
-    // A autenticação é válida se houver um usuário do Firebase E um perfil local carregado
-    const isAuthenticated = !!user && !!profile;
-
-    return (
-        <AuthContext.Provider value={{ user, profile, isAuthenticated, isLoading, login, register, logout, loginWithGoogle, updateProfileLocally }}>
-            {children}
-        </AuthContext.Provider>
-    );
+    // 💡 Adicionado setUser ao valor do contexto para permitir atualizações de perfil
+    return (
+        <AuthContext.Provider value={{ isAuthenticated, user, isLoading, login, logout, setUser }}>
+            {children}
+        </AuthContext.Provider>
+    );
 };
 
+// 4. O Hook Customizado
+/**
+ * Hook customizado para consumir o contexto de autenticação.
+ */
 export const useAuth = () => {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error('useAuth deve ser usado dentro de um AuthProvider');
-    }
-    return context;
+    const context = useContext(AuthContext);
+    if (context === undefined) {
+        throw new Error('useAuth deve ser usado dentro de um AuthProvider');
+    }
+    return context;
 };

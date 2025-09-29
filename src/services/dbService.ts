@@ -1,10 +1,8 @@
 import * as SQLite from 'expo-sqlite';
-// ✅ CORREÇÃO 1: Importação ajustada para o caminho mais provável
+// Importa as instâncias de Firebase/Firestore
 import { db, auth } from '../config/firebase'; 
 import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore'; 
 import { User as FirebaseAuthUser } from 'firebase/auth'; 
-// ✅ CORREÇÃO 2: Importe a tipagem para transação do SQLite
-import { SQLTransaction, SQLResultSetRowList } from 'expo-sqlite'; 
 
 // Definindo o nome do banco
 const DB_NAME = 'glucocare.db';
@@ -24,20 +22,20 @@ export interface UserProfile {
     weight: number | null;
     height: number | null;
     birthDate: string;
-    condition: string;
+    condition: string; // Mapeado para diabetes_condition no SQLite
     restriction: string;
     syncedAt: string | null;
 }
 
 /**
- * Interface de Leitura adaptada para o uso da propriedade 'timestamp'
- * para importação de arquivos (usada no fileParsingService).
+ * Interface de Leitura. O campo 'timestamp' é preferido para manipulação lógica (número),
+ * enquanto 'measurement_time' (string ISO) é usado para armazenamento no SQLite.
  */
 export interface Reading {
     id: string;
     // Campo usado para salvar no SQLite (ISO string)
     measurement_time: string; 
-    // Novo campo: Usado pelo parser de arquivos (milissegundos UNIX)
+    // Campo preferido para manipulação e sincronização no Firestore (milissegundos UNIX)
     timestamp: number; 
     glucose_level: number;
     meal_context: string | null;
@@ -47,29 +45,30 @@ export interface Reading {
 }
 
 // ----------------------
-// FUNÇÕES DE SERVIÇO BÁSICAS
+// FUNÇÕES DE SERVIÇO BÁSICAS (SQLite)
 // ----------------------
 
 /**
- * Retorna instância única do DB
+ * Retorna a instância única do DB (Lazy initialization)
  */
 export function getDB(): SQLite.Database {
     if (!dbInstance) {
+        // Abre o banco de dados. Expo o criará se não existir.
         dbInstance = SQLite.openDatabase(DB_NAME);
     }
     return dbInstance;
 }
 
 /**
- * Inicializa tabelas do banco
+ * Inicializa tabelas do banco de dados local.
  */
 export async function initDB(): Promise<boolean> {
     return new Promise((resolve, reject) => {
         const database = getDB();
 
         database.transaction(
-            (tx: SQLTransaction) => { // Tx tipado
-                // Usuários
+            (tx: SQLite.SQLTransaction) => {
+                // Tabela de Usuários (Apenas um registro por app)
                 tx.executeSql(
                     `CREATE TABLE IF NOT EXISTS users (
                         id TEXT PRIMARY KEY NOT NULL,
@@ -87,20 +86,20 @@ export async function initDB(): Promise<boolean> {
                     );`
                 );
 
-                // Leituras
+                // Tabela de Leituras (Registros de glicose)
                 tx.executeSql(
                     `CREATE TABLE IF NOT EXISTS readings (
                         id TEXT PRIMARY KEY NOT NULL,
-                        measurement_time TEXT,
+                        measurement_time TEXT, -- Data e hora no formato ISO 8601
                         glucose_level REAL,
                         meal_context TEXT,
                         time_since_meal TEXT,
                         notes TEXT,
-                        synced_at TEXT DEFAULT NULL 
+                        synced_at TEXT DEFAULT NULL -- Última sincronização com Firestore
                     );`
                 );
 
-                // Metadados de sincronização
+                // Tabela de Metadados de sincronização (opcional, mantida para futuras expansões)
                 tx.executeSql(
                     `CREATE TABLE IF NOT EXISTS sync_meta (
                         key TEXT PRIMARY KEY NOT NULL,
@@ -130,6 +129,7 @@ function normalizeUserRow(row: any): UserProfile {
         name: String(row.full_name ?? ''), 
         email: String(row.email ?? ''), 
         googleId: String(row.google_id ?? ''), 
+        // Conversão de 0/1 para boolean
         onboardingCompleted: !!row.onboarding_completed,
         biometricEnabled: !!row.biometric_enabled,
         weight: row.weight ?? null, 
@@ -142,13 +142,13 @@ function normalizeUserRow(row: any): UserProfile {
 }
 
 function normalizeReadingRow(row: any): Reading {
-    // 💡 Ao normalizar do SQLite, preenchemos o timestamp para ser consistente
+    // Ao normalizar do SQLite, calcula o timestamp (ms) a partir da string ISO
     const timestamp = row.measurement_time ? new Date(row.measurement_time).getTime() : Date.now();
     
     return {
         id: row.id,
         measurement_time: String(row.measurement_time),
-        timestamp: timestamp, // Preenchemos o campo timestamp a partir da string
+        timestamp: timestamp, 
         glucose_level: row.glucose_level,
         meal_context: row.meal_context ?? null,
         time_since_meal: row.time_since_meal ?? null,
@@ -193,18 +193,20 @@ export async function syncUserProfileToFirestore(profile: UserProfile): Promise<
             birth_date: profile.birthDate,
             diabetes_condition: profile.condition,
             restriction: profile.restriction,
+            // Marca o tempo de sincronização no servidor
             syncedAt: serverTimestamp(), 
         };
 
         await setDoc(userRef, profileData, { merge: true });
 
-        // Atualiza a marca d'água de sincronização no SQLite
+        // Atualiza a marca d'água de sincronização no SQLite (local)
         await new Promise<void>((resolve, reject) => {
             getDB().transaction(
-                (tx: SQLTransaction) => { 
+                (tx: SQLite.SQLTransaction) => { 
+                    const now = new Date().toISOString();
                     tx.executeSql(
                         `UPDATE users SET synced_at = ? WHERE id = ?;`,
-                        [new Date().toISOString(), profile.id],
+                        [now, profile.id],
                         () => resolve(), 
                         (_, err) => { reject(err); return false; } 
                     );
@@ -234,32 +236,32 @@ export async function syncReadingToFirestore(reading: Reading): Promise<void> {
     }
 
     try {
+        // Usa uma subcoleção 'readings' dentro do documento do usuário
         const readingRef = doc(db, 'users', uid, 'readings', reading.id);
         
-        // 💡 CONVERSÃO: O Firestore deve usar a hora Unix (number) ou o ISO String.
-        // Já que a interface Reading usa 'timestamp' (number) e 'measurement_time' (string),
-        // vamos usar o 'timestamp' para o Firestore, que é mais fácil de ordenar.
         const readingData = {
             id: reading.id,
             glucose_level: reading.glucose_level,
             meal_context: reading.meal_context,
             time_since_meal: reading.time_since_meal,
             notes: reading.notes,
-            timestamp: reading.timestamp, // Usa o timestamp (number)
-            measurement_time_iso: reading.measurement_time, // Guarda a string como referência
+            // Usa o timestamp (number) para fácil ordenação e análise no Firestore
+            timestamp: reading.timestamp, 
+            measurement_time_iso: reading.measurement_time, // Guarda a string ISO como referência
             syncedAt: serverTimestamp(), 
             userId: uid,
         };
         
         await setDoc(readingRef, readingData);
 
-        // Atualiza a marca d'água de sincronização no SQLite
+        // Atualiza a marca d'água de sincronização no SQLite (local)
         await new Promise<void>((resolve, reject) => {
             getDB().transaction(
-                (tx: SQLTransaction) => {
+                (tx: SQLite.SQLTransaction) => {
+                    const now = new Date().toISOString();
                     tx.executeSql(
                         `UPDATE readings SET synced_at = ? WHERE id = ?;`,
-                        [new Date().toISOString(), reading.id],
+                        [now, reading.id],
                         () => resolve(), 
                         (_, err) => { reject(err); return false; } 
                     );
@@ -277,24 +279,24 @@ export async function syncReadingToFirestore(reading: Reading): Promise<void> {
 }
 
 // ----------------------
-// FUNÇÕES DE MANIPULAÇÃO DE DADOS
+// FUNÇÕES DE MANIPULAÇÃO DE DADOS (SQLite + Sync)
 // ----------------------
 
 /**
- * Salvar ou atualizar usuário (Chama Sincronização)
+ * Salva ou atualiza usuário no SQLite e chama a sincronização com o Firestore.
  */
 export async function saveOrUpdateUser(profile: UserProfile): Promise<UserProfile | boolean> {
     const database = getDB();
 
     return new Promise((resolve, reject) => {
         database.transaction(
-            (tx: SQLTransaction) => {
-                // CORREÇÃO: Adiciona 'synced_at' à lista de colunas e parâmetros do INSERT OR REPLACE
+            (tx: SQLite.SQLTransaction) => {
+                // Usa INSERT OR REPLACE para garantir que sempre haja apenas 1 registro de usuário
                 tx.executeSql(
                     `INSERT OR REPLACE INTO users 
                      (id, full_name, email, google_id, onboarding_completed, biometric_enabled,
-                      weight, height, birth_date, diabetes_condition, restriction, synced_at)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`, // Adicionado um '?'
+                     weight, height, birth_date, diabetes_condition, restriction, synced_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
                     [
                         profile.id,
                         profile.name || null,
@@ -307,7 +309,7 @@ export async function saveOrUpdateUser(profile: UserProfile): Promise<UserProfil
                         profile.birthDate || null, 
                         profile.condition || null, 
                         profile.restriction || null, 
-                        profile.syncedAt || null, // Novo parâmetro
+                        profile.syncedAt || null, 
                     ]
                 );
             },
@@ -323,10 +325,11 @@ export async function saveOrUpdateUser(profile: UserProfile): Promise<UserProfil
                         await syncUserProfileToFirestore(user); 
                         resolve(user);
                     } else {
+                        // Deve sempre encontrar o usuário que acabou de ser salvo, mas por segurança.
                         resolve(false); 
                     }
                 } catch (err) {
-                    console.error('saveOrUpdateUser - erro ao buscar ou sincronizar:', err);
+                    console.warn('Atenção: Falha na sincronização do perfil. Salvo apenas localmente.', err);
                     // Se a sincronização falhar, ainda consideramos o salvamento local um sucesso
                     const user = await getUser();
                     resolve(user || false); 
@@ -337,16 +340,16 @@ export async function saveOrUpdateUser(profile: UserProfile): Promise<UserProfil
 }
 
 /**
- * Inserir leitura (Chama Sincronização)
+ * Inserir leitura no SQLite e chama a sincronização com o Firestore.
  */
 export async function addReading(reading: Reading): Promise<boolean> {
     const database = getDB();
 
-    // 💡 CONVERSÃO PRINCIPAL: Garante que a measurement_time seja uma string ISO
-    // usando o 'timestamp' (milissegundos) que vem do fileParsingService.
+    // CONVERSÃO PRINCIPAL: Garante que a measurement_time seja uma string ISO
+    // usando o 'timestamp' (milissegundos) que vem da fonte de dados (formulário ou arquivo).
     const isoTime = new Date(reading.timestamp).toISOString();
     
-    // Sobrescreve o campo measurement_time na Reading antes de sincronizar/salvar
+    // Objeto final para salvar localmente e sincronizar
     const readingToSave: Reading = {
         ...reading,
         measurement_time: isoTime,
@@ -354,11 +357,11 @@ export async function addReading(reading: Reading): Promise<boolean> {
 
     return new Promise((resolve, reject) => {
         database.transaction(
-            (tx: SQLTransaction) => {
+            (tx: SQLite.SQLTransaction) => {
                 tx.executeSql(
                     `INSERT INTO readings 
-                         (id, measurement_time, glucose_level, meal_context, time_since_meal, notes)
-                         VALUES (?, ?, ?, ?, ?, ?)`,
+                          (id, measurement_time, glucose_level, meal_context, time_since_meal, notes)
+                          VALUES (?, ?, ?, ?, ?, ?)`,
                     [
                         readingToSave.id,
                         readingToSave.measurement_time, // String ISO
@@ -389,17 +392,17 @@ export async function addReading(reading: Reading): Promise<boolean> {
 }
 
 /**
- * Buscar usuário único
+ * Buscar usuário único no SQLite.
  */
 export async function getUser(): Promise<UserProfile | null> {
     const database = getDB();
 
     return new Promise((resolve, reject) => {
-        database.transaction((tx: SQLTransaction) => {
+        database.transaction((tx: SQLite.SQLTransaction) => {
             tx.executeSql(
                 `SELECT * FROM users LIMIT 1;`,
                 [],
-                (_, { rows }: { rows: SQLResultSetRowList }) => {
+                (_, { rows }: { rows: SQLite.SQLResultSetRowList }) => { 
                     if (rows.length > 0) {
                         resolve(normalizeUserRow(rows._array[0])); 
                     } else {
@@ -417,15 +420,16 @@ export async function getUser(): Promise<UserProfile | null> {
 }
 
 /**
- * Listar leituras
+ * Listar todas as leituras do SQLite, ordenadas por data.
  */
 export async function listReadings(): Promise<Reading[]> {
     const database = getDB();
 
     return new Promise((resolve, reject) => {
         database.transaction(
-            (tx: SQLTransaction) => {
+            (tx: SQLite.SQLTransaction) => {
                 tx.executeSql(
+                    // Ordena pelo campo measurement_time (string ISO) convertido para datetime
                     `SELECT * FROM readings ORDER BY datetime(measurement_time) DESC;`,
                     [],
                     (_, result) => {
@@ -444,14 +448,14 @@ export async function listReadings(): Promise<Reading[]> {
 }
 
 /**
- * Excluir leitura por ID
+ * Excluir leitura por ID no SQLite.
  */
 export async function deleteReading(id: string): Promise<boolean> {
     const database = getDB();
 
     return new Promise((resolve, reject) => {
         database.transaction(
-            (tx: SQLTransaction) => {
+            (tx: SQLite.SQLTransaction) => {
                 tx.executeSql(
                     'DELETE FROM readings WHERE id = ?;',
                     [id],
@@ -473,6 +477,44 @@ export async function deleteReading(id: string): Promise<boolean> {
             () => {
                 resolve(true);
             } 
+        );
+    });
+}
+
+// ----------------------
+// FUNÇÕES DE LIMPEZA DE ESTADO
+// ----------------------
+
+/**
+ * Remove o único usuário (perfil) do banco de dados local (SQLite).
+ * Usado primariamente no logout.
+ */
+export async function clearUser(): Promise<boolean> {
+    const database = getDB();
+
+    return new Promise((resolve, reject) => {
+        database.transaction(
+            (tx: SQLite.SQLTransaction) => {
+                tx.executeSql(
+                    `DELETE FROM users;`,
+                    [],
+                    (_, result) => {
+                        resolve(true); 
+                    },
+                    (_, error) => {
+                        console.error("clearUser - erro SQL:", error);
+                        reject(error);
+                        return false;
+                    }
+                );
+            },
+            (error) => {
+                console.error("clearUser - erro transaction:", error);
+                reject(error);
+            },
+            () => {
+                resolve(true);
+            }
         );
     });
 }
