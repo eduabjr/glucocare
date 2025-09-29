@@ -1,106 +1,82 @@
-import React from "react"; 
+// ✅ REMOVIDO: 'import React from "react";' não é mais necessário em projetos modernos.
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { createDrawerNavigator } from "@react-navigation/drawer";
-import { MaterialIcons } from "@expo/vector-icons";
-import { TouchableOpacity, ActivityIndicator, View, Platform, StatusBar, StyleSheet } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { NavigationContainer, LinkingOptions, useNavigation, DrawerActions } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 
-// ✨ Importa o hook de AuthContext
+// ✨ Hook de Autenticação
 import { useAuth } from "../context/AuthContext";
 
-// Importações de Telas e CustomDrawer
+// ✨ Telas do Aplicativo
 import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/RegisterScreen";
-import DashboardScreen from "../screens/DashboardScreen";
-import AddReadingScreen from "../screens/AddReadingScreen";
-import ChartsScreen from "../screens/ChartsScreen";
+import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
+import ResetPasswordScreen from "../screens/ResetPasswordScreen";
 import ProfileSetupScreen from "../screens/ProfileSetupScreen";
 import BiometricSetupScreen from "../screens/BiometricSetupScreen";
-import DeviceConnectionScreen from "../screens/DeviceConnectionScreen";
-import NutritionScreen from "../screens/NutritionScreen";
-import SettingsScreen from "../screens/SettingsScreen"; 
-import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
-import ResetPasswordScreen from "../screens/ResetPasswordScreen"; 
 import LoadingScreen from "../screens/LoadingScreen";
-import CustomDrawer from "./CustomDrawer";
+import DrawerRoutes from "./DrawerRoutes"; // Importando o navegador do Drawer já existente
 
-// Tipagens (mantidas como no seu código)
-type DrawerParamList = {
-    Dashboard: undefined;
-    AddReading: undefined;
-    DeviceConnection: undefined;
-    Charts: undefined;
-    Nutrition: undefined;
-    Settings: undefined;
+// --- Tipagem dos Navegadores ---
+export type AuthStackParamList = {
+    Login: undefined;
+    Register: undefined;
+    ForgotPassword: undefined;
+    ResetPassword: { oobCode?: string };
+};
+
+export type OnboardingStackParamList = {
     ProfileSetup: undefined;
+    BiometricSetup: undefined;
 };
 
 export type RootStackParamList = {
-    Login: undefined;
-    Register: undefined;
-    BiometricSetup: undefined;
-    ProfileSetup: undefined;
-    ForgotPassword: undefined;
-    ResetPassword: { oobCode?: string }; 
-    Drawer: undefined;
+    Auth: undefined;
+    Onboarding: undefined;
+    App: undefined;
 };
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
-const Drawer = createDrawerNavigator<DrawerParamList>();
+// --- Inicialização dos Navegadores ---
+const RootStack = createNativeStackNavigator<RootStackParamList>();
+const AuthStack = createNativeStackNavigator<AuthStackParamList>();
+const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 
-// Configuração de Deep Link (mantida como no seu código)
-const linking: LinkingOptions<RootStackParamList> = {
-    prefixes: ['glucocare://'], 
-    config: {
-        screens: {
-            ResetPassword: 'ResetPassword',
-            Drawer: 'Drawer',
-            Login: 'Login',
-            Register: 'Register',
-            ForgotPassword: 'ForgotPassword',
-        },
-    },
-};
 
-// Componente MenuButton (mantido)
-function MenuButton() {
-    const navigation = useNavigation();
+// --- GRUPO 1: NAVEGADOR DE AUTENTICAÇÃO ---
+function AuthNavigator() {
     return (
-        <TouchableOpacity onPress={() => navigation.dispatch(DrawerActions.openDrawer())}>
-            <MaterialIcons name="menu" size={26} color="#fff" style={styles.menuIcon} />
-        </TouchableOpacity>
+        <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+            <AuthStack.Screen name="Login" component={LoginScreen} />
+            <AuthStack.Screen name="Register" component={RegisterScreen} />
+            <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            <AuthStack.Screen
+                name="ResetPassword"
+                component={ResetPasswordScreen}
+                options={{ headerShown: true, title: "Definir Nova Senha" }}
+            />
+        </AuthStack.Navigator>
     );
 }
 
-// Rotas do Drawer (mantidas)
-function DrawerRoutes() { 
-    const insets = useSafeAreaInsets();
-    // ... (o seu código do Drawer.Navigator continua aqui, sem alterações)
+// --- GRUPO 2: NAVEGADOR DE ONBOARDING ---
+function OnboardingNavigator() {
     return (
-        <Drawer.Navigator
-            drawerContent={(props) => <CustomDrawer {...props} />}
-            screenOptions={{
-                headerStyle: { backgroundColor: "#2563eb" },
-                headerTintColor: "#fff",
-                headerLeft: () => <MenuButton />,
-                // Adicione outras opções de ecrã do drawer conforme necessário
-            }}
-        >
-            <Drawer.Screen name="Dashboard" component={DashboardScreen} />
-            <Drawer.Screen name="AddReading" component={AddReadingScreen} options={{ title: "Nova Medição" }} />
-            <Drawer.Screen name="DeviceConnection" component={DeviceConnectionScreen} options={{ title: "Conectar Dispositivo" }}/>
-            <Drawer.Screen name="Charts" component={ChartsScreen} options={{ title: "Gráficos" }} />
-            <Drawer.Screen name="Nutrition" component={NutritionScreen} options={{ title: "Alimentação" }} />
-            <Drawer.Screen name="Settings" component={SettingsScreen} options={{ title: "Configurações" }} />
-            <Drawer.Screen name="ProfileSetup" component={ProfileSetupScreen} options={{ title: "Perfil" }} />
-        </Drawer.Navigator>
+        <OnboardingStack.Navigator>
+            <OnboardingStack.Screen 
+                name="ProfileSetup" 
+                component={ProfileSetupScreen} 
+                options={{ headerShown: true, title: "Complete seu Perfil" }}
+            />
+            <OnboardingStack.Screen 
+                name="BiometricSetup" 
+                component={BiometricSetupScreen} 
+                options={{ headerShown: true, title: "Segurança" }}
+            />
+        </OnboardingStack.Navigator>
     );
 }
 
-// --- NAVEGADOR PRINCIPAL (RootNavigator) ---
+
+// --- NAVEGADOR PRINCIPAL (RAIZ) ---
 export default function RootNavigator() {
-    // ✨ CORREÇÃO: Usa 'user' em vez de 'isAuthenticated' para verificar a autenticação
     const { user, isLoading } = useAuth();
 
     if (isLoading) {
@@ -108,48 +84,23 @@ export default function RootNavigator() {
     }
 
     return (
-        <NavigationContainer 
-            linking={linking}
-            fallback={
-                <View style={styles.fallbackContainer}>
-                    <ActivityIndicator size="large" color="#2563eb" />
-                </View>
-            }
-        >
-            <Stack.Navigator screenOptions={{ headerShown: false }}>
-                {/* ✨ Lógica de navegação baseada na existência do objeto 'user' */}
-                {user ? (
-                    // Se o utilizador existir, mostra a stack principal da app (com o Drawer)
-                    <Stack.Screen name="Drawer" component={DrawerRoutes} />
+        <NavigationContainer>
+            <RootStack.Navigator screenOptions={{ headerShown: false }}>
+                {/* ✨ LÓGICA PRINCIPAL DE NAVEGAÇÃO ✨ */}
+                {!user ? (
+                    // 1. Se NÃO HÁ usuário, mostra o fluxo de autenticação.
+                    <RootStack.Screen name="Auth" component={AuthNavigator} />
+                ) : !user.onboardingCompleted ? (
+                    // 2. Se HÁ usuário, mas o onboarding NÃO FOI COMPLETO, mostra o fluxo de configuração.
+                    <RootStack.Screen name="Onboarding" component={OnboardingNavigator} />
                 ) : (
-                    // Caso contrário, mostra a stack de autenticação
-                    <>
-                        <Stack.Screen name="Login" component={LoginScreen} />
-                        <Stack.Screen name="Register" component={RegisterScreen} />
-                        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-                        <Stack.Screen 
-                            name="ResetPassword" 
-                            component={ResetPasswordScreen} 
-                            options={{ headerShown: true, title: "Definir Nova Senha" }} 
-                        /> 
-                        <Stack.Screen name="BiometricSetup" component={BiometricSetupScreen} />
-                        <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
-                    </>
+                    // 3. Se HÁ usuário E o onboarding FOI COMPLETO, mostra o app principal (Drawer).
+                    <RootStack.Screen name="App" component={DrawerRoutes} />
                 )}
-            </Stack.Navigator>
+            </RootStack.Navigator>
         </NavigationContainer>
     );
 }
 
-const styles = StyleSheet.create({
-    fallbackContainer: {
-        flex: 1, 
-        justifyContent: "center", 
-        alignItems: "center", 
-        backgroundColor: "#f0f6ff"
-    },
-    menuIcon: {
-        marginLeft: 12
-    }
-});
-
+// ✅ REMOVIDO: O bloco de estilos abaixo não estava sendo utilizado neste arquivo
+// e causaria um erro por falta da importação do 'StyleSheet'.

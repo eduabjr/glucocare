@@ -11,27 +11,30 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../navigation/RootNavigator"; // Confirme o caminho
-import { sendPasswordResetEmail } from "firebase/auth"; // ⚠️ Removida a importação incorreta de FirebaseError
-import { FirebaseError } from "firebase/app"; // 💡 Importação correta para tipagem do erro
+// ✅ CORREÇÃO: Importando o ParamList correto do navegador onde esta tela vive.
+import { AuthStackParamList } from "../navigation/RootNavigator"; 
+import { sendPasswordResetEmail } from "firebase/auth";
+import { FirebaseError } from "firebase/app";
 
 // 💡 Importa o objeto de autenticação configurado
 import { auth } from "../config/firebase";
 
-// O segundo argumento, 'ForgotPassword', especifica que esta tela é a rota "ForgotPassword"
-type ForgotPasswordScreenProps = NativeStackScreenProps<RootStackParamList, 'ForgotPassword'>;
+// ✅ CORREÇÃO: A tipagem agora usa 'AuthStackParamList' em vez de 'RootStackParamList'.
+// Isso informa ao TypeScript que esta tela pertence ao fluxo de autenticação
+// e conhece as outras telas desse fluxo (como 'Login').
+type ForgotPasswordScreenProps = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
+
 
 const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation }) => {
     const [email, setEmail] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(false);
 
-    const handleSubmit = async () => { // ⚠️ Tornando a função assíncrona
+    const handleSubmit = async () => {
         if (!email) {
             Alert.alert("Erro", "Por favor, insira um e-mail.");
             return;
         }
 
-        // Validação simples de e-mail
         const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/;
         if (!emailRegex.test(email)) {
             Alert.alert("Erro", "Por favor, insira um e-mail válido.");
@@ -41,42 +44,37 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
         setIsLoading(true);
 
         try {
-            // 🚀 FUNÇÃO REAL DO FIREBASE: Envia o e-mail de redefinição de senha
             await sendPasswordResetEmail(auth, email.trim());
 
-            // Mensagem de sucesso (aparece mesmo se o e-mail não existir por motivos de segurança)
             Alert.alert(
-                "Link de Redefinição Enviado", 
+                "Link de Redefinição Enviado",
                 "Verifique seu e-mail. Se a conta existir, você receberá um link para redefinir sua senha."
             );
             
-            // Navega de volta para o login
-            navigation.navigate("Login"); 
+            // ✅ CORREÇÃO: Agora 'navigation.navigate("Login")' é válido, pois "Login"
+            // existe dentro da 'AuthStackParamList'.
+            navigation.navigate("Login");
 
         } catch (error) {
             console.error("Erro ao enviar e-mail de redefinição:", error);
-            
-            // 💡 Tratamento de erros: Verificamos se o erro é uma instância de FirebaseError
+
             if (error instanceof FirebaseError) {
                 let errorMessage = "Ocorreu um erro desconhecido.";
                 
                 switch (error.code) {
                     case 'auth/user-not-found':
                     case 'auth/invalid-email':
-                        // Por segurança, mostramos uma mensagem genérica para não revelar a existência da conta
                         errorMessage = "Se o e-mail estiver registrado, um link será enviado.";
                         break;
                     case 'auth/too-many-requests':
                         errorMessage = "Tentativas excessivas. Tente novamente mais tarde.";
                         break;
                     default:
-                        // Mostra o código do erro para debug, caso seja um erro não esperado.
                         errorMessage = `Erro de Auth (${error.code}): ${error.message}`;
                 }
                 
                 Alert.alert("Erro de Envio", errorMessage);
             } else {
-                // Erro de rede ou outro erro desconhecido
                 Alert.alert("Erro", "Não foi possível conectar ao servidor de autenticação.");
             }
 
@@ -100,7 +98,7 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
                             keyboardType="email-address"
                             value={email}
                             onChangeText={setEmail}
-                            editable={!isLoading} // Desabilita edição enquanto carrega
+                            editable={!isLoading}
                         />
                     </View>
 
@@ -112,6 +110,7 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
                         )}
                     </TouchableOpacity>
 
+                    {/* ✅ CORREÇÃO: A mesma lógica se aplica aqui. A navegação está correta. */}
                     <TouchableOpacity onPress={() => navigation.navigate("Login")}>
                         <Text style={styles.link}>Voltar para o login</Text>
                     </TouchableOpacity>

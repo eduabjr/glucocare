@@ -11,50 +11,20 @@ import {
     Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as SecureStore from 'expo-secure-store';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { Feather } from '@expo/vector-icons';
-// Importações de serviço assumidas
-import { initDB, saveOrUpdateUser, getUser, UserProfile } from '../services/dbService'; 
-import { v4 as uuidv4 } from 'uuid';
-// Assumindo que GoogleSyncService está em '../services/googleSync'
-import GoogleSyncService from '../services/googleSync'; 
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/RootNavigator'; 
 
-type ProfileSetupScreenProps = NativeStackScreenProps<RootStackParamList, 'ProfileSetup'>;
+// Importações do projeto
+import { useAuth } from '../context/AuthContext';
+import { OnboardingStackParamList } from '../navigation/RootNavigator';
+import { saveOrUpdateUser, UserProfile } from '../services/dbService';
 
-// Reflete os dados potencialmente incompletos salvos no SecureStore
-interface SecureStoreProfile {
-    id?: string;
-    name?: string;
-    birthDate?: string;
-    condition?: string;
-    height?: number; 
-    weight?: number; 
-    restriction?: string;
-    email?: string;
-    googleId?: string;
-}
+// Tipagem da tela
+type ProfileSetupScreenProps = NativeStackScreenProps<OnboardingStackParamList, 'ProfileSetup'>;
 
-// Rascunho de perfil usado internamente
-interface DraftProfile {
-    id: string;
-    name: string;
-    birthDate: string;
-    condition: string;
-    height: number | null; 
-    weight: number | null; 
-    restriction: string; 
-    email: string;
-    googleId: string | null; 
-    onboardingCompleted: boolean;
-    biometricEnabled: boolean;
-    syncedAt: string;
-}
-
-// FUNÇÃO AUXILIAR: Limpa a entrada numérica
+// Função auxiliar para formatar números
 const formatNumericInput = (text: string): string => {
     let cleanedText = text.replace(/[^\d.,]/g, '');
     cleanedText = cleanedText.replace(/\./g, ',');
@@ -65,17 +35,15 @@ const formatNumericInput = (text: string): string => {
     return cleanedText;
 };
 
-
 export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenProps) {
-    const [userId, setUserId] = useState<string | null>(null);
+    const { user, setUser } = useAuth();
+
     const [name, setName] = useState<string>('');
-    const [email, setEmail] = useState<string>('');
-    const [googleId, setGoogleId] = useState<string | null>(null);
     const [birthDate, setBirthDate] = useState<Date>(new Date(1990, 0, 1));
     const [showDate, setShowDate] = useState<boolean>(false);
     const [condition, setCondition] = useState<string>('');
-    const [height, setHeight] = useState<string>(''); 
-    const [weight, setWeight] = useState<string>(''); 
+    const [height, setHeight] = useState<string>('');
+    const [weight, setWeight] = useState<string>('');
     const [restrictions, setRestrictions] = useState<string[]>([]);
 
     const restrictionOptions = [
@@ -84,57 +52,21 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
     ];
 
     useEffect(() => {
-        (async () => {
-            try {
-                await initDB();
-                const user = await getUser();
-
-                if (user) {
-                    setUserId(user.id);
-                    setName(user.name); 
-                    setEmail(user.email);
-                    setGoogleId(user.googleId || null);
-                    const dateString = user.birthDate;
-                    setBirthDate(dateString ? new Date(dateString) : new Date(1990, 0, 1));
-                    setCondition(user.condition);
-                    setHeight(user.height !== null && user.height !== 0 ? String(user.height).replace('.', ',') : '');
-                    setWeight(user.weight !== null && user.weight !== 0 ? String(user.weight).replace('.', ',') : '');
-                    const userRestrictions = user.restriction;
-                    setRestrictions(userRestrictions.split(',').filter(r => r));
-                } else {
-                    const saved = await SecureStore.getItemAsync('user_profile');
-                    if (saved) {
-                        const profile: SecureStoreProfile = JSON.parse(saved); 
-                        setUserId(profile.id ?? uuidv4()); 
-                        setName(profile.name ?? ''); 
-                        setEmail(profile.email ?? '');
-                        setGoogleId(profile.googleId ?? null);
-                        const dateSaved = profile.birthDate;
-                        setBirthDate(dateSaved ? new Date(dateSaved) : new Date(1990, 0, 1));
-                        setCondition(profile.condition ?? ''); 
-                        setHeight(profile.height ? String(profile.height).replace('.', ',') : '');
-                        setWeight(profile.weight ? String(profile.weight).replace('.', ',') : '');
-                        const savedRestrictions = profile.restriction ?? '';
-                        setRestrictions(savedRestrictions.split(',').filter(r => r));
-                    } else {
-                        setUserId(uuidv4());
-                    }
-                }
-            } catch (err) {
-                console.error('Erro ao inicializar perfil:', err);
-                setUserId(uuidv4());
-            }
-        })();
-    }, []);
+        if (user) {
+            setName(user.name ?? '');
+            setBirthDate(user.birthDate ? new Date(user.birthDate) : new Date(1990, 0, 1));
+            setCondition(user.condition ?? '');
+            setHeight(user.height ? String(user.height).replace('.', ',') : '');
+            setWeight(user.weight ? String(user.weight).replace('.', ',') : '');
+            setRestrictions(user.restriction ? user.restriction.split(',').filter(Boolean) : []);
+        }
+    }, [user]);
 
     const toggleRestriction = (item: string) => {
         setRestrictions((prev) =>
             prev.includes(item) ? prev.filter((r) => r !== item) : [...prev, item]
         );
     };
-
-    const parsedHeight = height ? Number(height.replace(',', '.')) : 0; 
-    const parsedWeight = weight ? Number(weight.replace(',', '.')) : 0; 
 
     const onDateChange = (_event: DateTimePickerEvent, selected: Date | undefined) => {
         setShowDate(false);
@@ -144,66 +76,44 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
     };
 
     const handleSave = async () => {
+        if (!user) {
+            return Alert.alert('Erro', 'Sessão de usuário inválida. Por favor, reinicie o app.');
+        }
+
+        if (!name.trim()) return Alert.alert('Erro', 'Digite seu nome.');
+        if (!condition) return Alert.alert('Erro', 'Selecione sua condição.');
+        
+        const parsedHeight = height ? Number(height.replace(',', '.')) : 0;
+        const parsedWeight = weight ? Number(weight.replace(',', '.')) : 0;
+        
+        if (parsedHeight <= 0 || isNaN(parsedHeight)) return Alert.alert('Erro', 'Altura inválida (use cm).');
+        if (parsedWeight <= 0 || isNaN(parsedWeight)) return Alert.alert('Erro', 'Peso inválido.');
+
+        // Construindo o perfil atualizado
+        const updatedProfileData: UserProfile = {
+            ...user,
+            name: name.trim(),
+            birthDate: birthDate.toISOString(),
+            condition,
+            height: parsedHeight,
+            weight: parsedWeight,
+            restriction: restrictions.join(','),
+            onboardingCompleted: false,
+            googleId: user.googleId ?? '',
+            biometricEnabled: user.biometricEnabled ?? false,
+            // ✅ CORREÇÃO: Adiciona o campo 'syncedAt' obrigatório com a data atual.
+            syncedAt: new Date().toISOString(),
+        };
+
         try {
-            if (!name.trim()) return Alert.alert('Erro', 'Digite seu nome.');
-            if (!birthDate || isNaN(birthDate.getTime())) return Alert.alert('Erro', 'Informe sua data de nascimento.');
-            if (!condition) return Alert.alert('Erro', 'Selecione sua condição.');
-            if (parsedHeight <= 0 || isNaN(parsedHeight)) return Alert.alert('Erro', 'Altura inválida (use cm).');
-            if (parsedWeight <= 0 || isNaN(parsedWeight)) return Alert.alert('Erro', 'Peso inválido.');
+            await saveOrUpdateUser(updatedProfileData);
+            setUser(updatedProfileData);
 
-            const registeredEmail = await SecureStore.getItemAsync('registered_email');
-            const finalEmail = email.trim() || registeredEmail || 'placeholder@app.com';
-            const currentSyncedAt = new Date().toISOString(); 
+            Alert.alert('Sucesso', 'Perfil salvo! Próxima etapa: Biometria.');
+            navigation.replace('BiometricSetup');
 
-            const draftProfile: DraftProfile = {
-                id: userId || uuidv4(),
-                name: name.trim(),
-                birthDate: birthDate.toISOString(),
-                condition,
-                height: parsedHeight,
-                weight: parsedWeight,
-                restriction: restrictions.join(','), 
-                email: finalEmail, 
-                googleId: googleId, 
-                onboardingCompleted: true, 
-                biometricEnabled: false, 
-                syncedAt: currentSyncedAt,
-            };
-
-            const profileToSave: UserProfile = {
-                ...draftProfile,
-                height: draftProfile.height ?? 0, 
-                weight: draftProfile.weight ?? 0, 
-                googleId: draftProfile.googleId ?? '', 
-            }
-            
-            const savedUser = await saveOrUpdateUser(profileToSave);
-            
-            if (typeof savedUser !== 'boolean') {
-                await SecureStore.setItemAsync('user_profile', JSON.stringify(savedUser));
-            }
-
-            try {
-                const token = await SecureStore.getItemAsync('google_token');
-                if (token && GoogleSyncService && typeof GoogleSyncService.uploadReadingsToDrive === 'function') {
-                    await GoogleSyncService.uploadReadingsToDrive(token); 
-                }
-            } catch (err) {
-                console.warn('Falha ao sincronizar perfil (erro de execução do Drive):', err);
-            }
-
-            const biometricStatus = await SecureStore.getItemAsync('biometric_setup_done');
-
-            if (!biometricStatus) {
-                Alert.alert('Sucesso', 'Perfil criado! Próxima etapa: Biometria.');
-                navigation.replace('BiometricSetup');
-            } else {
-                Alert.alert('Sucesso', 'Perfil atualizado!');
-                // ✨ CORREÇÃO: O nome da rota é 'Drawer', e não 'DrawerRoutes'.
-                navigation.replace('Drawer'); 
-            }
         } catch (err) {
-            console.error('handleSave profile - erro:', err);
+            console.error('Erro ao salvar o perfil:', err);
             Alert.alert('Erro', 'Não foi possível salvar o perfil.');
         }
     };
@@ -212,8 +122,8 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
         <SafeAreaView style={styles.safe}>
             <ScrollView contentContainerStyle={styles.container}>
                 <View style={styles.card}>
-                    <Text style={styles.title}>Configurações</Text>
-                    <Text style={styles.subtitle}>Edite suas informações pessoais</Text>
+                    <Text style={styles.title}>Complete seu Perfil</Text>
+                    <Text style={styles.subtitle}>Estas informações nos ajudam a personalizar sua experiência.</Text>
 
                     {/* Nome */}
                     <View style={styles.inputWrapper}>
@@ -226,30 +136,23 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                         />
                     </View>
 
-                    {/* Email */}
+                    {/* Email (não editável) */}
                     <View style={styles.inputWrapper}>
                         <Feather name="mail" size={18} color="#9ca3af" style={styles.inputIcon} />
                         <TextInput
-                            style={styles.input}
-                            placeholder="Seu Email"
-                            value={email}
-                            onChangeText={setEmail}
-                            keyboardType="email-address"
-                            autoCapitalize="none"
+                            style={[styles.input, { color: '#6b7280' }]}
+                            value={user?.email}
+                            editable={false}
                         />
                     </View>
-
+                    
                     {/* Data de nascimento */}
                     <View style={styles.inputWrapper}>
                         <Feather name="calendar" size={18} color="#9ca3af" style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="DD/MM/AAAA"
-                            value={birthDate.toLocaleDateString('pt-BR')}
-                            editable={false} 
-                        />
-                        <TouchableOpacity onPress={() => setShowDate(true)}>
-                            <Feather name="calendar" size={20} color="#2563eb" />
+                        <TouchableOpacity onPress={() => setShowDate(true)} style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={styles.input}>
+                                {birthDate.toLocaleDateString('pt-BR')}
+                            </Text>
                         </TouchableOpacity>
                     </View>
                     {showDate && (
@@ -257,39 +160,39 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                             value={birthDate}
                             mode="date"
                             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                            onChange={onDateChange} 
-                            maximumDate={new Date()} 
+                            onChange={onDateChange}
+                            maximumDate={new Date()}
                         />
                     )}
 
                     {/* Condição */}
                     <View style={styles.inputWrapper}>
-                        <Feather name="list" size={18} color="#9ca3af" style={styles.inputIcon} />
-                        {Platform.OS === 'ios' ? (
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Selecione a Condição"
-                                value={
-                                    condition === 'pre-diabetes' ? 'Pré-diabetes' :
-                                    condition === 'tipo-1' ? 'Diabetes Tipo 1' :
-                                    condition === 'tipo-2' ? 'Diabetes Tipo 2' :
-                                    ''
-                                }
-                                editable={false}
-                            />
-                        ) : null}
-                        <Picker
-                            selectedValue={condition}
-                            onValueChange={setCondition}
-                            style={[styles.pickerStyle, Platform.OS === 'ios' && { position: 'absolute', width: '100%', opacity: 0 }]}
-                            itemStyle={styles.pickerItemStyle}
-                        >
-                            <Picker.Item label="Selecione a Condição" value="" color="#9ca3af" />
-                            <Picker.Item label="Pré-diabetes" value="pre-diabetes" />
-                            <Picker.Item label="Diabetes Tipo 1" value="tipo-1" />
-                            <Picker.Item label="Diabetes Tipo 2" value="tipo-2" />
-                        </Picker>
-                    </View>
+                         <Feather name="list" size={18} color="#9ca3af" style={styles.inputIcon} />
+                         {Platform.OS === 'ios' ? (
+                             <TextInput
+                                 style={styles.input}
+                                 placeholder="Selecione a Condição"
+                                 value={
+                                     condition === 'pre-diabetes' ? 'Pré-diabetes' :
+                                     condition === 'tipo-1' ? 'Diabetes Tipo 1' :
+                                     condition === 'tipo-2' ? 'Diabetes Tipo 2' :
+                                     ''
+                                 }
+                                 editable={false}
+                             />
+                         ) : null}
+                         <Picker
+                             selectedValue={condition}
+                             onValueChange={setCondition}
+                             style={[styles.pickerStyle, Platform.OS === 'ios' && { position: 'absolute', width: '100%', opacity: 0 }]}
+                             itemStyle={styles.pickerItemStyle}
+                         >
+                             <Picker.Item label="Selecione a Condição" value="" color="#9ca3af" />
+                             <Picker.Item label="Pré-diabetes" value="pre-diabetes" />
+                             <Picker.Item label="Diabetes Tipo 1" value="tipo-1" />
+                             <Picker.Item label="Diabetes Tipo 2" value="tipo-2" />
+                         </Picker>
+                       </View>
 
                     {/* Altura (cm) */}
                     <View style={styles.inputWrapper}>
@@ -299,7 +202,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                             placeholder="Altura (cm)"
                             keyboardType="numeric"
                             value={height}
-                            onChangeText={(text) => setHeight(formatNumericInput(text))} 
+                            onChangeText={(text) => setHeight(formatNumericInput(text))}
                         />
                     </View>
 
@@ -344,7 +247,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
 
                     {/* Botão Salvar */}
                     <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                        <Text style={styles.saveText}>Salvar Alterações</Text>
+                        <Text style={styles.saveText}>Salvar e Continuar</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -352,6 +255,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
     );
 }
 
+// Estilos
 const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: '#f0f6ff' },
     container: { flexGrow: 1, justifyContent: 'center', padding: 16 },
@@ -431,6 +335,4 @@ const styles = StyleSheet.create({
         height: 40,
     },
     pickerItemStyle: {
-        fontSize: 15,
-    },
-});
+        fontSi

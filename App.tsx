@@ -1,11 +1,9 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
-// ❌ REMOVIDO: NavigationContainer foi movido para RootNavigator.tsx
-// import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context'; 
 
 // Importações dos Provedores e Navegador
 import { AuthProvider } from './src/context/AuthContext'; 
+import { ReadingsProvider } from './src/context/ReadingsContext'; // Importe aqui ou no RootNavigator
 import RootNavigator from './src/navigation/RootNavigator'; 
 
 export default function App() {
@@ -13,24 +11,15 @@ export default function App() {
         <SafeAreaProvider>
             {/* 1. AuthProvider: Gerencia o estado de autenticação/loading */}
             <AuthProvider>
-                {/* 2. RootNavigator: Contém internamente o único <NavigationContainer> e a lógica de exibição (Login/App) */}
-                <RootNavigator />
+                {/* 2. ReadingsProvider: Gerencia os dados de medições.
+                     Envolve o RootNavigator para que todas as telas (após o login) 
+                     tenham acesso aos dados.
+                */}
+                <ReadingsProvider>
+                    {/* 3. RootNavigator: Decide qual fluxo de telas mostrar (Login ou App) */}
+                    <RootNavigator />
+                </ReadingsProvider>
             </AuthProvider>
         </SafeAreaProvider>
     );
 }
-
-// Estilos
-const styles = StyleSheet.create({
-    loader: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-    },
-    text: {
-        marginTop: 10,
-        fontSize: 16,
-        color: '#333',
-    },
-});

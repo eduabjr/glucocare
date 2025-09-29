@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged, User, signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential, signOut } from 'firebase/auth';
-// Certifique-se de que este caminho para a sua configuração do Firebase está correto
 import { auth, db } from '../config/firebase'; // ✨ ADICIONADO: Importar 'db' do Firebase
 import { doc, getDoc, setDoc } from 'firebase/firestore'; // ✨ ADICIONADO: Funções do Firestore
 
@@ -18,6 +17,7 @@ export interface UserProfile {
     condition?: string;
     restriction?: string;
     syncedAt?: string | null;
+    emailVerified?: boolean; // ADICIONADO: emailVerified
 }
 
 // Interface do Contexto
@@ -45,7 +45,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
                 if (userDoc.exists()) {
                     // Se o utilizador já existe na base de dados, carrega o perfil completo
-                    setUser({ id: firebaseUser.uid, ...userDoc.data() } as UserProfile);
+                    setUser({ 
+                        id: firebaseUser.uid, 
+                        emailVerified: firebaseUser.emailVerified, // ADICIONADO: emailVerified
+                        ...userDoc.data() 
+                    } as UserProfile);
                 } else {
                     // Se for um novo utilizador (ex: primeiro login com Google), cria um perfil básico
                     const googleId = firebaseUser.providerData.find(p => p.providerId === 'google.com')?.uid;
@@ -53,6 +57,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                         id: firebaseUser.uid,
                         name: firebaseUser.displayName || 'Utilizador',
                         email: firebaseUser.email || 'Não informado',
+                        emailVerified: firebaseUser.emailVerified, // ADICIONADO: emailVerified
                         onboardingCompleted: false, // O fluxo de onboarding irá atualizar isto
                     };
                     if (googleId) {
@@ -121,4 +126,3 @@ export const useAuth = () => {
     }
     return context;
 };
-

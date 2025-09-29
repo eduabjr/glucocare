@@ -15,7 +15,9 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^13.0.0",
+    "@expo/webpack-config": "^18.0.1",
     "@react-native-community/datetimepicker": "6.7.3",
+    "@react-native-google-signin/google-signin": "^10.1.1",
     "@react-native-picker/picker": "2.4.8",
     "@react-navigation/drawer": "^6.6.15",
     "@react-navigation/native": "^6.1.6",
@@ -62,7 +64,7 @@
     "uuid": "^9.0.1",
     "xlsx": "^0.18.5",
     "xml2js": "^0.6.2",
-    "@expo/webpack-config": "^18.0.1"
+    "expo-print": "~12.2.1"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

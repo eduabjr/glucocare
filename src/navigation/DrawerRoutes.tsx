@@ -1,8 +1,11 @@
-import { createDrawerNavigator } from "@react-navigation/drawer";
+// Em src/navigation/DrawerRoutes.tsx
+
+// Importações necessárias
 import { Platform, StatusBar, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import React from "react"; // Necessário para compilação JSX
 import { MaterialIcons } from "@expo/vector-icons";
+import { createDrawerNavigator } from "@react-navigation/drawer"; // ✅ Adicione a importação
+import React from "react"; // Necessário para compilação JSX
 
 // Telas
 import DashboardScreen from "../screens/DashboardScreen";
@@ -12,6 +15,7 @@ import ChartsScreen from "../screens/ChartsScreen";
 import NutritionScreen from "../screens/NutritionScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import ProfileSetupScreen from "../screens/ProfileSetupScreen";
+import ReportScreen from '../screens/ReportScreen'; // ✅ Importação da nova tela
 
 // Drawer customizado
 import CustomDrawer from "./CustomDrawer";
@@ -26,6 +30,7 @@ export type DrawerParamList = {
     Nutrition: undefined;
     Settings: undefined;
     ProfileSetup: undefined;
+    Report: undefined; // ✅ Adiciona a nova tela
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -38,7 +43,8 @@ type IconName =
     | "show-chart"
     | "restaurant-menu"
     | "settings"
-    | "person";
+    | "person"
+    | "description"; // ✅ Adiciona o ícone "description" para a nova tela
 
 const drawerIcon = (name: IconName) => ({ color, size }: { color: string; size: number }) => (
     <MaterialIcons name={name} color={color} size={size} />
@@ -50,7 +56,7 @@ function DrawerRoutes() {
 
     return (
         <Drawer.Navigator
-            drawerContent={(props) => <CustomDrawer {...props} />}
+            drawerContent={(props) => <CustomDrawer {...props} />} // ✅ Tipagem corrigida
             screenOptions={{
                 headerStyle: {
                     backgroundColor: "#2563eb",
@@ -122,6 +128,15 @@ function DrawerRoutes() {
                 options={{
                     title: "Perfil", 
                     drawerIcon: drawerIcon("person"),
+                }}
+            />
+            {/* ✅ Adiciona a nova tela */}
+            <Drawer.Screen
+                name="Report"
+                component={ReportScreen}
+                options={{
+                    title: "Relatório de Glicemia",
+                    drawerIcon: drawerIcon("description"), // Use o ícone apropriado
                 }}
             />
         </Drawer.Navigator>

@@ -1,67 +1,70 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DrawerScreenProps } from '@react-navigation/drawer';
-import { CompositeScreenProps } from '@react-navigation/native';
+import { CompositeScreenProps, NavigatorScreenParams } from '@react-navigation/native';
 
-// ----------------------
-// 1. ROTAS DO DRAWER (Gaveta)
-// ----------------------
+// ========================================================================
+// 1. DEFINIÇÃO DAS LISTAS DE PARÂMETROS (PARAM LISTS)
+// ========================================================================
 
 /**
- * Tipagem para o Drawer Navigator. Estas são as telas principais do aplicativo
- * após a autenticação/onboarding.
+ * @description Telas acessíveis ANTES da autenticação.
+ * Corresponde ao seu AuthNavigator.tsx.
  */
-export type DrawerParamList = {
-    Home: undefined;
-    Readings: undefined; // Lista de registros de glicemia
-    Graphs: undefined;   // Visualização de gráficos
-    Settings: undefined; // Configurações gerais
-    Profile: undefined;  // Visualização e edição do perfil (pode ser acessada pelo Drawer)
+export type AuthStackParamList = {
+  Login: undefined;
+  Register: undefined;
+  ForgotPassword: undefined;
+  // Telas de onboarding (pós-registro, mas antes de entrar no app principal)
+  ProfileSetup: undefined;
+  BiometricSetup: undefined;
 };
 
-// ----------------------
-// 2. ROTAS PRINCIPAIS (Stack)
-// ----------------------
+/**
+ * @description Telas acessíveis APÓS a autenticação, dentro da gaveta (Drawer).
+ * Corresponde ao seu AppNavigator.tsx.
+ */
+export type AppDrawerParamList = {
+  Dashboard: undefined;
+  AddReading: undefined;
+  Charts: undefined;
+  Settings: undefined;
+  Profile: undefined; // Para visualizar/editar o perfil já logado
+  Report: undefined; // << ADICIONE ESTA LINHA PARA A NOVA TELA
+};
 
 /**
- * Tipagem completa de todas as rotas do seu Stack Navigator (Root Stack).
- * DrawerRoutes leva à navegação principal.
+ * @description O navegador raiz que decide entre o fluxo de Auth e o fluxo do App.
+ * Corresponde ao seu RootNavigator.tsx.
+ * Usamos NavigatorScreenParams para aninhar os tipos de outros navegadores.
  */
 export type RootStackParamList = {
-    Login: undefined;
-    Register: undefined;
-    ForgotPassword: undefined;
-    BiometricSetup: undefined;
-    ProfileSetup: undefined;
-    // Rota que contém o Drawer Navigator (o fluxo principal)
-    DrawerRoutes: undefined; 
+  Auth: NavigatorScreenParams<AuthStackParamList>;
+  App: NavigatorScreenParams<AppDrawerParamList>;
 };
 
-// ----------------------
-// 3. TIPOS DE PROPS DE TELA
-// ----------------------
+// ========================================================================
+// 2. TIPOS DE PROPS GENÉRICOS PARA AS TELAS
+// ========================================================================
 
-// Tipagem para as telas do Stack Navigator
-export type LoginScreenNavigationProps = NativeStackScreenProps<
-    RootStackParamList,
-    'Login'
+/**
+ * @description Tipo genérico para qualquer tela DENTRO do fluxo de autenticação.
+ * Substitui a necessidade de criar LoginScreenNavigationProps, RegisterScreenProps, etc.
+ * 
+ * @example
+ * // No seu componente de tela:
+ * const LoginScreen = ({ navigation }: AuthScreenProps<'Login'>) => { ... };
+ */
+export type AuthScreenProps<T extends keyof AuthStackParamList> = NativeStackScreenProps<AuthStackParamList, T>;
+
+/**
+ * @description Tipo genérico para qualquer tela DENTRO do Drawer (fluxo principal do app).
+ * Combina as props do Drawer com as do Stack raiz para navegação completa.
+ * 
+ * @example
+ * // No seu componente de tela:
+ * const DashboardScreen = ({ navigation }: AppScreenProps<'Dashboard'>) => { ... };
+ */
+export type AppScreenProps<T extends keyof AppDrawerParamList> = CompositeScreenProps<
+  DrawerScreenProps<AppDrawerParamList, T>,
+  NativeStackScreenProps<RootStackParamList>
 >;
-
-export type ProfileSetupScreenNavigationProps = NativeStackScreenProps<
-    RootStackParamList,
-    'ProfileSetup'
->;
-
-
-// Tipagem para as telas dentro do Drawer Navigator
-// Usa CompositeScreenProps para combinar as props do Drawer com as props do Stack pai.
-export type HomeScreenNavigationProps = CompositeScreenProps<
-    DrawerScreenProps<DrawerParamList, 'Home'>,
-    NativeStackScreenProps<RootStackParamList>
->;
-
-export type SettingsScreenNavigationProps = CompositeScreenProps<
-    DrawerScreenProps<DrawerParamList, 'Settings'>,
-    NativeStackScreenProps<RootStackParamList>
->;
-
-// Adicione aqui outros tipos conforme necessário (ReadingsScreenProps, GraphsScreenProps, etc.)
