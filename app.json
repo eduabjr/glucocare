@@ -6,18 +6,15 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
-
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-
-    "assetBundlePatterns": ["**/*"],
-
-    
-    "scheme": "glucocare", 
-
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "scheme": "glucocare",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.eduabjr.glucocare",
@@ -27,10 +24,8 @@
         "NSFaceIDUsageDescription": "O GlucoCare usa Face ID/Touch ID para autenticação rápida e segura."
       }
     },
-
     "android": {
       "package": "com.eduabjr.glucocare",
-      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -47,18 +42,16 @@
         "USE_FINGERPRINT"
       ]
     },
-
     "web": {
       "favicon": "./assets/favicon.png"
     },
-
     "plugins": [
       [
         "expo-build-properties",
         {
           "android": {
-            "compileSdkVersion": 34,
-            "targetSdkVersion": 34,
+            "compileSdkVersion": 33,
+            "targetSdkVersion": 33,
             "minSdkVersion": 24
           },
           "ios": {
@@ -68,12 +61,11 @@
       ],
       "expo-local-authentication"
     ],
-
     "extra": {
-      "expoClientId": "360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com",
       "eas": {
         "projectId": "bb849c02-0bbc-4d34-ac66-441748aa2550"
       }
     }
   }
 }
+

@@ -1,0 +1,32 @@
+
+# Node.js and Yarn log and cache files
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Metro Bundler cache files and folders
+.metro-cache/
+
+# Editor-specific configuration files
+.vscode/
+.idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Git configuration files (build does not require them)
+.git/
+.gitignore
+
+# Development dependencies for Android and iOS that are not needed in the build
+android/build/
+android/app/build/
+ios/build/
+
+# Environment files that may contain secret keys
+.env
+
+# Local EAS build folders (if they exist)
+eas-build-local-cli/

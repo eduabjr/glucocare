@@ -1,8 +1,6 @@
-import { createDrawerNavigator, DrawerNavigationProp } from "@react-navigation/drawer";
-import { Platform, StatusBar } from "react-native";
+import { createDrawerNavigator } from "@react-navigation/drawer";
+import { Platform, StatusBar, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-// ParamListBase não é necessário se DrawerParamList está definido
-// import { ParamListBase } from "@react-navigation/native"; 
 import React from "react"; // Necessário para compilação JSX
 import { MaterialIcons } from "@expo/vector-icons";
 
@@ -32,7 +30,7 @@ export type DrawerParamList = {
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
 
-// Tipagem e Helper para ícones do drawer (mantido)
+// Tipagem e Helper para ícones do drawer
 type IconName =
     | "dashboard"
     | "add-circle-outline"
@@ -46,20 +44,14 @@ const drawerIcon = (name: IconName) => ({ color, size }: { color: string; size: 
     <MaterialIcons name={name} color={color} size={size} />
 );
 
-// ❌ REMOVIDO: DrawerRoutesProps e a prop onLogout
-function DrawerRoutes() {
+// Função do DrawerNavigator
+function DrawerRoutes() { 
     const insets = useSafeAreaInsets();
 
     return (
         <Drawer.Navigator
-            drawerContent={(props) => (
-                <CustomDrawer
-                    {...props}
-                    // ✅ Não passamos 'onLogout' (agora tratado no CustomDrawer via useAuth)
-                    // ✅ Não precisamos de cast para navigation (tipagem inferida)
-                />
-            )}
-            screenOptions={({ navigation }) => ({
+            drawerContent={(props) => <CustomDrawer {...props} />}
+            screenOptions={{
                 headerStyle: {
                     backgroundColor: "#2563eb",
                     elevation: 4,
@@ -68,55 +60,79 @@ function DrawerRoutes() {
                 },
                 headerTintColor: "#fff",
                 headerTitleStyle: { fontWeight: "700", fontSize: 18 },
-                
-                // ✅ CORRIGIDO: Remove a prop 'navigation'. O MenuButton
-                // deve usar o hook useNavigation() internamente para acessar o Drawer.
-                headerLeft: () => <MenuButton />, 
-                
+                headerLeft: () => <MenuButton />,
                 drawerActiveBackgroundColor: "#2563eb",
                 drawerActiveTintColor: "#fff",
                 drawerInactiveTintColor: "#333",
                 drawerStyle: { width: 280 },
                 sceneContainerStyle: { backgroundColor: "#f0f6ff" },
-            })}
+            }}
         >
             <Drawer.Screen
                 name="Dashboard"
                 component={DashboardScreen}
-                options={{ title: "Dashboard", drawerIcon: drawerIcon("dashboard") }}
+                options={{
+                    title: "Dashboard", 
+                    drawerIcon: drawerIcon("dashboard"),
+                }}
             />
             <Drawer.Screen
                 name="AddReading"
                 component={AddReadingScreen}
-                options={{ title: "Nova Medição", drawerIcon: drawerIcon("add-circle-outline") }}
+                options={{
+                    title: "Nova Medição", 
+                    drawerIcon: drawerIcon("add-circle-outline"),
+                }}
             />
             <Drawer.Screen
                 name="DeviceConnection"
                 component={DeviceConnectionScreen}
-                options={{ title: "Conectar Dispositivo", drawerIcon: drawerIcon("bluetooth") }}
+                options={{
+                    title: "Conectar Dispositivo", 
+                    drawerIcon: drawerIcon("bluetooth"),
+                }}
             />
             <Drawer.Screen
                 name="Charts"
                 component={ChartsScreen}
-                options={{ title: "Gráficos", drawerIcon: drawerIcon("show-chart") }}
+                options={{
+                    title: "Gráficos", 
+                    drawerIcon: drawerIcon("show-chart"),
+                }}
             />
             <Drawer.Screen
                 name="Nutrition"
                 component={NutritionScreen}
-                options={{ title: "Alimentação", drawerIcon: drawerIcon("restaurant-menu") }}
+                options={{
+                    title: "Alimentação", 
+                    drawerIcon: drawerIcon("restaurant-menu"),
+                }}
             />
             <Drawer.Screen
                 name="Settings"
                 component={SettingsScreen}
-                options={{ title: "Configurações", drawerIcon: drawerIcon("settings") }}
+                options={{
+                    title: "Configurações", 
+                    drawerIcon: drawerIcon("settings"),
+                }}
             />
             <Drawer.Screen
                 name="ProfileSetup"
                 component={ProfileSetupScreen}
-                options={{ title: "Perfil", drawerIcon: drawerIcon("person") }}
+                options={{
+                    title: "Perfil", 
+                    drawerIcon: drawerIcon("person"),
+                }}
             />
         </Drawer.Navigator>
     );
 }
 
 export default DrawerRoutes;
+
+// Estilos adicionais
+const styles = StyleSheet.create({
+    menuIcon: {
+        marginLeft: 12,
+    },
+});

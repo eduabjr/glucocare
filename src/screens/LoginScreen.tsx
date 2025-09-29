@@ -18,124 +18,94 @@ import * as LocalAuthentication from "expo-local-authentication";
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 import { AntDesign, Feather } from "@expo/vector-icons";
+import { Buffer } from "buffer"; 
 
-// Removidas as importações diretas do Firebase, pois a lógica está no AuthContext
-// O AuthContext gerencia signInWithEmailAndPassword e FirebaseError
-// import { signInWithEmailAndPassword } from "firebase/auth";
-// import { FirebaseError } from "firebase/app"; 
-// import { auth } from "../config/firebase";
-
-// 💡 Certifique-se de que este caminho e tipagem estejam corretos.
-import { LoginScreenNavigationProps } from "../navigation/types";
+// Tipos e hook do AuthContext e Navegação
 import { useAuth } from "../context/AuthContext";
+// @ts-ignore
+import { LoginScreenNavigationProps } from "../navigation/types";
 
-// --- Interface para as Props do Componente ---
-interface LoginScreenProps extends LoginScreenNavigationProps {}
-// ---------------------------------------------
 
 WebBrowser.maybeCompleteAuthSession();
 
-const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
-    // 🚀 Usamos o login e isLoading do AuthContext
-    const { login, isLoading } = useAuth();
+// --- Componente LoginScreen ---
+const LoginScreen: React.FC<LoginScreenNavigationProps> = ({ navigation }) => {
+    // Funções do AuthContext do Firebase
+    const { loginWithEmail, signInWithGoogle, isLoading } = useAuth();
     
     const [email, setEmail] = useState<string>("");
     const [password, setPassword] = useState<string>("");
     const [showPassword, setShowPassword] = useState<boolean>(false);
-    const [error, setError] = useState<string>(""); // Estado local para erros de UI
-    
-    // Configuração do Google OAuth (mantida, mas idealmente seria movida para AuthContext)
-    const [request, response, promptAsync] = Google.useAuthRequest({
-        expoClientId: "360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com",
-        webClientId: "360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com",
-        scopes: ["profile", "email"],
+    const [error, setError] = useState<string>("");
+
+    // Hook do Google para obter o id_token para o Firebase
+    const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+        // ✨ CORREÇÃO CRÍTICA: Alterado de 'expoClientId' para 'androidClientId'
+        // Isto é necessário para builds de desenvolvimento/produção com package name customizado.
+        androidClientId: "501715449083-e1c6icrrlcm0jlm66dcmr6lqgguuspp.apps.googleusercontent.com",
+        webClientId: "501715449083-9q4h8f6p3g2cda11kch1mhfstrfc8fld.apps.googleusercontent.com",
+        // Se você tiver uma versão iOS, adicione o 'iosClientId' aqui também
     });
 
-    // Limpeza de tokens antigos
-    useEffect(() => {
-        SecureStore.deleteItemAsync("google_token").catch(() => {});
-    }, []);
+    // --- Efeitos ---
 
-    // Autenticação via biometria ao inicializar
+    // Lógica de biometria
     useEffect(() => {
         const checkBiometrics = async () => {
             try {
                 const biometricEnabled = await SecureStore.getItemAsync("biometric_enabled");
-                
                 if (biometricEnabled === "true") {
                     const hasHardware = await LocalAuthentication.hasHardwareAsync();
                     if (hasHardware) {
-                        const result = await LocalAuthentication.authenticateAsync({
+                        await LocalAuthentication.authenticateAsync({
                             promptMessage: "Autentique-se para acessar",
                         });
-                        
-                        // ✅ CORREÇÃO 1: Removida a chamada incorreta de login()
-                        if (result.success) {
-                            // Se a biometria for OK, a sessão Firebase ativa será detectada
-                            // pelo onAuthStateChanged no AuthContext, que fará a navegação.
-                            console.log("Autenticação biométrica bem-sucedida. Verificando sessão Firebase...");
-                        }
                     }
                 }
             } catch (err) {
                 console.error("Erro biometria:", err);
             }
         };
-        // Chama a função ao montar o componente
         checkBiometrics(); 
     }, []);
 
-    // Resposta de login do Google
+    // Resposta do login com Google
     useEffect(() => {
         const handleGoogleResponse = async () => {
-            if (response?.type === "success" && response.authentication) {
-                try {
-                    // Logicamente, o token do Google deveria ser trocado por uma credencial
-                    // do Firebase e o AuthContext se encarregaria de chamar signInWithCredential.
-                    // Para corrigir o erro 2554, removemos a chamada incorreta de login().
-
-                    // TODO: Mover esta lógica para AuthContext.loginWithGoogle()
-                    const token = response.authentication.accessToken;
-                    await SecureStore.setItemAsync("google_token", token);
-                    
-                    // Lógica de SecureStore removida, pois o AuthContext deve gerenciar o perfil.
-                    // ✅ CORREÇÃO 2: Removida a chamada incorreta de login()
-                    // A navegação será tratada pelo onAuthStateChanged no AuthContext.
-
-                    console.log("Login Google processado. Esperando onAuthStateChanged...");
-                    
-                } catch (err) {
-                    console.error("Login Google:", err);
-                    Alert.alert("Erro", "Não foi possível completar login com Google.");
+            if (response?.type === 'success') {
+                const { id_token } = response.params;
+                if (id_token) {
+                    try {
+                        await signInWithGoogle(id_token);
+                    } catch (err) {
+                        setError("Falha no login com Google. Tente novamente.");
+                        Alert.alert("Erro", "Não foi possível completar o login com Google.");
+                    }
                 }
+            } else if (response?.type === 'error') {
+                setError("Ocorreu um erro durante a autenticação com o Google.");
             }
         };
         handleGoogleResponse();
-    }, [response, navigation]); 
+    }, [response]); 
     
-    // Login manual (e-mail/senha)
+    // --- Funções de Handler ---
+
+    // Login com e-mail/senha
     const handleLogin = async () => {
-        setError(""); // Limpa erros anteriores
+        setError("");
         if (!email || !password) {
             setError("Por favor, preencha E-mail e Senha.");
             return;
         }
 
         try {
-            // 🚀 CORREÇÃO 3: Usamos a função login do contexto, que espera 2 argumentos.
-            // O AuthContext fará a chamada signInWithEmailAndPassword e atualizará o estado global.
-            await login(email.trim(), password);
-
-            // Se o login for bem-sucedido, o AuthContext aciona o onAuthStateChanged,
-            // que por sua vez aciona a navegação no RootNavigator. Não precisamos de navegação explícita aqui.
-
+            await loginWithEmail(email.trim(), password);
         } catch (err: any) {
             console.error("handleLogin erro:", err);
-            
-            // Tratamento de erro do contexto/Firebase (err.code vem do erro que o AuthContext relança)
-            let errorMessage = "Falha ao tentar logar. Verifique sua conexão ou credenciais.";
+            let errorMessage = "Falha ao tentar logar.";
             if (err.code) {
-                 switch (err.code) {
+                switch (err.code) {
                     case 'auth/invalid-credential':
                     case 'auth/wrong-password':
                     case 'auth/user-not-found':
@@ -145,30 +115,30 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                         errorMessage = "O formato do e-mail é inválido.";
                         break;
                     case 'auth/too-many-requests':
-                        errorMessage = "Acesso temporariamente bloqueado devido a muitas tentativas falhas.";
+                        errorMessage = "Acesso bloqueado devido a muitas tentativas falhas.";
                         break;
                     default:
                         errorMessage = `Erro de Autenticação: ${err.message}`;
                 }
             }
             setError(errorMessage);
-            Alert.alert("Erro de Login", errorMessage);
         }
     };
 
+    // --- Renderização ---
     return (
         <SafeAreaView style={styles.safe}>
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
             >
-                {/* Adicionado ScrollView para melhor manejo do teclado em telas pequenas */}
                 <ScrollView contentContainerStyle={styles.centered} keyboardShouldPersistTaps="handled">
                     <View style={styles.card}>
+                        {/* @ts-ignore */}
                         <Image source={require("../../assets/icon.png")} style={styles.logo} />
                         <Text style={styles.title}>Bem-vindo ao GlucoCare</Text>
 
-                        {/* Google */}
+                        {/* Botão Google */}
                         <TouchableOpacity
                             style={styles.googleButton}
                             disabled={!request || isLoading}
@@ -184,10 +154,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                             <View style={styles.line} />
                         </View>
                         
-                        {/* Exibição do erro de UI */}
                         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-                        {/* Email */}
+                        {/* Inputs e Botões */}
                         <View style={styles.inputWrapper}>
                             <Feather name="mail" size={18} color="#9ca3af" style={styles.inputIcon} />
                             <TextInput
@@ -201,7 +170,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                             />
                         </View>
 
-                        {/* Senha com botão de olho */}
                         <View style={styles.inputWrapper}>
                             <Feather name="lock" size={18} color="#9ca3af" style={styles.inputIcon} />
                             <TextInput
@@ -212,14 +180,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                                 onChangeText={setPassword}
                                 autoCapitalize="none"
                                 editable={!isLoading}
-                                accessible
-                                accessibilityLabel="campo de senha"
                             />
                             <TouchableOpacity
                                 onPress={() => setShowPassword((s) => !s)}
                                 style={styles.eyeButton}
-                                accessibilityRole="button"
-                                accessibilityLabel={showPassword ? "Ocultar senha" : "Mostrar senha"}
                                 disabled={isLoading}
                             >
                                 <Feather name={showPassword ? "eye" : "eye-off"} size={20} color="#6b7280" />
@@ -234,15 +198,15 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                             )}
                         </TouchableOpacity>
 
-                        {/* Link para a tela ForgotPassword */}
+                        {/* Links de Navegação */}
                         <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")} disabled={isLoading}>
                             <Text style={styles.link}>Esqueceu sua senha?</Text>
                         </TouchableOpacity>
 
                         <Text style={styles.signupText}>
-                            Não tem uma conta?{" "}
+                            Não tem uma conta?
                             <Text style={styles.signupLink} onPress={() => navigation.navigate("Register")} disabled={isLoading}>
-                                Cadastre-se
+                                {' '}Cadastre-se
                             </Text>
                         </Text>
                     </View>
@@ -252,6 +216,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     );
 };
 
+// --- Estilos ---
 const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: "#f0f6ff" },
     centered: { flexGrow: 1, justifyContent: "center", alignItems: "center", padding: 16 },
@@ -315,3 +280,4 @@ const styles = StyleSheet.create({
 });
 
 export default LoginScreen;
+

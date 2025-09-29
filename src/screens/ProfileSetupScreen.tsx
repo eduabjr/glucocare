@@ -54,21 +54,14 @@ interface DraftProfile {
     syncedAt: string;
 }
 
-// 💡 FUNÇÃO AUXILIAR: Limpa a entrada numérica para permitir apenas dígitos e um separador decimal (vírgula ou ponto)
+// FUNÇÃO AUXILIAR: Limpa a entrada numérica
 const formatNumericInput = (text: string): string => {
-    // 1. Remove tudo que não for dígito, vírgula ou ponto
     let cleanedText = text.replace(/[^\d.,]/g, '');
-    
-    // 2. Padroniza todos os separadores para vírgula temporariamente
     cleanedText = cleanedText.replace(/\./g, ',');
-    
-    // 3. Garante que só há uma vírgula (decimal) e as move para o final
     const parts = cleanedText.split(',');
     if (parts.length > 1) {
-        // Junta a parte inteira com o primeiro grupo de decimais
         cleanedText = parts[0] + ',' + parts.slice(1).join('');
     }
-    
     return cleanedText;
 };
 
@@ -76,7 +69,7 @@ const formatNumericInput = (text: string): string => {
 export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenProps) {
     const [userId, setUserId] = useState<string | null>(null);
     const [name, setName] = useState<string>('');
-    const [email, setEmail] = useState<string>(''); // Mantendo o email no estado
+    const [email, setEmail] = useState<string>('');
     const [googleId, setGoogleId] = useState<string | null>(null);
     const [birthDate, setBirthDate] = useState<Date>(new Date(1990, 0, 1));
     const [showDate, setShowDate] = useState<boolean>(false);
@@ -86,13 +79,8 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
     const [restrictions, setRestrictions] = useState<string[]>([]);
 
     const restrictionOptions = [
-        'Lactose',
-        'Glúten',
-        'Amendoim',
-        'Ovos',
-        'Peixes',
-        'Crustáceos',
-        'Frutos Secos',
+        'Lactose', 'Glúten', 'Amendoim', 'Ovos',
+        'Peixes', 'Crustáceos', 'Frutos Secos',
     ];
 
     useEffect(() => {
@@ -102,42 +90,32 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                 const user = await getUser();
 
                 if (user) {
-                    // Carrega do DB (UserProfile)
                     setUserId(user.id);
                     setName(user.name); 
-                    setEmail(user.email); // Carrega email
+                    setEmail(user.email);
                     setGoogleId(user.googleId || null);
-                    
                     const dateString = user.birthDate;
                     setBirthDate(dateString ? new Date(dateString) : new Date(1990, 0, 1));
                     setCondition(user.condition);
-                    setHeight(user.height !== null && user.height !== 0 ? String(user.height).replace('.', ',') : ''); // Formata para vírgula
-                    setWeight(user.weight !== null && user.weight !== 0 ? String(user.weight).replace('.', ',') : ''); // Formata para vírgula
-                    
+                    setHeight(user.height !== null && user.height !== 0 ? String(user.height).replace('.', ',') : '');
+                    setWeight(user.weight !== null && user.weight !== 0 ? String(user.weight).replace('.', ',') : '');
                     const userRestrictions = user.restriction;
                     setRestrictions(userRestrictions.split(',').filter(r => r));
-                        
                 } else {
-                    // Tenta carregar do SecureStore
                     const saved = await SecureStore.getItemAsync('user_profile');
                     if (saved) {
                         const profile: SecureStoreProfile = JSON.parse(saved); 
-                        
                         setUserId(profile.id ?? uuidv4()); 
                         setName(profile.name ?? ''); 
-                        setEmail(profile.email ?? ''); // Carrega email
+                        setEmail(profile.email ?? '');
                         setGoogleId(profile.googleId ?? null);
-                        
                         const dateSaved = profile.birthDate;
                         setBirthDate(dateSaved ? new Date(dateSaved) : new Date(1990, 0, 1));
-                        
                         setCondition(profile.condition ?? ''); 
-                        setHeight(profile.height ? String(profile.height).replace('.', ',') : ''); // Formata para vírgula
-                        setWeight(profile.weight ? String(profile.weight).replace('.', ',') : ''); // Formata para vírgula
-                        
+                        setHeight(profile.height ? String(profile.height).replace('.', ',') : '');
+                        setWeight(profile.weight ? String(profile.weight).replace('.', ',') : '');
                         const savedRestrictions = profile.restriction ?? '';
                         setRestrictions(savedRestrictions.split(',').filter(r => r));
-
                     } else {
                         setUserId(uuidv4());
                     }
@@ -155,7 +133,6 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
         );
     };
 
-    // Usa a vírgula/ponto para o parse
     const parsedHeight = height ? Number(height.replace(',', '.')) : 0; 
     const parsedWeight = weight ? Number(weight.replace(',', '.')) : 0; 
 
@@ -169,19 +146,15 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
     const handleSave = async () => {
         try {
             if (!name.trim()) return Alert.alert('Erro', 'Digite seu nome.');
-            if (!birthDate || isNaN(birthDate.getTime()))
-                return Alert.alert('Erro', 'Informe sua data de nascimento.');
+            if (!birthDate || isNaN(birthDate.getTime())) return Alert.alert('Erro', 'Informe sua data de nascimento.');
             if (!condition) return Alert.alert('Erro', 'Selecione sua condição.');
             if (parsedHeight <= 0 || isNaN(parsedHeight)) return Alert.alert('Erro', 'Altura inválida (use cm).');
             if (parsedWeight <= 0 || isNaN(parsedWeight)) return Alert.alert('Erro', 'Peso inválido.');
 
             const registeredEmail = await SecureStore.getItemAsync('registered_email');
             const finalEmail = email.trim() || registeredEmail || 'placeholder@app.com';
-            
-            // Define a data de sincronização atual (necessária pelo UserProfile)
             const currentSyncedAt = new Date().toISOString(); 
 
-            // 1. Cria o rascunho (DraftProfile: googleId pode ser null)
             const draftProfile: DraftProfile = {
                 id: userId || uuidv4(),
                 name: name.trim(),
@@ -194,10 +167,9 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                 googleId: googleId, 
                 onboardingCompleted: true, 
                 biometricEnabled: false, 
-                syncedAt: currentSyncedAt, // Inicializa 'syncedAt'
+                syncedAt: currentSyncedAt,
             };
 
-            // 2. Normaliza para UserProfile (UserProfile.googleId é string).
             const profileToSave: UserProfile = {
                 ...draftProfile,
                 height: draftProfile.height ?? 0, 
@@ -208,16 +180,12 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
             const savedUser = await saveOrUpdateUser(profileToSave);
             
             if (typeof savedUser !== 'boolean') {
-                 await SecureStore.setItemAsync('user_profile', JSON.stringify(savedUser));
+                await SecureStore.setItemAsync('user_profile', JSON.stringify(savedUser));
             }
 
-            // Lógica de sincronização do Google Drive
             try {
                 const token = await SecureStore.getItemAsync('google_token');
                 if (token && GoogleSyncService && typeof GoogleSyncService.uploadReadingsToDrive === 'function') {
-                    // Aviso: Este é um ponto potencial de problema de lógica. 
-                    // O perfil deve ser salvo, mas o upload de leituras é outra coisa.
-                    // Mantendo o código original do usuário aqui, mas sinalizando.
                     await GoogleSyncService.uploadReadingsToDrive(token); 
                 }
             } catch (err) {
@@ -231,7 +199,8 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                 navigation.replace('BiometricSetup');
             } else {
                 Alert.alert('Sucesso', 'Perfil atualizado!');
-                navigation.replace('DrawerRoutes'); 
+                // ✨ CORREÇÃO: O nome da rota é 'Drawer', e não 'DrawerRoutes'.
+                navigation.replace('Drawer'); 
             }
         } catch (err) {
             console.error('handleSave profile - erro:', err);
@@ -257,7 +226,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                         />
                     </View>
 
-                    {/* 💡 NOVO: Email */}
+                    {/* Email */}
                     <View style={styles.inputWrapper}>
                         <Feather name="mail" size={18} color="#9ca3af" style={styles.inputIcon} />
                         <TextInput
@@ -276,7 +245,6 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                         <TextInput
                             style={styles.input}
                             placeholder="DD/MM/AAAA"
-                            keyboardType="numeric"
                             value={birthDate.toLocaleDateString('pt-BR')}
                             editable={false} 
                         />
@@ -298,7 +266,6 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                     <View style={styles.inputWrapper}>
                         <Feather name="list" size={18} color="#9ca3af" style={styles.inputIcon} />
                         {Platform.OS === 'ios' ? (
-                            // Wrapper de texto para iOS
                             <TextInput
                                 style={styles.input}
                                 placeholder="Selecione a Condição"
@@ -324,8 +291,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                         </Picker>
                     </View>
 
-
-                    {/* Altura (cm) - Usando formatNumericInput */}
+                    {/* Altura (cm) */}
                     <View style={styles.inputWrapper}>
                         <Feather name="trending-up" size={18} color="#9ca3af" style={styles.inputIcon} />
                         <TextInput
@@ -333,12 +299,11 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                             placeholder="Altura (cm)"
                             keyboardType="numeric"
                             value={height}
-                            // 💡 AJUSTE: Limpa e formata a entrada em tempo real
                             onChangeText={(text) => setHeight(formatNumericInput(text))} 
                         />
                     </View>
 
-                    {/* Peso (kg) - Usando formatNumericInput */}
+                    {/* Peso (kg) */}
                     <View style={styles.inputWrapper}>
                         <Feather name="activity" size={18} color="#9ca3af" style={styles.inputIcon} />
                         <TextInput
@@ -346,7 +311,6 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                             placeholder="Peso (kg)"
                             keyboardType="numeric"
                             value={weight}
-                            // 💡 AJUSTE: Limpa e formata a entrada em tempo real
                             onChangeText={(text) => setWeight(formatNumericInput(text))}
                         />
                     </View>

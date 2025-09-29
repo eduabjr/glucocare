@@ -1,34 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { onAuthStateChanged, User, signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential, signOut } from 'firebase/auth';
+// Certifique-se de que este caminho para a sua configuração do Firebase está correto
+import { auth, db } from '../config/firebase'; // ✨ ADICIONADO: Importar 'db' do Firebase
+import { doc, getDoc, setDoc } from 'firebase/firestore'; // ✨ ADICIONADO: Funções do Firestore
 
-// --- MOCK DE DEPENDÊNCIAS NATIVAS ---
-// Usando o localStorage do navegador para simular SecureStore em um ambiente web/mock.
-
-/**
- * Mock para 'expo-secure-store'.
- */
-const SecureStore = {
-    async getItemAsync(key: string): Promise<string | null> {
-        // Verifica se o localStorage está disponível para evitar erros em ambientes sem ele
-        if (typeof window !== 'undefined' && window.localStorage) {
-            return Promise.resolve(window.localStorage.getItem(key));
-        }
-        return Promise.resolve(null);
-    },
-    async setItemAsync(key: string, value: string): Promise<void> {
-        if (typeof window !== 'undefined' && window.localStorage) {
-            window.localStorage.setItem(key, value);
-        }
-        return Promise.resolve();
-    },
-    async deleteItemAsync(key: string): Promise<void> {
-        if (typeof window !== 'undefined' && window.localStorage) {
-            window.localStorage.removeItem(key);
-        }
-        return Promise.resolve();
-    },
-};
-
-// A interface UserProfile é definida aqui.
+// A sua interface de perfil de utilizador detalhada
 export interface UserProfile {
     id: string;
     name: string;
@@ -44,124 +20,100 @@ export interface UserProfile {
     syncedAt?: string | null;
 }
 
-// Mock da função de limpeza de DB que seria importada do dbService.
-const clearUser = async (): Promise<void> => {
-    return Promise.resolve();
-};
-
-// --- FIM DOS MOCKS ---
-
-
-// --- Constantes de Armazenamento ---
-const PROFILE_KEY = 'user_profile';
-const GOOGLE_TOKEN_KEY = 'google_token';
-const REGISTERED_EMAIL_KEY = 'registered_email';
-
-// 1. Definição da Tipagem do Contexto
+// Interface do Contexto
 interface AuthContextType {
-    isAuthenticated: boolean;
     user: UserProfile | null;
     isLoading: boolean;
-    login: (profile: UserProfile) => Promise<void>;
+    signInWithGoogle: (idToken: string) => Promise<void>;
+    loginWithEmail: (email: string, pass: string) => Promise<void>;
     logout: () => Promise<void>;
-    // Adicionar um setter para o usuário pode ser útil para atualizações de perfil
     setUser: React.Dispatch<React.SetStateAction<UserProfile | null>>;
 }
 
-// 2. Criação do Contexto
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// 3. O Provedor (Componente que irá encapsular o App)
-interface AuthProviderProps {
-    children: React.ReactNode;
-}
-
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Função para verificar o estado de login no armazenamento seguro
-    const checkAuthStatus = async () => {
-        try {
-            const storedProfile = await SecureStore.getItemAsync(PROFILE_KEY);
-            
-            if (storedProfile) {
-                const profile: UserProfile = JSON.parse(storedProfile);
-                setIsAuthenticated(true);
-                setUser(profile);
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
+            if (firebaseUser) {
+                // ✨ ATUALIZAÇÃO: Lógica para carregar ou criar o perfil no Firestore
+                const userRef = doc(db, 'users', firebaseUser.uid);
+                const userDoc = await getDoc(userRef);
+
+                if (userDoc.exists()) {
+                    // Se o utilizador já existe na base de dados, carrega o perfil completo
+                    setUser({ id: firebaseUser.uid, ...userDoc.data() } as UserProfile);
+                } else {
+                    // Se for um novo utilizador (ex: primeiro login com Google), cria um perfil básico
+                    const googleId = firebaseUser.providerData.find(p => p.providerId === 'google.com')?.uid;
+                    const newUserProfile: UserProfile = {
+                        id: firebaseUser.uid,
+                        name: firebaseUser.displayName || 'Utilizador',
+                        email: firebaseUser.email || 'Não informado',
+                        onboardingCompleted: false, // O fluxo de onboarding irá atualizar isto
+                    };
+                    if (googleId) {
+                        newUserProfile.googleId = googleId;
+                    }
+                    // Salva este novo perfil na base de dados
+                    await setDoc(userRef, newUserProfile);
+                    setUser(newUserProfile);
+                }
             } else {
-                setIsAuthenticated(false);
                 setUser(null);
             }
-        } catch (error) {
-            console.error("Erro ao verificar status de autenticação:", error);
-            setIsAuthenticated(false);
-            setUser(null);
-        } finally {
-            // Garante que o loading seja sempre desabilitado no final da checagem
-            setIsLoading(false); 
-        }
-    };
-
-    /**
-     * Define o usuário como logado e armazena o perfil no SecureStore.
-     */
-    const login = async (profile: UserProfile) => {
-        try {
-            // Atualiza o SecureStore com o perfil mais recente
-            await SecureStore.setItemAsync(PROFILE_KEY, JSON.stringify(profile));
-            setIsAuthenticated(true);
-            setUser(profile);
-        } catch (error) {
-            console.error("Erro ao executar login:", error);
-            // Reverte o estado em caso de falha de armazenamento
-            setIsAuthenticated(false);
-            setUser(null);
-        }
-    };
-
-    /**
-     * Executa o logout, limpa SecureStore e limpa dados locais (SQLite).
-     */
-    const logout = async () => {
-        try {
-            // 1. Limpeza do SecureStore (removendo todos os tokens/perfis)
-            await SecureStore.deleteItemAsync(PROFILE_KEY);
-            await SecureStore.deleteItemAsync(GOOGLE_TOKEN_KEY);
-            await SecureStore.deleteItemAsync(REGISTERED_EMAIL_KEY); 
-            await SecureStore.deleteItemAsync('registered_password'); 
-            
-            // 2. Limpeza do SQLite (usando nosso mock)
-            await clearUser(); 
-
-            // 3. Limpeza do estado
-            setIsAuthenticated(false);
-            setUser(null);
-        } catch (error) {
-            console.error("Erro durante o logout:", error);
-            // Em caso de erro, a melhor prática é forçar o logout do estado
-            setIsAuthenticated(false);
-            setUser(null);
-        }
-    };
-
-    useEffect(() => {
-        checkAuthStatus();
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
     }, []);
 
-    // 💡 Adicionado setUser ao valor do contexto para permitir atualizações de perfil
+    const signInWithGoogle = async (idToken: string) => {
+        setIsLoading(true);
+        try {
+            const credential = GoogleAuthProvider.credential(idToken);
+            await signInWithCredential(auth, credential);
+        } catch (error) {
+            console.error("Erro no login com Google (AuthContext):", error);
+            setIsLoading(false);
+            throw error;
+        }
+    };
+
+    const loginWithEmail = async (email: string, pass: string) => {
+        setIsLoading(true);
+        try {
+            await signInWithEmailAndPassword(auth, email, pass);
+        } catch (error) {
+            console.error("Erro no login com E-mail (AuthContext):", error);
+            setIsLoading(false);
+            throw error;
+        }
+    };
+
+    const logout = async () => {
+        setIsLoading(true);
+        await signOut(auth);
+    };
+
+    const value = {
+        user,
+        isLoading,
+        signInWithGoogle,
+        loginWithEmail,
+        logout,
+        setUser,
+    };
+
     return (
-        <AuthContext.Provider value={{ isAuthenticated, user, isLoading, login, logout, setUser }}>
+        <AuthContext.Provider value={value}>
             {children}
         </AuthContext.Provider>
     );
 };
 
-// 4. O Hook Customizado
-/**
- * Hook customizado para consumir o contexto de autenticação.
- */
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (context === undefined) {
@@ -169,3 +121,4 @@ export const useAuth = () => {
     }
     return context;
 };
+
