@@ -48,14 +48,14 @@
       },
       "//": "====================== CREDENCIAIS DE AUTENTICAÇÃO ======================",
       "//": "ID de Cliente para o Expo Go e Web. Vem da credencial 'Aplicativo da Web'.",
-      "expoClientId": "960817041807-80cgl0vv08sls7dhlhngd87lehld7app.apps.googleusercontent.com",
-      "webClientId": "960817041807-80cgl0vv08sls7dhlhngd87lehld7app.apps.googleusercontent.com",
+      "expoClientId": "360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com",
+      "webClientId": "360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com",
 
       "//": "ID de Cliente para o build nativo Android. Vem da credencial 'Android'.",
-      "androidClientId": "960817041807-f6c6d267868g9p69n2m662t4j6s6h3h4.apps.googleusercontent.com",
+      "androidClientId": "360317541807-19cbu2121eftbm4d9p50mk3okma4bhtj.apps.googleusercontent.com",
 
       "//": "ID de Cliente para o build nativo iOS. Crie uma credencial 'iOS' se for buildar para iPhone/iPad.",
-      "iosClientId": "COLE_AQUI_O_SEU_IOS_CLIENT_ID.apps.googleusercontent.com"
+      "iosClientId": "360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com"
     }
   }
 }

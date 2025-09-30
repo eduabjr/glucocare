@@ -1,5 +1,6 @@
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from "expo-auth-session/providers/google";
+import { makeRedirectUri } from "expo-auth-session";
 import { useEffect, useState } from "react";
 import Constants from "expo-constants";
 import { useAuth } from '../context/AuthContext'; // Garanta que o caminho para seu AuthContext está correto
@@ -32,6 +33,10 @@ export function useGoogleAuth(): UseGoogleAuthReturn {
     const [loading, setLoading] = useState<boolean>(false);
     
     // Configuração da requisição de autenticação do Google
+    const redirectUri = makeRedirectUri({
+        native: "glucocare:/oauthredirect",
+    });
+
     const [request, response, promptAsync] = Google.useAuthRequest({
         // ======================= CORREÇÃO PRINCIPAL =======================
         // Os nomes das chaves agora correspondem exatamente ao que está no app.json
@@ -40,7 +45,12 @@ export function useGoogleAuth(): UseGoogleAuthReturn {
         androidClientId: Constants.expoConfig?.extra?.['androidClientId'],
         webClientId: Constants.expoConfig?.extra?.['webClientId'], // Opcional, mas bom ter
         // ==================================================================
-        scopes: ["profile", "email"],
+        // Solicita ID Token explicitamente
+        responseType: "id_token",
+        scopes: ["openid", "email", "profile"],
+        // Migração para no-proxy conforme aviso do Expo
+        useProxy: false,
+        redirectUri,
     });
 
     // Função de promptAsync encapsulada para gerenciar o estado de 'loading'
@@ -67,7 +77,9 @@ export function useGoogleAuth(): UseGoogleAuthReturn {
             }
 
             if (response?.type === "success") {
-                const { id_token } = response.params;
+                const idTokenFromParams = (response as any)?.params?.id_token;
+                const idTokenFromAuth = (response as any)?.authentication?.idToken;
+                const id_token = idTokenFromParams || idTokenFromAuth;
 
                 if (id_token) {
                     if (typeof signInWithGoogle === 'function') {

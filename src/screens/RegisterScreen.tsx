@@ -16,22 +16,20 @@ import { AntDesign, Feather, MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
+// Google Auth via hook compartilhado (no-proxy + id_token)
+import { useGoogleAuth } from '../services/authService';
 
 // 🚨 IMPORTAÇÕES FIREBASE ATUALIZADAS
 import { auth, db } from '../config/firebase'; 
 import {
     createUserWithEmailAndPassword,
-    GoogleAuthProvider,
-    signInWithCredential,
     // NOVO: Função para enviar o e-mail de verificação
     sendEmailVerification,
     User,
 } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore'; 
 
-WebBrowser.maybeCompleteAuthSession();
+// Fluxo de auth do Google é tratado no hook compartilhado
 
 // --- Definição da Tipagem 
 interface PasswordRules {
@@ -168,83 +166,23 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
     const [isButtonDisabled, setIsButtonDisabled] = useState<boolean>(true);
     const [isLoading, setIsLoading] = useState<boolean>(false); 
 
+    // Google Auth hook (compartilhado com LoginScreen)
+    const { promptAsync: promptGoogle, loading: googleLoading, error: googleError } = useGoogleAuth();
+
     // Usando o hook para as regras de validação
     const { rules, isPasswordValid } = usePasswordValidation(password);
 
-    // --- Google OAuth Config (Mantenha o androidClientId REAL e configure o redirect_uri no Google Cloud)
-    const [request, response, promptAsync] = Google.useAuthRequest({
-        expoClientId:
-            '360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com', 
-        webClientId:
-            '360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com', 
-        androidClientId:
-            'SUA_ANDROID_CLIENT_ID_AQUI.apps.googleusercontent.com', // ⚠️ ATENÇÃO: SUBSTITUA PELO SEU ID REAL
-        scopes: ['profile', 'email'],
-    });
-
-    // --- Handle Google Response
+    // Exibe erro do Google, se houver
     useEffect(() => {
-        const handleGoogleAuth = async () => {
-            if (response?.type === 'success' && response.authentication) {
-                setIsLoading(true);
-                try {
-                    // 1. Cria a credencial do Google usando o token de acesso
-                    const credential = GoogleAuthProvider.credential(
-                        response.authentication.idToken
-                    );
-
-                    // 2. Faz login/criação de conta no Firebase com a credencial
-                    const userCredential = await signInWithCredential(auth, credential);
-                    const user = userCredential.user;
-
-                    // 3. Cria o objeto de perfil inicial
-                    const profile = {
-                        full_name: user.displayName || 'Usuário Google',
-                        email: user.email,
-                        provider: 'google',
-                        createdAt: user.metadata.creationTime, 
-                        birth_date: new Date(1990, 0, 1).toISOString(),
-                        height: null,
-                        weight: null,
-                        restriction: '',
-                        // NOVO: Adiciona o status de emailVerified ao perfil local (true para Google)
-                        emailVerified: user.emailVerified, 
-                    };
-
-                    // 4. Sincroniza o perfil com o Firestore
-                    await syncUserProfileToFirestore(user.uid, profile);
-
-                    // 5. Armazenamento local (SecureStore)
-                    await SecureStore.setItemAsync('registered_email', user.email || '');
-                    await SecureStore.setItemAsync('user_profile', JSON.stringify(profile));
-                    await SecureStore.setItemAsync('biometric_enabled', 'false'); 
-
-                    Alert.alert('Sucesso', 'Conta Google criada e conectada!');
-                    navigation.replace('ProfileSetup');
-                } catch (err: any) {
-                    console.error('Erro ao registrar com Google no Firebase:', err);
-                    Alert.alert('Erro', `Não foi possível registrar com Google: ${err.message}`);
-                } finally {
-                    setIsLoading(false);
-                }
-            } else if (response?.type === 'error') {
-                Alert.alert('Erro', 'O login com Google falhou ou foi cancelado.');
-                console.log('Resposta de erro do Google:', response.error);
-            }
-        };
-
-        handleGoogleAuth();
-    }, [response]);
-
-    // --- Função para chamar o prompt do Google
-    const handleGoogleSignIn = async () => {
-        if (!request) {
-            Alert.alert("Erro de Configuração", "O Request do Google não foi carregado. Verifique os Client IDs.");
-            return;
+        if (googleError) {
+            Alert.alert('Erro', googleError.message || 'Não foi possível iniciar o login com Google.');
         }
+    }, [googleError]);
+
+    // --- Função para chamar o prompt do Google (hook compartilhado)
+    const handleGoogleSignIn = async () => {
         try {
-            console.log("URI de Redirecionamento:", request.redirectUri); 
-            await promptAsync();
+            await promptGoogle();
         } catch (error) {
             console.error('Erro ao iniciar o prompt do Google:', error);
             Alert.alert('Erro', 'Não foi possível iniciar o login com Google.');
@@ -382,8 +320,8 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
 
                     {/* Botão Google */}
                     <TouchableOpacity
-                        style={[styles.googleButton, (!request || isLoading) && { opacity: 0.5 }]}
-                        disabled={!request || isLoading}
+                        style={[styles.googleButton, (googleLoading || isLoading) && { opacity: 0.5 }]}
+                        disabled={googleLoading || isLoading}
                         onPress={handleGoogleSignIn}
                     >
                         <AntDesign
