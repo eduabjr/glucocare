@@ -9,7 +9,7 @@ type MenuItem = {
   label: string;
   screen: keyof AppDrawerParamList;
   icon: {
-    name: keyof typeof Ionicons.glyphMap | keyof typeof MaterialIcons.glyphMap | keyof typeof Feather.glyphMap; // Tipos válidos para os ícones
+    name: string;
     lib: typeof MaterialIcons | typeof Ionicons | typeof Feather;
   };
 };
@@ -64,7 +64,7 @@ export default function CustomDrawer({ navigation, ...rest }: CustomDrawerProps)
                   return <MaterialIcons name="lock" color="#9ca3af" size={size - 2} />;
                 }
                 const IconComponent = item.icon.lib;
-                return <IconComponent name={item.icon.name} color={color} size={size - 2} />;
+                return <IconComponent name={item.icon.name as any} color={color} size={size - 2} />;
               }}
               onPress={() => {
                 if (isLocked) {

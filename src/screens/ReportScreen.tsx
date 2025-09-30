@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -6,7 +6,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
 import { listReadings, Reading } from '../services/dbService'; // Funções do seu banco
-import { getReadingStatus } from '../utils/getReadingStatus'; // Sua função de status
+import { getReadingStatus } from '../components/utils/getReadingStatus'; // Sua função de status
 import { useAuth } from '../context/AuthContext'; // Para verificar o e-mail
 
 export default function ReportScreen() {
@@ -126,7 +126,7 @@ export default function ReportScreen() {
     }
   };
 
-  const onDateChange = (event: DateTimePickerEvent, selectedDate: Date | undefined) => {
+  const onDateChange = (_event: DateTimePickerEvent, selectedDate: Date | undefined) => {
     const currentDate = selectedDate || (showPicker === 'start' ? startDate : endDate);
     setShowPicker(null);
     if (showPicker === 'start') {

@@ -2,7 +2,7 @@
 
 // 1. Importe os métodos necessários do SDK
 import { initializeApp, FirebaseOptions } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, Auth } from 'firebase/auth';
 // ✅ NOVO: Importe os métodos do Firestore
 import { getFirestore, Firestore } from 'firebase/firestore'; 
 
@@ -32,7 +32,7 @@ const firebaseConfig: FirebaseOptions = {
 const app = initializeApp(firebaseConfig);
 
 // 4. Obtém o serviço de Autenticação
-export const auth = getAuth(app);
+export const auth: Auth = getAuth(app);
 
 // ✅ NOVO: 5. Obtém e exporta o objeto do Cloud Firestore
 // O objeto 'db' está pronto para ser importado em dbService.ts ou RegisterScreen.tsx

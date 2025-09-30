@@ -141,7 +141,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                         <Feather name="mail" size={18} color="#9ca3af" style={styles.inputIcon} />
                         <TextInput
                             style={[styles.input, { color: '#6b7280' }]}
-                            value={user?.email}
+                            value={user?.email || ''}
                             editable={false}
                         />
                     </View>
@@ -335,4 +335,6 @@ const styles = StyleSheet.create({
         height: 40,
     },
     pickerItemStyle: {
-        fontSi
+        fontSize: 15,
+    },
+});

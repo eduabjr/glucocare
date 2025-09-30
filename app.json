@@ -40,22 +40,13 @@
           }
         }
       ],
-      "expo-local-authentication",
-      [
-        "@react-native-google-signin/google-signin",
-        {
-          "iosUrlScheme": "CRIE_UMA_CHAVE_IOS_E_COLOQUE_O_ID_REVERTIDO_AQUI"
-        }
-      ]
+      "expo-local-authentication"
     ],
     "extra": {
       "eas": {
         "projectId": "bb849c2-0bbc-4d34-ac66-441748aa2550"
       },
-      "googleExpoClientId": "960817041807-8sqou0cvnrotb78lhfgod27lsejs7t.apps.googleusercontent.com",
-      "googleAndroidClientId": "960817041807-tf6d6u121elbfba4u2tq98dmsubc46h6.apps.googleusercontent.com",
-      "googleWebClientId": "960817041807-8sqou0cvnrotb78lhfgod27lsejs7t.apps.googleusercontent.com",
-      "googleIosClientId": "CRIE_UMA_CHAVE_IOS_E_COLOQUE_O_ID_AQUI.apps.googleusercontent.com"
+      "expoClientId": "960817041807-80cgl0vv08sls7dhlhngd87lehld7app.apps.googleusercontent.com"
     }
   }
 }

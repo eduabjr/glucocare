@@ -11,13 +11,13 @@ import {
 import { Feather } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../navigation/RootNavigator"; 
+import { AuthStackParamList } from "../navigation/RootNavigator"; 
 import { confirmPasswordReset } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
 import { auth } from "../config/firebase";
 
 // Tipagem para a tela de redefinição de senha
-type ResetPasswordScreenProps = NativeStackScreenProps<RootStackParamList, 'ResetPassword'>;
+type ResetPasswordScreenProps = NativeStackScreenProps<AuthStackParamList, 'ResetPassword'>;
 
 const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ route, navigation }) => {
     const { oobCode } = route.params;

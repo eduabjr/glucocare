@@ -1,34 +1,42 @@
+// src/components/MenuButton.tsx
+
 import React from "react";
 import { TouchableOpacity, StyleSheet } from "react-native";
-// Importa o ícone
-import { MaterialIcons } from "@expo/vector-icons"; 
-// Importações necessárias para navegação desacoplada
+import { MaterialIcons } from "@expo/vector-icons";
 import { useNavigation, DrawerActions } from "@react-navigation/native";
 
 /**
- * Botão para abrir o Drawer Navigator.
- * * Este componente usa o hook `useNavigation` para acessar
- * o contexto de navegação e despachar a ação de abertura do Drawer.
+ * Componente de botão para abrir o Drawer Navigator (menu lateral).
+ * Utiliza o hook `useNavigation` para acessar o contexto de navegação
+ * e despachar a ação de abertura do Drawer, tornando-o reutilizável
+ * e desacoplado de props de navegação.
  */
 export default function MenuButton() {
-    // 💡 O useNavigation pega a navegação do contexto (neste caso, o DrawerNavigator mais próximo).
+    // O hook useNavigation busca o objeto de navegação do navegador pai mais próximo.
     const navigation = useNavigation();
 
+    /**
+     * Função chamada ao pressionar o botão.
+     * Despacha a ação para abrir o menu lateral.
+     */
     const handlePress = () => {
-        // ✅ Ação correta: Despacha a abertura do Drawer, eliminando a dependência de props.
         navigation.dispatch(DrawerActions.openDrawer());
     };
 
     return (
-        <TouchableOpacity onPress={handlePress}>
-            {/* O estilo com `marginLeft: 12` garante o espaçamento correto no header. */}
-            <MaterialIcons name="menu" size={26} color="#fff" style={styles.icon} />
+        <TouchableOpacity onPress={handlePress} style={styles.touchable}>
+            <MaterialIcons 
+                name="menu" 
+                size={28} // Aumentei um pouco para melhor toque
+                color="#fff" 
+            />
         </TouchableOpacity>
     );
 }
 
 const styles = StyleSheet.create({
-    icon: {
-        marginLeft: 12, // Mantém o espaçamento no lado esquerdo do header
+    touchable: {
+        marginLeft: 16, // Espaçamento padrão para itens de cabeçalho à esquerda
+        padding: 4,     // Área de toque um pouco maior
     },
 });

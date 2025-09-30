@@ -45,10 +45,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
                 if (userDoc.exists()) {
                     // Se o utilizador já existe na base de dados, carrega o perfil completo
+                    const userData = userDoc.data();
                     setUser({ 
                         id: firebaseUser.uid, 
                         emailVerified: firebaseUser.emailVerified, // ADICIONADO: emailVerified
-                        ...userDoc.data() 
+                        name: userData?.['name'] || 'Utilizador',
+                        email: userData?.['email'] || firebaseUser.email || '',
+                        googleId: userData?.['googleId'] || '',
+                        onboardingCompleted: userData?.['onboardingCompleted'] || false,
+                        biometricEnabled: userData?.['biometricEnabled'] || false,
+                        weight: userData?.['weight'] || null,
+                        height: userData?.['height'] || null,
+                        birthDate: userData?.['birthDate'] || '',
+                        condition: userData?.['condition'] || '',
+                        restriction: userData?.['restriction'] || '',
+                        syncedAt: userData?.['syncedAt'] || null,
                     } as UserProfile);
                 } else {
                     // Se for um novo utilizador (ex: primeiro login com Google), cria um perfil básico
@@ -56,7 +67,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     const newUserProfile: UserProfile = {
                         id: firebaseUser.uid,
                         name: firebaseUser.displayName || 'Utilizador',
-                        email: firebaseUser.email || 'Não informado',
+                        email: firebaseUser.email || '',
                         emailVerified: firebaseUser.emailVerified, // ADICIONADO: emailVerified
                         onboardingCompleted: false, // O fluxo de onboarding irá atualizar isto
                     };

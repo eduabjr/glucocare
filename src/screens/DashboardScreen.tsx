@@ -61,7 +61,6 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<'success' | 'error'>('success');
   const [longPressId, setLongPressId] = useState<string | null>(null);
-  const [emailVerified, setEmailVerified] = useState<boolean | null>(null); // Status de verificação do e-mail
 
   // alturas medidas via onLayout
   const [headerHeight, setHeaderHeight] = useState(0);
@@ -148,16 +147,19 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
   const total = readings.length;
 
   const renderItem = ({ item }: { item: any }) => {
-    const status = getReadingStatus(item.glucose_level);
+    if (!item) return null;
+    
+    const glucoseLevel = Number(item.glucose_level) || 0;
+    const status = getReadingStatus(glucoseLevel);
 
     return (
       <TouchableOpacity
         style={styles.readingCard}
-        onLongPress={() => handleLongPress(item.id)}
+        onLongPress={() => handleLongPress(item.id || '')}
         activeOpacity={0.9}
       >
         <View style={styles.readingRow}>
-          <Text style={styles.readingValue}>{item.glucose_level} mg/dL</Text>
+          <Text style={styles.readingValue}>{String(glucoseLevel)} mg/dL</Text>
           <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
             <Text style={[styles.readingStatus, { color: status.text }]}>{status.label}</Text>
           </View>
@@ -168,7 +170,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
         {longPressId === item.id && (
           <TouchableOpacity
             style={styles.deleteButton}
-            onPress={() => handleDeleteReading(item.id)}
+            onPress={() => handleDeleteReading(item.id || '')}
           >
             <Text style={styles.deleteButtonText}>Excluir Medição</Text>
           </TouchableOpacity>
@@ -230,7 +232,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
           </View>
           <Text style={styles.cardLabel}>Última Medição</Text>
           <Text style={styles.cardValue}>
-            {ultima} <Text style={styles.unit}>mg/dL</Text>
+            {String(ultima)} <Text style={styles.unit}>mg/dL</Text>
           </Text>
         </LinearGradient>
 
@@ -240,7 +242,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
           </View>
           <Text style={styles.cardLabel}>Média Geral</Text>
           <Text style={styles.cardValue}>
-            {media} <Text style={styles.unit}>mg/dL</Text>
+            {String(media)} <Text style={styles.unit}>mg/dL</Text>
           </Text>
         </LinearGradient>
 
@@ -250,7 +252,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
           </View>
           <Text style={styles.cardLabel}>Medições Normais</Text>
           <Text style={styles.cardValue}>
-            {normais} <Text style={styles.unit}>%</Text>
+            {String(normais)} <Text style={styles.unit}>%</Text>
           </Text>
         </LinearGradient>
 
@@ -260,7 +262,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
           </View>
           <Text style={styles.cardLabel}>Total de Medições</Text>
           <Text style={styles.cardValue}>
-            {total} <Text style={styles.unit}>registros</Text>
+            {String(total)} <Text style={styles.unit}>registros</Text>
           </Text>
         </LinearGradient>
       </View>
@@ -273,7 +275,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
 
           <FlatList
             data={readings}
-            keyExtractor={(item) => (item.id ? item.id.toString() : `${item.measurement_time}-${Math.random()}`)}
+            keyExtractor={(item, index) => (item?.id ? String(item.id) : `reading-${index}`)}
             renderItem={renderItem}
             contentContainerStyle={{ paddingBottom: 24 }}
             showsVerticalScrollIndicator

@@ -16,10 +16,11 @@
   "dependencies": {
     "@expo/vector-icons": "^13.0.0",
     "@expo/webpack-config": "^18.0.1",
+    "@react-native-async-storage/async-storage": "^1.24.0",
     "@react-native-community/datetimepicker": "6.7.3",
     "@react-native-google-signin/google-signin": "^10.1.1",
     "@react-native-picker/picker": "2.4.8",
-    "@react-navigation/drawer": "^6.6.15",
+    "@react-navigation/drawer": "^6.7.2",
     "@react-navigation/native": "^6.1.6",
     "@react-navigation/native-stack": "^6.9.12",
     "bcryptjs": "^3.0.2",
@@ -33,6 +34,7 @@
     "expo-file-system": "~15.2.2",
     "expo-linear-gradient": "~12.1.2",
     "expo-local-authentication": "~13.3.0",
+    "expo-print": "~12.2.1",
     "expo-random": "~13.1.1",
     "expo-secure-store": "~12.1.1",
     "expo-sharing": "~11.2.2",
@@ -63,8 +65,7 @@
     "util": "^0.12.5",
     "uuid": "^9.0.1",
     "xlsx": "^0.18.5",
-    "xml2js": "^0.6.2",
-    "expo-print": "~12.2.1"
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
