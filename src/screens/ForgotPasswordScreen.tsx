@@ -8,7 +8,7 @@ import {
     Alert,
     ActivityIndicator,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { Feather, MaterialIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 // ✅ CORREÇÃO: Importando o ParamList correto do navegador onde esta tela vive.
@@ -90,7 +90,7 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
                     <Text style={styles.title}>Esqueceu a senha?</Text>
 
                     <View style={styles.inputWrapper}>
-                        <Feather name="mail" size={18} color="#9ca3af" style={styles.inputIcon} />
+                        <MaterialIcons name="email" size={20} color="#9ca3af" style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
                             placeholder="Digite seu e-mail"

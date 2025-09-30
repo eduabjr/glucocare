@@ -6,3 +6,4 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Configuração global do AsyncStorage para o Firebase Auth
 // O Firebase Auth v12+ detecta automaticamente o AsyncStorage quando disponível
 export default AsyncStorage;
+

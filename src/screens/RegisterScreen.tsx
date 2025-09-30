@@ -1,6 +1,6 @@
 // src/screens/RegisterScreen.tsx
 import 'react-native-get-random-values';
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     Text,
     TextInput,
@@ -12,7 +12,7 @@ import {
     Platform,
     View,
 } from 'react-native';
-import { AntDesign, Feather } from '@expo/vector-icons';
+import { AntDesign, Feather, MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -370,9 +370,9 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
                 >
                     <AntDesign
                         name="adduser"
-                        size={64}
+                        size={52}
                         color="#2563eb"
-                        style={{ alignSelf: 'center', marginBottom: 20 }}
+                        style={{ alignSelf: 'center', marginBottom: 12 }}
                     />
 
                     <Text style={styles.title}>Criar Conta</Text>
@@ -397,16 +397,19 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
 
                     <Text style={styles.orText}>ou</Text>
                     
-                    {/* Inputs */}
-                    <TextInput
-                        style={[styles.input, emailError ? styles.inputError : null]}
-                        placeholder="E-mail"
-                        autoCapitalize="none"
-                        keyboardType="email-address"
-                        value={email}
-                        onChangeText={setEmail}
-                        onBlur={() => setEmailError(validateEmail(email) ? '' : 'Digite um e-mail válido.')}
-                    />
+                    {/* Email com ícone */}
+                    <View style={styles.inputRow}>
+                        <MaterialIcons name="email" size={20} color="#9ca3af" style={styles.inputIcon} />
+                        <TextInput
+                            style={[styles.inputFlex, emailError ? styles.inputError : null]}
+                            placeholder="E-mail"
+                            autoCapitalize="none"
+                            keyboardType="email-address"
+                            value={email}
+                            onChangeText={setEmail}
+                            onBlur={() => setEmailError(validateEmail(email) ? '' : 'Digite um e-mail válido.')}
+                        />
+                    </View>
                     {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
 
                     {/* --- CAMPO SENHA --- */}
@@ -414,8 +417,9 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
                         Crie sua senha
                     </Text>
                     <View style={styles.passwordContainer}>
+                        <MaterialIcons name="lock" size={20} color="#9ca3af" style={styles.inputIcon} />
                         <TextInput
-                            style={[styles.input, { marginBottom: 0, paddingRight: 50 }]}
+                            style={[styles.inputFlex, { marginBottom: 0, paddingRight: 50 }]}
                             placeholder="Senha"
                             secureTextEntry={!showPassword}
                             value={password}
@@ -444,8 +448,9 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
                         Confirme sua senha
                     </Text>
                     <View style={styles.passwordContainer}>
+                        <MaterialIcons name="lock" size={20} color="#9ca3af" style={styles.inputIcon} />
                         <TextInput
-                            style={[styles.input, confirmPasswordError ? styles.inputError : null, { paddingRight: 50 }]}
+                            style={[styles.inputFlex, confirmPasswordError ? styles.inputError : null, { paddingRight: 50 }]}
                             placeholder="Confirmar Senha"
                             secureTextEntry={!showConfirmPassword}
                             value={confirmPassword}
@@ -494,18 +499,18 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
 
 const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: '#f0f6ff' },
-    container: { flexGrow: 1, justifyContent: 'center', padding: 24 },
+    container: { flexGrow: 1, justifyContent: 'center', padding: 16 },
     title: {
-        fontSize: 24,
+        fontSize: 22,
         fontWeight: '700',
         textAlign: 'center',
         color: '#111827',
     },
     subtitle: {
-        fontSize: 14,
+        fontSize: 13,
         textAlign: 'center',
         color: '#6b7280',
-        marginBottom: 20,
+        marginBottom: 12,
     },
     googleButton: {
         flexDirection: 'row',
@@ -513,23 +518,42 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#d1d5db',
         backgroundColor: '#fff',
-        paddingVertical: 14,
+        paddingVertical: 10,
         borderRadius: 10,
         justifyContent: 'center',
-        marginBottom: 16,
+        marginBottom: 10,
     },
-    googleText: { fontSize: 16, fontWeight: '600', color: '#111' },
-    orText: { textAlign: 'center', color: '#6b7280', marginVertical: 12 },
+    googleText: { fontSize: 15, fontWeight: '600', color: '#111' },
+    orText: { textAlign: 'center', color: '#6b7280', marginVertical: 8 },
     input: {
         borderWidth: 1,
         borderColor: '#d1d5db',
         borderRadius: 10,
-        padding: 14,
+        padding: 12,
         backgroundColor: '#fff',
         fontSize: 15,
-        marginBottom: 8,
+        marginBottom: 6,
         color: '#111827',
         width: '100%',
+    },
+    inputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        backgroundColor: '#fff',
+        marginBottom: 6,
+    },
+    inputFlex: {
+        flex: 1,
+        paddingVertical: 12,
+        fontSize: 15,
+        color: '#111827',
+    },
+    inputIcon: {
+        marginRight: 8,
     },
     inputError: {
         borderColor: 'red',
@@ -537,27 +561,34 @@ const styles = StyleSheet.create({
     errorText: {
         color: 'red',
         fontSize: 12,
-        marginBottom: 8,
+        marginBottom: 6,
         paddingHorizontal: 4,
     },
     buttonPrimary: {
-        padding: 14,
+        padding: 12,
         borderRadius: 10,
         backgroundColor: '#2563eb',
         alignItems: 'center',
-        marginTop: 16,
+        marginTop: 10,
     },
     buttonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
     loginText: {
         textAlign: 'center',
-        marginTop: 16,
+        marginTop: 12,
         fontSize: 14,
         color: '#4b5563',
     },
     loginLink: { color: '#2563eb', fontWeight: '600' },
     passwordContainer: {
         position: 'relative',
-        marginBottom: 8,
+        marginBottom: 6,
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        backgroundColor: '#fff',
     },
     eyeIcon: {
         position: 'absolute',

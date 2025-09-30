@@ -46,7 +46,17 @@
       "eas": {
         "projectId": "bb849c2-0bbc-4d34-ac66-441748aa2550"
       },
-      "expoClientId": "960817041807-80cgl0vv08sls7dhlhngd87lehld7app.apps.googleusercontent.com"
+      "//": "====================== CREDENCIAIS DE AUTENTICAÇÃO ======================",
+      "//": "ID de Cliente para o Expo Go e Web. Vem da credencial 'Aplicativo da Web'.",
+      "expoClientId": "960817041807-80cgl0vv08sls7dhlhngd87lehld7app.apps.googleusercontent.com",
+      "webClientId": "960817041807-80cgl0vv08sls7dhlhngd87lehld7app.apps.googleusercontent.com",
+
+      "//": "ID de Cliente para o build nativo Android. Vem da credencial 'Android'.",
+      "androidClientId": "960817041807-f6c6d267868g9p69n2m662t4j6s6h3h4.apps.googleusercontent.com",
+
+      "//": "ID de Cliente para o build nativo iOS. Crie uma credencial 'iOS' se for buildar para iPhone/iPad.",
+      "iosClientId": "COLE_AQUI_O_SEU_IOS_CLIENT_ID.apps.googleusercontent.com"
     }
   }
 }
+
