@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
-import { Feather } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 // Importações do projeto
@@ -40,6 +40,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
 
     const [name, setName] = useState<string>('');
     const [birthDate, setBirthDate] = useState<Date>(new Date(1990, 0, 1));
+    const [birthDateText, setBirthDateText] = useState<string>('');
     const [showDate, setShowDate] = useState<boolean>(false);
     const [condition, setCondition] = useState<string>('');
     const [height, setHeight] = useState<string>('');
@@ -54,7 +55,9 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
     useEffect(() => {
         if (user) {
             setName(user.name ?? '');
-            setBirthDate(user.birthDate ? new Date(user.birthDate) : new Date(1990, 0, 1));
+            const userBirthDate = user.birthDate ? new Date(user.birthDate) : new Date(1990, 0, 1);
+            setBirthDate(userBirthDate);
+            setBirthDateText(userBirthDate.toLocaleDateString('pt-BR'));
             setCondition(user.condition ?? '');
             setHeight(user.height ? String(user.height).replace('.', ',') : '');
             setWeight(user.weight ? String(user.weight).replace('.', ',') : '');
@@ -72,6 +75,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
         setShowDate(false);
         if (selected) {
             setBirthDate(selected);
+            setBirthDateText(selected.toLocaleDateString('pt-BR'));
         }
     };
 
@@ -127,7 +131,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
 
                     {/* Nome */}
                     <View style={styles.inputWrapper}>
-                        <Feather name="user" size={18} color="#9ca3af" style={styles.inputIcon} />
+                        <MaterialIcons name="person" size={20} color="#9ca3af" style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
                             placeholder="Nome Completo"
@@ -138,7 +142,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
 
                     {/* Email (não editável) */}
                     <View style={styles.inputWrapper}>
-                        <Feather name="mail" size={18} color="#9ca3af" style={styles.inputIcon} />
+                        <MaterialIcons name="email" size={20} color="#9ca3af" style={styles.inputIcon} />
                         <TextInput
                             style={[styles.input, { color: '#6b7280' }]}
                             value={user?.email || ''}
@@ -148,11 +152,36 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                     
                     {/* Data de nascimento */}
                     <View style={styles.inputWrapper}>
-                        <Feather name="calendar" size={18} color="#9ca3af" style={styles.inputIcon} />
-                        <TouchableOpacity onPress={() => setShowDate(true)} style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
-                            <Text style={styles.input}>
-                                {birthDate.toLocaleDateString('pt-BR')}
-                            </Text>
+                        <MaterialIcons name="event" size={20} color="#9ca3af" style={styles.inputIcon} />
+                        <TextInput
+                            style={styles.input}
+                            placeholder="DD/MM/AAAA"
+                            value={birthDateText}
+                            onChangeText={(text) => {
+                                setBirthDateText(text);
+                                
+                                // Parse da data manual quando completa
+                                const parts = text.split('/');
+                                if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
+                                    const day = parseInt(parts[0]);
+                                    const month = parseInt(parts[1]) - 1; // JavaScript months are 0-indexed
+                                    const year = parseInt(parts[2]);
+                                    
+                                    if (!isNaN(day) && !isNaN(month) && !isNaN(year) && 
+                                        day >= 1 && day <= 31 && 
+                                        month >= 0 && month <= 11 && 
+                                        year >= 1900 && year <= new Date().getFullYear()) {
+                                        
+                                        const newDate = new Date(year, month, day);
+                                        if (newDate.getDate() === day && newDate.getMonth() === month && newDate.getFullYear() === year) {
+                                            setBirthDate(newDate);
+                                        }
+                                    }
+                                }
+                            }}
+                        />
+                        <TouchableOpacity onPress={() => setShowDate(true)} style={styles.calendarIcon}>
+                            <MaterialIcons name="calendar-today" size={20} color="#9ca3af" />
                         </TouchableOpacity>
                     </View>
                     {showDate && (
@@ -167,7 +196,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
 
                     {/* Condição */}
                     <View style={styles.inputWrapper}>
-                         <Feather name="list" size={18} color="#9ca3af" style={styles.inputIcon} />
+                         <MaterialIcons name="list" size={20} color="#9ca3af" style={styles.inputIcon} />
                          {Platform.OS === 'ios' ? (
                              <TextInput
                                  style={styles.input}
@@ -194,32 +223,35 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                          </Picker>
                        </View>
 
-                    {/* Altura (cm) */}
-                    <View style={styles.inputWrapper}>
-                        <Feather name="trending-up" size={18} color="#9ca3af" style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Altura (cm)"
-                            keyboardType="numeric"
-                            value={height}
-                            onChangeText={(text) => setHeight(formatNumericInput(text))}
-                        />
-                    </View>
+                    {/* Altura e Peso na mesma linha */}
+                    <View style={styles.rowContainer}>
+                        {/* Altura (cm) */}
+                        <View style={styles.halfInputWrapper}>
+                            <MaterialIcons name="height" size={20} color="#9ca3af" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Altura (cm)"
+                                keyboardType="numeric"
+                                value={height}
+                                onChangeText={(text) => setHeight(formatNumericInput(text))}
+                            />
+                        </View>
 
-                    {/* Peso (kg) */}
-                    <View style={styles.inputWrapper}>
-                        <Feather name="activity" size={18} color="#9ca3af" style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Peso (kg)"
-                            keyboardType="numeric"
-                            value={weight}
-                            onChangeText={(text) => setWeight(formatNumericInput(text))}
-                        />
+                        {/* Peso (kg) */}
+                        <View style={[styles.halfInputWrapper, { marginRight: 0 }]}>
+                            <MaterialIcons name="fitness-center" size={20} color="#9ca3af" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Peso (kg)"
+                                keyboardType="numeric"
+                                value={weight}
+                                onChangeText={(text) => setWeight(formatNumericInput(text))}
+                            />
+                        </View>
                     </View>
 
                     {/* Restrições Alimentares */}
-                    <Text style={[styles.sectionLabel, { marginTop: 10, marginBottom: 5 }]}>Restrições Alimentares</Text>
+                    <Text style={[styles.sectionLabel, { marginTop: 8, marginBottom: 8 }]}>Restrições Alimentares</Text>
                     <View style={styles.restrictionButtonsContainer}>
                         {restrictionOptions.map((item) => {
                             const isSelected = restrictions.includes(item);
@@ -258,51 +290,68 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
 // Estilos
 const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: '#f0f6ff' },
-    container: { flexGrow: 1, justifyContent: 'center', padding: 16 },
+    container: { flexGrow: 1, justifyContent: 'center', padding: 12 },
     card: {
         backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 20,
+        borderRadius: 12,
+        padding: 16,
         shadowColor: '#000',
         shadowOpacity: 0.08,
-        shadowRadius: 8,
+        shadowRadius: 6,
         elevation: 3,
     },
     title: {
-        fontSize: 22,
+        fontSize: 20,
         fontWeight: '700',
         textAlign: 'center',
         marginBottom: 4,
         color: '#111827',
     },
-    subtitle: { fontSize: 14, textAlign: 'center', color: '#6b7280', marginBottom: 20 },
+    subtitle: { fontSize: 13, textAlign: 'center', color: '#6b7280', marginBottom: 12 },
     inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
         borderColor: '#d1d5db',
-        borderRadius: 10,
-        marginBottom: 14,
-        paddingHorizontal: 12,
+        borderRadius: 8,
+        marginBottom: 12,
+        paddingHorizontal: 10,
         backgroundColor: '#fff',
     },
+    rowContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 12,
+    },
+    halfInputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        backgroundColor: '#fff',
+        flex: 1,
+        marginRight: 6,
+    },
     inputIcon: { marginRight: 8 },
-    input: { flex: 1, fontSize: 15, paddingVertical: 10, color: '#111827' },
-    sectionLabel: { fontSize: 14, fontWeight: '600', marginBottom: 8, color: '#374151' },
+    input: { flex: 1, fontSize: 14, paddingVertical: 10, color: '#111827' },
+    calendarIcon: { padding: 4 },
+    sectionLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8, color: '#374151' },
     restrictionButtonsContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'flex-start',
-        marginBottom: 10,
+        marginBottom: 12,
     },
     restrictionButton: {
-        paddingVertical: 8,
-        paddingHorizontal: 12,
+        paddingVertical: 6,
+        paddingHorizontal: 10,
         borderWidth: 1,
         borderColor: '#d1d5db',
-        borderRadius: 20,
-        marginRight: 8,
-        marginBottom: 8,
+        borderRadius: 16,
+        marginRight: 6,
+        marginBottom: 6,
         backgroundColor: '#f9fafb',
     },
     restrictionButtonSelected: {
@@ -311,7 +360,7 @@ const styles = StyleSheet.create({
     },
     restrictionButtonText: {
         color: '#374151',
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: '500',
     },
     restrictionButtonTextSelected: {
@@ -320,21 +369,21 @@ const styles = StyleSheet.create({
     saveButton: {
         backgroundColor: '#2563eb',
         padding: 14,
-        borderRadius: 10,
+        borderRadius: 8,
         alignItems: 'center',
         marginTop: 16,
         shadowColor: '#000',
         shadowOpacity: 0.1,
-        shadowRadius: 6,
+        shadowRadius: 4,
         elevation: 3,
     },
-    saveText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+    saveText: { color: '#fff', fontWeight: '600', fontSize: 15 },
     pickerStyle: {
         flex: 1,
         color: '#111827',
-        height: 40,
+        height: 36,
     },
     pickerItemStyle: {
-        fontSize: 15,
+        fontSize: 14,
     },
 });
