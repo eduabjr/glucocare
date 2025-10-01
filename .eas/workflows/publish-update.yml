@@ -1,0 +1,14 @@
+name: Publish Update
+
+on:
+  push:
+    branches: ['*']
+  workflow_dispatch:
+
+jobs:
+  update:
+    name: Publish Update
+    type: update
+    params:
+      branch: ${{ github.ref_name || 'main' }}
+      message: "Update from ${{ github.ref_name }} branch"

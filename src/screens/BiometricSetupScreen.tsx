@@ -47,10 +47,30 @@ export default function BiometricSetupScreen({ navigation }: BiometricSetupScree
             
             const userProfile: UserProfile = JSON.parse(profileString);
 
+            // ✅ CORREÇÃO: Marca o onboarding como completo
+            const completedProfile: UserProfile = {
+                ...userProfile,
+                onboardingCompleted: true,
+                syncedAt: new Date().toISOString(),
+            };
+
+            // ✅ CORREÇÃO: Salva o perfil atualizado no SecureStore
+            await SecureStore.setItemAsync('user_profile', JSON.stringify(completedProfile));
+
+            // ✅ CORREÇÃO: Sincroniza com o Firestore
+            try {
+                const { saveOrUpdateUser } = await import('../services/dbService');
+                await saveOrUpdateUser(completedProfile);
+                console.log('Perfil sincronizado com Firestore após completar onboarding');
+            } catch (syncError) {
+                console.error('Erro ao sincronizar perfil com Firestore:', syncError);
+                // Continua mesmo se a sincronização falhar
+            }
+
             // A mágica acontece aqui!
             // Chamamos a função setUser do contexto, que vai atualizar o estado global
             // e fazer o RootNavigator mostrar o Drawer da aplicação.
-            setUser(userProfile);
+            setUser(completedProfile);
 
         } catch (error) {
             console.error("Erro ao finalizar o setup:", error);
@@ -67,6 +87,18 @@ export default function BiometricSetupScreen({ navigation }: BiometricSetupScree
 
             if (result.success) {
                 await SecureStore.setItemAsync('biometric_enabled', 'true');
+                
+                // ✅ CORREÇÃO: Atualiza o perfil com biometria habilitada
+                const profileString = await SecureStore.getItemAsync('user_profile');
+                if (profileString) {
+                    const userProfile: UserProfile = JSON.parse(profileString);
+                    const updatedProfile: UserProfile = {
+                        ...userProfile,
+                        biometricEnabled: true,
+                    };
+                    await SecureStore.setItemAsync('user_profile', JSON.stringify(updatedProfile));
+                }
+                
                 Alert.alert('Sucesso', 'Biometria ativada com sucesso!');
                 
                 // ✨ PASSO 4: Chama a nova função para finalizar
@@ -84,11 +116,28 @@ export default function BiometricSetupScreen({ navigation }: BiometricSetupScree
 
     const skipBiometric = async () => {
         setLoading(true);
-        await SecureStore.setItemAsync('biometric_enabled', 'false');
-        
-        // ✨ PASSO 5: Chama a nova função aqui também
-        await completeSetup();
-        setLoading(false);
+        try {
+            await SecureStore.setItemAsync('biometric_enabled', 'false');
+            
+            // ✅ CORREÇÃO: Atualiza o perfil com biometria desabilitada
+            const profileString = await SecureStore.getItemAsync('user_profile');
+            if (profileString) {
+                const userProfile: UserProfile = JSON.parse(profileString);
+                const updatedProfile: UserProfile = {
+                    ...userProfile,
+                    biometricEnabled: false,
+                };
+                await SecureStore.setItemAsync('user_profile', JSON.stringify(updatedProfile));
+            }
+            
+            // ✨ PASSO 5: Chama a nova função aqui também
+            await completeSetup();
+        } catch (error) {
+            console.error('Erro ao pular biometria:', error);
+            Alert.alert('Erro', 'Ocorreu um problema ao pular a configuração de biometria.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (

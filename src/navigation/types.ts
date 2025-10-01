@@ -26,10 +26,12 @@ export type AuthStackParamList = {
 export type AppDrawerParamList = {
   Dashboard: undefined;
   AddReading: undefined;
+  DeviceConnection: undefined;
   Charts: undefined;
+  Nutrition: undefined;
   Settings: undefined;
-  Profile: undefined; // Para visualizar/editar o perfil já logado
-  Report: undefined; // << ADICIONE ESTA LINHA PARA A NOVA TELA
+  ProfileSetup: undefined; // Para visualizar/editar o perfil já logado
+  Report: undefined;
 };
 
 /**

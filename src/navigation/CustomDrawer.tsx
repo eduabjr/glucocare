@@ -18,9 +18,10 @@ const menuItems: MenuItem[] = [
   { label: "Dashboard", screen: "Dashboard", icon: { name: "dashboard", lib: MaterialIcons } },
   { label: "Nova Medição", screen: "AddReading", icon: { name: "add-circle-outline", lib: Ionicons } },
   { label: "Gráficos", screen: "Charts", icon: { name: "bar-chart", lib: MaterialIcons } },
-  { label: "Relatório de Glicemia", screen: "Report", icon: { name: "description", lib: MaterialIcons } }, // Nome válido
+  { label: "Alimentação", screen: "Nutrition", icon: { name: "restaurant-menu", lib: MaterialIcons } },
+  { label: "Relatório de Glicemia", screen: "Report", icon: { name: "description", lib: MaterialIcons } },
   { label: "Configurações", screen: "Settings", icon: { name: "settings", lib: Feather } },
-  { label: "Perfil", screen: "Profile", icon: { name: "person", lib: MaterialIcons } },
+  { label: "Perfil", screen: "ProfileSetup", icon: { name: "person", lib: MaterialIcons } },
 ];
 
 type CustomDrawerProps = DrawerContentComponentProps;

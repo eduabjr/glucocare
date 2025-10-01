@@ -18,6 +18,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 // Google Auth via hook compartilhado (no-proxy + id_token)
 import { useGoogleAuth } from '../services/authService';
+import { useAuth } from '../context/AuthContext';
 
 // 🚨 IMPORTAÇÕES FIREBASE ATUALIZADAS
 import { auth, db } from '../config/firebase'; 
@@ -138,10 +139,7 @@ async function sendVerificationEmail(user: User) {
         try {
             await sendEmailVerification(user);
             console.log("E-mail de verificação enviado com sucesso.");
-            Alert.alert(
-                'Verificação de E-mail',
-                'Um link de verificação foi enviado para seu e-mail. Por favor, verifique sua caixa de entrada para validar sua conta.'
-            );
+            // Removido o Alert aqui para evitar duplicação
         } catch (error) {
             console.error('Erro ao enviar e-mail de verificação:', error);
             Alert.alert('Erro', 'Não foi possível enviar o e-mail de verificação agora. Tente novamente mais tarde.');
@@ -168,6 +166,9 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
 
     // Google Auth hook (compartilhado com LoginScreen)
     const { promptAsync: promptGoogle, loading: googleLoading, error: googleError } = useGoogleAuth();
+    
+    // Auth context para atualizar o usuário após registro
+    const { setUser } = useAuth();
 
     // Usando o hook para as regras de validação
     const { rules, isPasswordValid } = usePasswordValidation(password);
@@ -230,18 +231,21 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
             // NOVO: 2. DISPARA O E-MAIL DE VERIFICAÇÃO
             await sendVerificationEmail(user);
 
-            // 3. Criação do Perfil Básico
+            // 3. Criação do Perfil Básico (compatível com UserProfile)
             const profile = {
-                full_name: 'Usuário GlucoCare',
+                id: user.uid,
+                name: 'Usuário GlucoCare',
                 email: email.trim(),
-                provider: 'manual',
-                createdAt: user.metadata.creationTime,
-                birth_date: new Date(1990, 0, 1).toISOString(),
-                height: null,
+                googleId: '',
+                onboardingCompleted: false,
+                biometricEnabled: false,
                 weight: null,
+                height: null,
+                birthDate: new Date(1990, 0, 1).toISOString(),
+                condition: '',
                 restriction: '',
-                // NOVO: Adiciona o status de emailVerified ao perfil local (false inicialmente)
-                emailVerified: user.emailVerified, 
+                syncedAt: new Date().toISOString(),
+                emailVerified: user.emailVerified,
             };
 
             // 4. Sincroniza o perfil com o Firestore
@@ -263,6 +267,9 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
             } catch {
                 await SecureStore.setItemAsync('biometric_enabled', 'false');
             }
+
+            // ✅ CORREÇÃO: Atualiza o contexto de autenticação
+            setUser(profile);
 
             Alert.alert(
                 'Sucesso', 

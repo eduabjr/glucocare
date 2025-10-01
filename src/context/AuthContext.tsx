@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { onAuthStateChanged, User, signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential, signOut } from 'firebase/auth';
 import { auth, db } from '../config/firebase'; // ✨ ADICIONADO: Importar 'db' do Firebase
 import { doc, getDoc, setDoc } from 'firebase/firestore'; // ✨ ADICIONADO: Funções do Firestore
+import { initDB } from '../services/dbService'; // ✨ ADICIONADO: Importar initDB
 
 // A sua interface de perfil de utilizador detalhada
 export interface UserProfile {
@@ -37,51 +38,107 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
-            if (firebaseUser) {
-                // ✨ ATUALIZAÇÃO: Lógica para carregar ou criar o perfil no Firestore
-                const userRef = doc(db, 'users', firebaseUser.uid);
-                const userDoc = await getDoc(userRef);
-
-                if (userDoc.exists()) {
-                    // Se o utilizador já existe na base de dados, carrega o perfil completo
-                    const userData = userDoc.data();
-                    setUser({ 
-                        id: firebaseUser.uid, 
-                        emailVerified: firebaseUser.emailVerified, // ADICIONADO: emailVerified
-                        name: userData?.['name'] || 'Utilizador',
-                        email: userData?.['email'] || firebaseUser.email || '',
-                        googleId: userData?.['googleId'] || '',
-                        onboardingCompleted: userData?.['onboardingCompleted'] || false,
-                        biometricEnabled: userData?.['biometricEnabled'] || false,
-                        weight: userData?.['weight'] || null,
-                        height: userData?.['height'] || null,
-                        birthDate: userData?.['birthDate'] || '',
-                        condition: userData?.['condition'] || '',
-                        restriction: userData?.['restriction'] || '',
-                        syncedAt: userData?.['syncedAt'] || null,
-                    } as UserProfile);
+        // Initialize database on app start
+        const initializeApp = async () => {
+            try {
+                await initDB();
+                console.log('Database initialized successfully');
+                
+                // 🧪 Teste de conexão com Firestore
+                const { testFirestoreConnection } = await import('../utils/firestoreTest');
+                const firestoreConnected = await testFirestoreConnection();
+                
+                if (firestoreConnected) {
+                    console.log('🔥 Firestore conectado com sucesso');
                 } else {
-                    // Se for um novo utilizador (ex: primeiro login com Google), cria um perfil básico
-                    const googleId = firebaseUser.providerData.find(p => p.providerId === 'google.com')?.uid;
-                    const newUserProfile: UserProfile = {
-                        id: firebaseUser.uid,
-                        name: firebaseUser.displayName || 'Utilizador',
-                        email: firebaseUser.email || '',
-                        emailVerified: firebaseUser.emailVerified, // ADICIONADO: emailVerified
-                        onboardingCompleted: false, // O fluxo de onboarding irá atualizar isto
-                    };
-                    if (googleId) {
-                        newUserProfile.googleId = googleId;
-                    }
-                    // Salva este novo perfil na base de dados
-                    await setDoc(userRef, newUserProfile);
-                    setUser(newUserProfile);
+                    console.error('❌ Erro na conexão com Firestore');
                 }
-            } else {
-                setUser(null);
+                
+            } catch (error) {
+                console.error('Failed to initialize database:', error);
             }
-            setIsLoading(false);
+        };
+        
+        initializeApp();
+        
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
+            try {
+                if (firebaseUser) {
+                    console.log('🔥 Firebase User autenticado:', firebaseUser.uid);
+                    
+                    // ✨ ATUALIZAÇÃO: Lógica para carregar ou criar o perfil no Firestore
+                    const userRef = doc(db, 'users', firebaseUser.uid);
+                    
+                    try {
+                        const userDoc = await getDoc(userRef);
+                        console.log('📄 Documento do usuário existe:', userDoc.exists());
+
+                        if (userDoc.exists()) {
+                            // Se o utilizador já existe na base de dados, carrega o perfil completo
+                            const userData = userDoc.data();
+                            console.log('👤 Dados do usuário carregados:', userData);
+                            
+                            const userProfile: UserProfile = { 
+                                id: firebaseUser.uid, 
+                                emailVerified: firebaseUser.emailVerified,
+                                name: userData?.['name'] || 'Utilizador',
+                                email: userData?.['email'] || firebaseUser.email || '',
+                                googleId: userData?.['googleId'] || '',
+                                onboardingCompleted: userData?.['onboardingCompleted'] || false,
+                                biometricEnabled: userData?.['biometricEnabled'] || false,
+                                weight: userData?.['weight'] || null,
+                                height: userData?.['height'] || null,
+                                birthDate: userData?.['birthDate'] || '',
+                                condition: userData?.['condition'] || '',
+                                restriction: userData?.['restriction'] || '',
+                                syncedAt: userData?.['syncedAt'] || null,
+                            };
+                            
+                            console.log('🔐 Status da biometria:', userProfile.biometricEnabled);
+                            setUser(userProfile);
+                        } else {
+                            console.log('🆕 Criando novo perfil para usuário');
+                            // Se for um novo utilizador (ex: primeiro login com Google), cria um perfil básico
+                            const googleId = firebaseUser.providerData.find(p => p.providerId === 'google.com')?.uid;
+                            const newUserProfile: UserProfile = {
+                                id: firebaseUser.uid,
+                                name: firebaseUser.displayName || 'Utilizador',
+                                email: firebaseUser.email || '',
+                                emailVerified: firebaseUser.emailVerified,
+                                onboardingCompleted: false, // O fluxo de onboarding irá atualizar isto
+                                biometricEnabled: false,
+                            };
+                            if (googleId) {
+                                newUserProfile.googleId = googleId;
+                            }
+                            // Salva este novo perfil na base de dados
+                            await setDoc(userRef, newUserProfile);
+                            console.log('💾 Novo perfil salvo no Firestore');
+                            setUser(newUserProfile);
+                        }
+                    } catch (firestoreError) {
+                        console.error('❌ Erro ao acessar Firestore:', firestoreError);
+                        // Fallback: cria perfil básico sem Firestore
+                        const fallbackProfile: UserProfile = {
+                            id: firebaseUser.uid,
+                            name: firebaseUser.displayName || 'Utilizador',
+                            email: firebaseUser.email || '',
+                            emailVerified: firebaseUser.emailVerified,
+                            onboardingCompleted: false,
+                            biometricEnabled: false,
+                        };
+                        setUser(fallbackProfile);
+                    }
+                } else {
+                    console.log('🚪 Usuário não autenticado');
+                    setUser(null);
+                }
+            } catch (error) {
+                console.error('❌ Erro geral no AuthContext:', error);
+                setUser(null);
+            } finally {
+                setIsLoading(false);
+            }
         });
         return () => unsubscribe();
     }, []);

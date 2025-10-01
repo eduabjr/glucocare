@@ -109,4 +109,3 @@ eas build --platform ios
 - **Configuração única**: Uma vez configurado corretamente, funciona para desenvolvimento e produção
 - **SHA-1 múltiplos**: Você pode ter vários SHA-1 no mesmo cliente (desenvolvimento + produção)
 - **Propagação**: Mudanças no Google Console podem levar até algumas horas para propagar
-

@@ -27,7 +27,7 @@ type LoginScreenProps = {
 };
 
 export default function LoginScreen({ navigation }: LoginScreenProps) {
-  const { loginWithEmail } = useAuth();
+  const { loginWithEmail, user } = useAuth();
   const { promptAsync, loading: googleLoading, error: googleError } = useGoogleAuth();
 
   const [email, setEmail] = useState('');
@@ -41,6 +41,14 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     checkBiometricSupport();
     checkBiometricStatus();
   }, []);
+
+  // ✅ NOVO: Monitora mudanças no user do AuthContext
+  useEffect(() => {
+    if (user?.biometricEnabled !== undefined) {
+      console.log('🔐 Biometria atualizada via AuthContext:', user.biometricEnabled);
+      setBiometricEnabled(user.biometricEnabled);
+    }
+  }, [user?.biometricEnabled]);
 
   useEffect(() => {
     if (googleError) {
@@ -106,8 +114,18 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   };
 
   const handleBiometricLogin = async () => {
-    if (!biometricSupported || !biometricEnabled) {
-      Alert.alert('Biometria não disponível', 'A biometria não está configurada ou não é suportada neste dispositivo.');
+    console.log('🔐 Tentativa de login biométrico');
+    console.log('📱 Biometria suportada:', biometricSupported);
+    console.log('✅ Biometria habilitada:', biometricEnabled);
+    console.log('👤 User do AuthContext:', user?.biometricEnabled);
+    
+    if (!biometricSupported) {
+      Alert.alert('Biometria não suportada', 'Este dispositivo não possui suporte à biometria.');
+      return;
+    }
+    
+    if (!biometricEnabled && !user?.biometricEnabled) {
+      Alert.alert('Biometria não configurada', 'Configure a biometria nas configurações do app primeiro.');
       return;
     }
     
@@ -119,17 +137,22 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       });
 
       if (result.success) {
+        console.log('✅ Autenticação biométrica bem-sucedida');
         const savedEmail = await SecureStore.getItemAsync('registered_email');
         const savedPassword = await SecureStore.getItemAsync('saved_password');
         
         if (savedEmail && savedPassword) {
+          console.log('📧 Usando credenciais salvas:', savedEmail);
           await loginWithEmail(savedEmail, savedPassword);
         } else {
+          console.log('❌ Credenciais não encontradas no SecureStore');
           Alert.alert('Erro', 'Credenciais não encontradas. Faça login manualmente primeiro.');
         }
+      } else {
+        console.log('❌ Autenticação biométrica falhou');
       }
     } catch (error) {
-      console.error('Erro na autenticação biométrica:', error);
+      console.error('❌ Erro na autenticação biométrica:', error);
       Alert.alert('Erro', 'Falha na autenticação biométrica.');
     } finally {
       setIsLoading(false);

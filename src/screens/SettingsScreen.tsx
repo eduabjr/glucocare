@@ -1,64 +1,36 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Switch, TextInput, Modal } from 'react-native';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-// import { useNavigation } from '@react-navigation/native'; // Removed since it's unused (Warning 6133)
+import * as LocalAuthentication from 'expo-local-authentication';
+import * as SecureStore from 'expo-secure-store';
+import { updateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { auth } from '../config/firebase';
+import { useAuth } from '../context/AuthContext';
+import { saveOrUpdateUser } from '../services/dbService';
 
-// --- Type Definitions for Fixes ---
-
-// 1. FIX: Define a placeholder for AuthContextType with the missing 'signOut' function (Error 2339)
-// NOTE: You should ensure this matches the actual definition in '../context/AuthContext'
-interface AuthContextType {
-    user: { id: string; email: string; name: string } | null;
-    isLoading: boolean;
-    signIn: (email: string, password: string) => Promise<void>;
-    signUp: (email: string, password: string) => Promise<void>;
-    // FIX 2339: Added the missing 'signOut' property
-    signOut: () => Promise<void>; 
-}
-
-// NOTE: Assuming this hook is defined elsewhere.
-const useAuth = () => {
-    // Placeholder implementation for demonstration
-    const authContext: AuthContextType = {
-        user: { id: 'user123', email: 'user@example.com', name: 'John Doe' },
-        isLoading: false,
-        signIn: async () => {},
-        signUp: async () => {},
-        signOut: async () => { console.log("User signed out."); }
-    };
-    return authContext;
-}
-
-// 2. FIX: Correctly derive icon name types for Material and MaterialCommunity (Error 2339 & 2322)
-// This uses the standard way to extract a prop's type from a component in React.
+// Tipos para os ícones
 type MaterialIconName = React.ComponentProps<typeof MaterialIcons>['name'];
 type MaterialCommunityIconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-
-// Interface for settings card using MaterialIcons
+// Interface para cards de configuração
 interface SettingsCardProps {
     title: string;
     description: string;
-    // FIX 2322: Use the correctly derived icon name type
     iconName: MaterialIconName; 
     onPress: () => void;
 }
 
-// Interface for settings card using MaterialCommunityIcons
 interface SettingsCardCommunityProps {
     title: string;
     description: string;
-    // FIX 2322: Use the correctly derived icon name type
     iconName: MaterialCommunityIconName; 
     onPress: () => void;
 }
 
-// --- Component Definitions ---
-
+// Componente para cards com MaterialIcons
 const SettingsCard: React.FC<SettingsCardProps> = ({ title, description, iconName, onPress }) => (
     <TouchableOpacity style={styles.cardContainer} onPress={onPress}>
         <View style={styles.iconBackground}>
-            {/* The type for 'name' is now correctly inferred */}
             <MaterialIcons name={iconName} size={24} color="#FFFFFF" />
         </View>
         <View style={styles.textContainer}>
@@ -69,10 +41,10 @@ const SettingsCard: React.FC<SettingsCardProps> = ({ title, description, iconNam
     </TouchableOpacity>
 );
 
+// Componente para cards com MaterialCommunityIcons
 const SettingsCardCommunity: React.FC<SettingsCardCommunityProps> = ({ title, description, iconName, onPress }) => (
     <TouchableOpacity style={styles.cardContainer} onPress={onPress}>
         <View style={styles.iconBackground}>
-            {/* The type for 'name' is now correctly inferred */}
             <MaterialCommunityIcons name={iconName} size={24} color="#FFFFFF" />
         </View>
         <View style={styles.textContainer}>
@@ -83,24 +55,222 @@ const SettingsCardCommunity: React.FC<SettingsCardCommunityProps> = ({ title, de
     </TouchableOpacity>
 );
 
-
-// --- Main Screen Component ---
-
+// Componente principal
 const SettingsScreen: React.FC = () => {
-    // FIX 6133: Removed unused 'navigation' declaration
-    // const navigation = useNavigation();
-    
-    // FIX 2339: 'signOut' is now included in the destructured properties (Retained user's fix)
-    const { user, signOut } = useAuth(); 
+    const { user, setUser, logout } = useAuth();
+    const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+    const [biometricEnabled, setBiometricEnabled] = useState(false);
+    const [biometricSupported, setBiometricSupported] = useState(false);
+    const [showChangeEmailModal, setShowChangeEmailModal] = useState(false);
+    const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+    const [newEmail, setNewEmail] = useState('');
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+
+    useEffect(() => {
+        checkBiometricSupport();
+        loadUserSettings();
+    }, []);
+
+    const checkBiometricSupport = async () => {
+        try {
+            const hasHardware = await LocalAuthentication.hasHardwareAsync();
+            const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+            setBiometricSupported(hasHardware && isEnrolled);
+            
+            const biometricStatus = await SecureStore.getItemAsync('biometric_enabled');
+            setBiometricEnabled(biometricStatus === 'true');
+        } catch (error) {
+            console.error('Erro ao verificar suporte à biometria:', error);
+        }
+    };
+
+    const loadUserSettings = async () => {
+        try {
+            const notificationsStatus = await SecureStore.getItemAsync('notifications_enabled');
+            setNotificationsEnabled(notificationsStatus !== 'false');
+        } catch (error) {
+            console.error('Erro ao carregar configurações:', error);
+        }
+    };
 
     const handleSignOut = async () => {
         try {
-            await signOut();
-            // Assuming navigation logic to login screen
-            // navigation.navigate('Login'); 
+            await logout();
         } catch (error) {
             Alert.alert("Erro ao Sair", "Não foi possível realizar o logout.");
             console.error("Sign Out Error:", error);
+        }
+    };
+
+    const handleNotificationsToggle = async (value: boolean) => {
+        try {
+            setNotificationsEnabled(value);
+            await SecureStore.setItemAsync('notifications_enabled', value.toString());
+            Alert.alert('Sucesso', `Notificações ${value ? 'ativadas' : 'desativadas'} com sucesso!`);
+        } catch (error) {
+            console.error('Erro ao alterar notificações:', error);
+            Alert.alert('Erro', 'Não foi possível alterar as configurações de notificação.');
+        }
+    };
+
+    const handleBiometricToggle = async () => {
+        // ✅ CORREÇÃO: Apenas permitir cadastrar biometria (não desativar)
+        try {
+            const result = await LocalAuthentication.authenticateAsync({
+                promptMessage: 'Confirme sua biometria para configurar',
+            });
+
+            if (result.success) {
+                await SecureStore.setItemAsync('biometric_enabled', 'true');
+                setBiometricEnabled(true);
+                
+                // Atualizar perfil no contexto
+                if (user) {
+                    const updatedUser = { ...user, biometricEnabled: true };
+                    setUser(updatedUser);
+                    await saveOrUpdateUser(updatedUser as any);
+                }
+                
+                Alert.alert('Sucesso', 'Biometria configurada com sucesso!');
+            } else {
+                Alert.alert('Falha', 'Não foi possível autenticar sua biometria.');
+            }
+        } catch (error) {
+            console.error('Erro ao configurar biometria:', error);
+            Alert.alert('Erro', 'Não foi possível configurar a biometria.');
+        }
+    };
+
+    const handleChangeEmail = async () => {
+        // ✅ CORREÇÃO: Verificar se o e-mail foi verificado
+        if (!user?.emailVerified) {
+            Alert.alert(
+                '🔒 Funcionalidade Bloqueada', 
+                'Você precisa verificar seu e-mail antes de poder alterá-lo.\n\n📧 Verifique sua caixa de entrada e clique no link de verificação enviado.',
+                [
+                    {
+                        text: 'Entendi',
+                        style: 'default'
+                    }
+                ]
+            );
+            return;
+        }
+
+        if (!newEmail.trim()) {
+            Alert.alert('Erro', 'Digite um e-mail válido.');
+            return;
+        }
+
+        if (!currentPassword.trim()) {
+            Alert.alert('Erro', 'Digite sua senha atual.');
+            return;
+        }
+
+        try {
+            const currentUser = auth.currentUser;
+            if (!currentUser) {
+                Alert.alert('Erro', 'Usuário não encontrado.');
+                return;
+            }
+
+            // Reautenticar usuário
+            const credential = EmailAuthProvider.credential(currentUser.email!, currentPassword);
+            await reauthenticateWithCredential(currentUser, credential);
+
+            // Atualizar e-mail
+            await updateEmail(currentUser, newEmail.trim());
+
+            // Atualizar perfil no contexto
+            if (user) {
+                const updatedUser = { ...user, email: newEmail.trim() };
+                setUser(updatedUser);
+                await saveOrUpdateUser(updatedUser as any);
+            }
+
+            Alert.alert('Sucesso', 'E-mail atualizado com sucesso!');
+            setShowChangeEmailModal(false);
+            setNewEmail('');
+            setCurrentPassword('');
+        } catch (error: any) {
+            console.error('Erro ao alterar e-mail:', error);
+            let errorMessage = 'Não foi possível alterar o e-mail.';
+            
+            if (error.code === 'auth/wrong-password') {
+                errorMessage = 'Senha atual incorreta.';
+            } else if (error.code === 'auth/email-already-in-use') {
+                errorMessage = 'Este e-mail já está sendo usado.';
+            } else if (error.code === 'auth/invalid-email') {
+                errorMessage = 'E-mail inválido.';
+            }
+            
+            Alert.alert('Erro', errorMessage);
+        }
+    };
+
+    const handleChangePassword = async () => {
+        // ✅ CORREÇÃO: Verificar se o e-mail foi verificado
+        if (!user?.emailVerified) {
+            Alert.alert(
+                '🔒 Funcionalidade Bloqueada', 
+                'Você precisa verificar seu e-mail antes de poder alterar sua senha.\n\n📧 Verifique sua caixa de entrada e clique no link de verificação enviado.',
+                [
+                    {
+                        text: 'Entendi',
+                        style: 'default'
+                    }
+                ]
+            );
+            return;
+        }
+
+        if (!currentPassword.trim()) {
+            Alert.alert('Erro', 'Digite sua senha atual.');
+            return;
+        }
+
+        if (!newPassword.trim() || newPassword.length < 6) {
+            Alert.alert('Erro', 'A nova senha deve ter pelo menos 6 caracteres.');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            Alert.alert('Erro', 'As senhas não coincidem.');
+            return;
+        }
+
+        try {
+            const currentUser = auth.currentUser;
+            if (!currentUser) {
+                Alert.alert('Erro', 'Usuário não encontrado.');
+                return;
+            }
+
+            // Reautenticar usuário
+            const credential = EmailAuthProvider.credential(currentUser.email!, currentPassword);
+            await reauthenticateWithCredential(currentUser, credential);
+
+            // Atualizar senha
+            await updatePassword(currentUser, newPassword);
+
+            Alert.alert('Sucesso', 'Senha alterada com sucesso!');
+            setShowChangePasswordModal(false);
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+        } catch (error: any) {
+            console.error('Erro ao alterar senha:', error);
+            let errorMessage = 'Não foi possível alterar a senha.';
+            
+            if (error.code === 'auth/wrong-password') {
+                errorMessage = 'Senha atual incorreta.';
+            } else if (error.code === 'auth/weak-password') {
+                errorMessage = 'A nova senha é muito fraca.';
+            }
+            
+            Alert.alert('Erro', errorMessage);
         }
     };
 
@@ -119,45 +289,147 @@ const SettingsScreen: React.FC = () => {
             {/* Account Settings */}
             <Text style={styles.sectionTitle}>CONFIGURAÇÕES DA CONTA</Text>
             <View style={styles.cardGroup}>
-                <SettingsCard
-                    title="Mudar E-mail"
-                    description="Atualize seu endereço de e-mail."
-                    // Icon name is now correctly validated
-                    iconName="email" 
-                    onPress={() => console.log('Mudar E-mail')}
-                />
-                <SettingsCard
-                    title="Mudar Senha"
-                    description="Altere sua senha de login."
-                    // Icon name is now correctly validated
-                    iconName="lock" 
-                    onPress={() => console.log('Mudar Senha')}
-                />
+                {/* Mudar E-mail - com estilo de bloqueio se não verificado */}
+                <TouchableOpacity 
+                    style={[
+                        styles.cardContainer,
+                        !user?.emailVerified && styles.lockedCard
+                    ]} 
+                    onPress={() => setShowChangeEmailModal(true)}
+                    disabled={!user?.emailVerified}
+                >
+                    <View style={[
+                        styles.iconBackground,
+                        !user?.emailVerified && styles.lockedIconBackground
+                    ]}>
+                        <MaterialIcons 
+                            name="email" 
+                            size={24} 
+                            color={user?.emailVerified ? "#FFFFFF" : "#9CA3AF"} 
+                        />
+                    </View>
+                    <View style={styles.textContainer}>
+                        <Text style={[
+                            styles.cardTitle,
+                            !user?.emailVerified && styles.lockedText
+                        ]}>
+                            Mudar E-mail
+                        </Text>
+                        <Text style={[
+                            styles.cardDescription,
+                            !user?.emailVerified && styles.lockedDescription
+                        ]}>
+                            {user?.emailVerified ? "Atualize seu endereço de e-mail." : "Verifique seu e-mail primeiro."}
+                        </Text>
+                    </View>
+                    {!user?.emailVerified && (
+                        <MaterialIcons name="lock" size={20} color="#9CA3AF" />
+                    )}
+                    {user?.emailVerified && (
+                        <MaterialIcons name="chevron-right" size={24} color="#B0B0B0" />
+                    )}
+                </TouchableOpacity>
+
+                {/* Mudar Senha - com estilo de bloqueio se não verificado */}
+                <TouchableOpacity 
+                    style={[
+                        styles.cardContainer,
+                        !user?.emailVerified && styles.lockedCard
+                    ]} 
+                    onPress={() => setShowChangePasswordModal(true)}
+                    disabled={!user?.emailVerified}
+                >
+                    <View style={[
+                        styles.iconBackground,
+                        !user?.emailVerified && styles.lockedIconBackground
+                    ]}>
+                        <MaterialIcons 
+                            name="lock" 
+                            size={24} 
+                            color={user?.emailVerified ? "#FFFFFF" : "#9CA3AF"} 
+                        />
+                    </View>
+                    <View style={styles.textContainer}>
+                        <Text style={[
+                            styles.cardTitle,
+                            !user?.emailVerified && styles.lockedText
+                        ]}>
+                            Mudar Senha
+                        </Text>
+                        <Text style={[
+                            styles.cardDescription,
+                            !user?.emailVerified && styles.lockedDescription
+                        ]}>
+                            {user?.emailVerified ? "Altere sua senha de login." : "Verifique seu e-mail primeiro."}
+                        </Text>
+                    </View>
+                    {!user?.emailVerified && (
+                        <MaterialIcons name="lock" size={20} color="#9CA3AF" />
+                    )}
+                    {user?.emailVerified && (
+                        <MaterialIcons name="chevron-right" size={24} color="#B0B0B0" />
+                    )}
+                </TouchableOpacity>
+            </View>
+
+            {/* Security Settings */}
+            <Text style={styles.sectionTitle}>SEGURANÇA</Text>
+            <View style={styles.cardGroup}>
+                {biometricSupported && !biometricEnabled && (
+                    <SettingsCard
+                        title="Configurar Biometria"
+                        description="Configure a biometria para maior segurança."
+                        iconName="fingerprint"
+                        onPress={handleBiometricToggle}
+                    />
+                )}
+                {biometricSupported && biometricEnabled && (
+                    <View style={styles.cardContainer}>
+                        <View style={styles.iconBackground}>
+                            <MaterialIcons name="fingerprint" size={24} color="#FFFFFF" />
+                        </View>
+                        <View style={styles.textContainer}>
+                            <Text style={styles.cardTitle}>Biometria</Text>
+                            <Text style={styles.cardDescription}>
+                                Configurada e ativa
+                            </Text>
+                        </View>
+                        <MaterialIcons name="check-circle" size={24} color="#4CAF50" />
+                    </View>
+                )}
             </View>
 
             {/* General Settings */}
             <Text style={styles.sectionTitle}>GERAL</Text>
             <View style={styles.cardGroup}>
-                <SettingsCard
-                    title="Notificações"
-                    description="Gerencie alertas e lembretes."
-                    // Icon name is now correctly validated
-                    iconName="notifications" 
-                    onPress={() => console.log('Notificações')}
-                />
+                <View style={styles.cardContainer}>
+                    <View style={styles.iconBackground}>
+                        <MaterialIcons name="notifications" size={24} color="#FFFFFF" />
+                    </View>
+                    <View style={styles.textContainer}>
+                        <Text style={styles.cardTitle}>Notificações</Text>
+                        <Text style={styles.cardDescription}>
+                            {notificationsEnabled ? 'Ativadas' : 'Desativadas'}
+                        </Text>
+                    </View>
+                    <Switch
+                        value={notificationsEnabled}
+                        onValueChange={handleNotificationsToggle}
+                        trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
+                        thumbColor={notificationsEnabled ? '#FFFFFF' : '#FFFFFF'}
+                    />
+                </View>
                 <SettingsCardCommunity
                     title="Backup e Sincronização"
                     description="Faça backup dos seus dados na nuvem."
-                    // Icon name is now correctly validated
                     iconName="cloud-upload" 
-                    onPress={() => console.log('Backup')}
+                    onPress={() => Alert.alert('Em breve', 'Esta funcionalidade estará disponível em breve.')}
                 />
                 <SettingsCard
                     title="Sobre o App"
                     description="Informações de versão e termos de uso."
-                    // Icon name is now correctly validated
                     iconName="info" 
-                    onPress={() => console.log('Sobre o App')}
+                    onPress={() => Alert.alert('GlucoCare', 'Versão 1.0.0\n\nDesenvolvido para controle de glicemia.')}
                 />
             </View>
 
@@ -165,6 +437,114 @@ const SettingsScreen: React.FC = () => {
             <TouchableOpacity style={styles.logoutButton} onPress={handleSignOut}>
                 <Text style={styles.logoutButtonText}>SAIR DA CONTA</Text>
             </TouchableOpacity>
+
+            {/* Modal para Mudar E-mail */}
+            <Modal
+                visible={showChangeEmailModal}
+                animationType="slide"
+                transparent={true}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Mudar E-mail</Text>
+                        
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="Novo e-mail"
+                            value={newEmail}
+                            onChangeText={setNewEmail}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                        />
+                        
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="Senha atual"
+                            value={currentPassword}
+                            onChangeText={setCurrentPassword}
+                            secureTextEntry
+                        />
+                        
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.cancelButton]}
+                                onPress={() => {
+                                    setShowChangeEmailModal(false);
+                                    setNewEmail('');
+                                    setCurrentPassword('');
+                                }}
+                            >
+                                <Text style={styles.cancelButtonText}>Cancelar</Text>
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.confirmButton]}
+                                onPress={handleChangeEmail}
+                            >
+                                <Text style={styles.confirmButtonText}>Confirmar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Modal para Mudar Senha */}
+            <Modal
+                visible={showChangePasswordModal}
+                animationType="slide"
+                transparent={true}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Mudar Senha</Text>
+                        
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="Senha atual"
+                            value={currentPassword}
+                            onChangeText={setCurrentPassword}
+                            secureTextEntry
+                        />
+                        
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="Nova senha"
+                            value={newPassword}
+                            onChangeText={setNewPassword}
+                            secureTextEntry
+                        />
+                        
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="Confirmar nova senha"
+                            value={confirmPassword}
+                            onChangeText={setConfirmPassword}
+                            secureTextEntry
+                        />
+                        
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.cancelButton]}
+                                onPress={() => {
+                                    setShowChangePasswordModal(false);
+                                    setCurrentPassword('');
+                                    setNewPassword('');
+                                    setConfirmPassword('');
+                                }}
+                            >
+                                <Text style={styles.cancelButtonText}>Cancelar</Text>
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity
+                                style={[styles.modalButton, styles.confirmButton]}
+                                onPress={handleChangePassword}
+                            >
+                                <Text style={styles.confirmButtonText}>Confirmar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
 
             <View style={{ height: 50 }} />
         </ScrollView>
@@ -174,7 +554,7 @@ const SettingsScreen: React.FC = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F5F7FA', // Light background
+        backgroundColor: '#F5F7FA',
         padding: 16,
     },
     profileSection: {
@@ -186,7 +566,7 @@ const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: '#007BFF', // Primary color for avatar
+        backgroundColor: '#007BFF',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 10,
@@ -234,7 +614,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#4A90E2', // Icon background color
+        backgroundColor: '#4A90E2',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 15,
@@ -254,7 +634,7 @@ const styles = StyleSheet.create({
     logoutButton: {
         marginTop: 30,
         padding: 15,
-        backgroundColor: '#FF4D4D', // Red color for danger action
+        backgroundColor: '#FF4D4D',
         borderRadius: 12,
         alignItems: 'center',
         marginBottom: 20,
@@ -268,6 +648,78 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 16,
         fontWeight: '700',
+    },
+    // Estilos para os modais
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 24,
+        width: '90%',
+        maxWidth: 400,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#333333',
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    modalInput: {
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 16,
+        fontSize: 16,
+        backgroundColor: '#F9F9F9',
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 8,
+    },
+    modalButton: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginHorizontal: 4,
+    },
+    cancelButton: {
+        backgroundColor: '#E0E0E0',
+    },
+    confirmButton: {
+        backgroundColor: '#2563eb',
+    },
+    cancelButtonText: {
+        color: '#666666',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    confirmButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    // Estilos para elementos bloqueados
+    lockedCard: {
+        opacity: 0.5,
+        backgroundColor: '#F5F5F5',
+    },
+    lockedIconBackground: {
+        backgroundColor: '#E5E5E5',
+    },
+    lockedText: {
+        color: '#9CA3AF',
+    },
+    lockedDescription: {
+        color: '#9CA3AF',
     },
 });
 

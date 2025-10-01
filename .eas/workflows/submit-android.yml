@@ -1,0 +1,14 @@
+name: Submit Android to Play Store
+
+on:
+  push:
+    branches: ['main']
+  workflow_dispatch:
+
+jobs:
+  submit_android:
+    name: Submit Android
+    type: submit
+    params:
+      platform: android
+      profile: production

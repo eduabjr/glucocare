@@ -82,4 +82,3 @@
 1. **Desenvolvimento**: Use usuários de teste
 2. **Produção**: Submeta para verificação do Google
 3. **Monitoramento**: Verifique logs de erro no Google Console
-

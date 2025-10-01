@@ -176,8 +176,21 @@ async function syncDeleteToFirestore(readingId: string): Promise<void> {
  * Salva ou atualiza usuário no SQLite e chama a sincronização.
  */
 export async function saveOrUpdateUser(profile: UserProfile): Promise<UserProfile> {
-    const sql = `INSERT OR REPLACE INTO users (id, full_name, email, google_id, onboarding_completed, biometric_enabled, weight, height, birth_date, diabetes_condition, restriction) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
-    const params = [ profile.id, profile.name, profile.email, profile.googleId, profile.onboardingCompleted ? 1 : 0, profile.biometricEnabled ? 1 : 0, profile.weight, profile.height, profile.birthDate, profile.condition, profile.restriction ];
+    const sql = `INSERT OR REPLACE INTO users (id, full_name, email, google_id, onboarding_completed, biometric_enabled, weight, height, birth_date, diabetes_condition, restriction, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
+    const params = [ 
+        profile.id, 
+        profile.name, 
+        profile.email, 
+        profile.googleId, 
+        profile.onboardingCompleted ? 1 : 0, 
+        profile.biometricEnabled ? 1 : 0, 
+        profile.weight, 
+        profile.height, 
+        profile.birthDate, 
+        profile.condition, 
+        profile.restriction,
+        profile.syncedAt
+    ];
 
     await executeTransaction(sql, params);
     

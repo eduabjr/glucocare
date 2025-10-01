@@ -17,11 +17,18 @@
     "scheme": "glucocare",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.eduabjr.glucocare"
+      "bundleIdentifier": "com.eduabjr.glucocare",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Allow $(PRODUCT_NAME) to use Face ID"
+      }
     },
     "android": {
       "package": "com.eduabjr.glucocare",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -44,7 +51,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "bb849c2-0bbc-4d34-ac66-441748aa2550"
+        "projectId": "bb849c02-0bbc-4d34-ac66-441748aa2550"
       },
       "//": "====================== CREDENCIAIS DE AUTENTICAÇÃO ======================",
       "//": "ID de Cliente para o Expo Go e Web. Vem da credencial 'Aplicativo da Web'.",
@@ -56,7 +63,13 @@
 
       "//": "ID de Cliente para o build nativo iOS. Crie uma credencial 'iOS' se for buildar para iPhone/iPad.",
       "iosClientId": "360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com"
-    }
+    },
+    "sdkVersion": "48.0.0",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ]
   }
 }
 

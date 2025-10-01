@@ -19,7 +19,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 // Importações do projeto
 import { useAuth } from '../context/AuthContext';
 import { OnboardingStackParamList } from '../navigation/RootNavigator';
-import { saveOrUpdateUser, UserProfile } from '../services/dbService';
+import { saveOrUpdateUser, UserProfile, initDB } from '../services/dbService';
 
 // Tipagem da tela
 type ProfileSetupScreenProps = NativeStackScreenProps<OnboardingStackParamList, 'ProfileSetup'>;
@@ -53,16 +53,62 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
     ];
 
     useEffect(() => {
-        if (user) {
-            setName(user.name ?? '');
-            const userBirthDate = user.birthDate ? new Date(user.birthDate) : new Date(1990, 0, 1);
-            setBirthDate(userBirthDate);
-            setBirthDateText(userBirthDate.toLocaleDateString('pt-BR'));
-            setCondition(user.condition ?? '');
-            setHeight(user.height ? String(user.height).replace('.', ',') : '');
-            setWeight(user.weight ? String(user.weight).replace('.', ',') : '');
-            setRestrictions(user.restriction ? user.restriction.split(',').filter(Boolean) : []);
-        }
+        // Inicializa o banco de dados
+        const initializeDatabase = async () => {
+            try {
+                await initDB();
+                console.log('Banco de dados inicializado no ProfileSetup');
+            } catch (error) {
+                console.error('Erro ao inicializar banco no ProfileSetup:', error);
+            }
+        };
+
+        initializeDatabase();
+
+        // Carrega os dados do usuário quando disponível
+        const loadUserData = () => {
+            if (user) {
+                console.log('Carregando dados do usuário:', user);
+                setName(user.name ?? '');
+                
+                // Data de nascimento
+                if (user.birthDate) {
+                    const userBirthDate = new Date(user.birthDate);
+                    if (!isNaN(userBirthDate.getTime())) {
+                        setBirthDate(userBirthDate);
+                        setBirthDateText(userBirthDate.toLocaleDateString('pt-BR'));
+                    } else {
+                        setBirthDate(new Date(1990, 0, 1));
+                        setBirthDateText('01/01/1990');
+                    }
+                } else {
+                    setBirthDate(new Date(1990, 0, 1));
+                    setBirthDateText('01/01/1990');
+                }
+                
+                // Condição
+                setCondition(user.condition ?? '');
+                
+                // Altura e peso
+                setHeight(user.height ? String(user.height).replace('.', ',') : '');
+                setWeight(user.weight ? String(user.weight).replace('.', ',') : '');
+                
+                // Restrições alimentares
+                const restrictions = user.restriction ? user.restriction.split(',').filter(Boolean) : [];
+                setRestrictions(restrictions);
+                
+                console.log('Dados carregados:', {
+                    name: user.name,
+                    condition: user.condition,
+                    height: user.height,
+                    weight: user.weight,
+                    restriction: user.restriction,
+                    restrictions: restrictions
+                });
+            }
+        };
+
+        loadUserData();
     }, [user]);
 
     const toggleRestriction = (item: string) => {
@@ -113,8 +159,16 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
             await saveOrUpdateUser(updatedProfileData);
             setUser(updatedProfileData);
 
-            Alert.alert('Sucesso', 'Perfil salvo! Próxima etapa: Biometria.');
-            navigation.replace('BiometricSetup');
+            // Verifica se está no onboarding ou na edição do perfil
+            if (!user.onboardingCompleted) {
+                // Está no onboarding - vai para BiometricSetup
+                Alert.alert('Sucesso', 'Perfil salvo! Próxima etapa: Biometria.');
+                navigation.replace('BiometricSetup');
+            } else {
+                // Está editando o perfil - volta para a tela anterior
+                Alert.alert('Sucesso', 'Perfil atualizado com sucesso!');
+                navigation.goBack();
+            }
 
         } catch (err) {
             console.error('Erro ao salvar o perfil:', err);
@@ -126,8 +180,15 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
         <SafeAreaView style={styles.safe}>
             <ScrollView contentContainerStyle={styles.container}>
                 <View style={styles.card}>
-                    <Text style={styles.title}>Complete seu Perfil</Text>
-                    <Text style={styles.subtitle}>Estas informações nos ajudam a personalizar sua experiência.</Text>
+                    <Text style={styles.title}>
+                        {user?.onboardingCompleted ? 'Editar Perfil' : 'Complete seu Perfil'}
+                    </Text>
+                    <Text style={styles.subtitle}>
+                        {user?.onboardingCompleted 
+                            ? 'Atualize suas informações para personalizar sua experiência.'
+                            : 'Estas informações nos ajudam a personalizar sua experiência.'
+                        }
+                    </Text>
 
                     {/* Nome */}
                     <View style={styles.inputWrapper}>
@@ -140,15 +201,6 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                         />
                     </View>
 
-                    {/* Email (não editável) */}
-                    <View style={styles.inputWrapper}>
-                        <MaterialIcons name="email" size={20} color="#9ca3af" style={styles.inputIcon} />
-                        <TextInput
-                            style={[styles.input, { color: '#6b7280' }]}
-                            value={user?.email || ''}
-                            editable={false}
-                        />
-                    </View>
                     
                     {/* Data de nascimento */}
                     <View style={styles.inputWrapper}>
@@ -279,7 +331,9 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
 
                     {/* Botão Salvar */}
                     <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                        <Text style={styles.saveText}>Salvar e Continuar</Text>
+                        <Text style={styles.saveText}>
+                            {user?.onboardingCompleted ? 'Salvar Alterações' : 'Salvar e Continuar'}
+                        </Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -290,59 +344,74 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
 // Estilos
 const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: '#f0f6ff' },
-    container: { flexGrow: 1, justifyContent: 'center', padding: 12 },
+    container: { flexGrow: 1, padding: 20 },
     card: {
         backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 16,
+        borderRadius: 16,
+        padding: 24,
         shadowColor: '#000',
         shadowOpacity: 0.08,
-        shadowRadius: 6,
-        elevation: 3,
+        shadowRadius: 8,
+        elevation: 4,
     },
     title: {
-        fontSize: 20,
+        fontSize: 24,
         fontWeight: '700',
         textAlign: 'center',
-        marginBottom: 4,
+        marginBottom: 8,
         color: '#111827',
     },
-    subtitle: { fontSize: 13, textAlign: 'center', color: '#6b7280', marginBottom: 12 },
+    subtitle: { 
+        fontSize: 15, 
+        textAlign: 'center', 
+        color: '#6b7280', 
+        marginBottom: 24,
+        lineHeight: 20,
+    },
     inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
         borderColor: '#d1d5db',
-        borderRadius: 8,
-        marginBottom: 12,
-        paddingHorizontal: 10,
+        borderRadius: 12,
+        marginBottom: 16,
+        paddingHorizontal: 16,
         backgroundColor: '#fff',
+        minHeight: 50,
     },
     rowContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 12,
+        marginBottom: 16,
+        gap: 12,
     },
     halfInputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
         borderColor: '#d1d5db',
-        borderRadius: 8,
-        paddingHorizontal: 10,
+        borderRadius: 12,
+        paddingHorizontal: 16,
         backgroundColor: '#fff',
         flex: 1,
-        marginRight: 6,
+        minHeight: 50,
     },
-    inputIcon: { marginRight: 8 },
-    input: { flex: 1, fontSize: 14, paddingVertical: 10, color: '#111827' },
+    inputIcon: { marginRight: 12 },
+    input: { flex: 1, fontSize: 16, paddingVertical: 12, color: '#111827' },
     calendarIcon: { padding: 4 },
-    sectionLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8, color: '#374151' },
+    sectionLabel: { 
+        fontSize: 16, 
+        fontWeight: '600', 
+        marginBottom: 12, 
+        marginTop: 8,
+        color: '#374151' 
+    },
     restrictionButtonsContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'flex-start',
-        marginBottom: 12,
+        marginBottom: 20,
+        gap: 8,
     },
     restrictionButton: {
         paddingVertical: 6,
@@ -368,16 +437,16 @@ const styles = StyleSheet.create({
     },
     saveButton: {
         backgroundColor: '#2563eb',
-        padding: 14,
-        borderRadius: 8,
+        padding: 16,
+        borderRadius: 12,
         alignItems: 'center',
-        marginTop: 16,
+        marginTop: 24,
         shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+        elevation: 4,
     },
-    saveText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+    saveText: { color: '#fff', fontWeight: '700', fontSize: 16 },
     pickerStyle: {
         flex: 1,
         color: '#111827',
