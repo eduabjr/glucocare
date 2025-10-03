@@ -53,7 +53,7 @@ const WINDOW_HEIGHT = Dimensions.get('window').height;
 type DashboardScreenProps = {
   navigation: { 
     addListener: (event: 'focus', callback: () => void) => () => void;
-    navigate: (screen: string) => void;
+    navigate: (screen: string, params?: any) => void;
   };
 };
 
@@ -174,12 +174,20 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
           {item.measurement_time ? new Date(item.measurement_time).toLocaleString() : 'Sem data'}
         </Text>
         {longPressId === item.id && (
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => handleDeleteReading(item.id || '')}
-          >
-            <Text style={styles.deleteButtonText}>Excluir Medição</Text>
-          </TouchableOpacity>
+          <View style={styles.actionButtonsContainer}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.editButton]}
+              onPress={() => handleEditReading(item)}
+            >
+              <Text style={styles.editButtonText}>Editar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.deleteButton]}
+              onPress={() => handleDeleteReading(item.id || '')}
+            >
+              <Text style={styles.deleteButtonText}>Excluir</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </TouchableOpacity>
     );
@@ -199,6 +207,15 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
       console.error('Erro ao excluir medição:', err);
       showMessage('Falha ao excluir medição.', 'error');
     }
+  };
+
+  const handleEditReading = (item: any) => {
+    setLongPressId(null); // Fecha os botões de ação
+    // Navega para a tela de adicionar medição com os dados preenchidos para edição
+    navigation.navigate('AddReading', { 
+      editMode: true, 
+      readingData: item 
+    });
   };
 
   const listHeight = WINDOW_HEIGHT - insets.top - insets.bottom - headerHeight - cardsHeight - 120;
@@ -420,16 +437,32 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontWeight: '600',
   },
 
-  deleteButton: {
+  actionButtonsContainer: {
+    flexDirection: 'row',
     marginTop: 10,
-    backgroundColor: theme.error,
+    gap: 8,
+  },
+  actionButton: {
+    flex: 1,
     paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     borderRadius: 8,
     alignItems: 'center',
+  },
+  editButton: {
+    backgroundColor: theme.primary,
+  },
+  deleteButton: {
+    backgroundColor: theme.error,
+  },
+  editButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
   },
   deleteButtonText: {
     color: '#fff',
     fontWeight: '600',
+    fontSize: 14,
   },
 });
