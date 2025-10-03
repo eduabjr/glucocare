@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {
     View,
     Text,
@@ -15,11 +15,15 @@ import { AuthStackParamList } from "../navigation/RootNavigator";
 import { confirmPasswordReset } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
 import { auth } from "../config/firebase";
+import { ThemeContext } from "../context/ThemeContext";
 
 // Tipagem para a tela de redefinição de senha
 type ResetPasswordScreenProps = NativeStackScreenProps<AuthStackParamList, 'ResetPassword'>;
 
 const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ route, navigation }) => {
+    const { theme } = useContext(ThemeContext);
+    const styles = getStyles(theme);
+
     const { oobCode } = route.params;
 
     const [newPassword, setNewPassword] = useState<string>("");
@@ -113,7 +117,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ route, naviga
 
                             {/* Campo Nova Senha */}
                             <View style={styles.inputWrapper}>
-                                <Feather name="lock" size={18} color="#9ca3af" style={styles.inputIcon} />
+                                <Feather name="lock" size={18} color={theme.secundaryText} style={styles.inputIcon} />
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Nova Senha"
@@ -122,12 +126,13 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ route, naviga
                                     value={newPassword}
                                     onChangeText={setNewPassword}
                                     editable={!isLoading}
+                                    placeholderTextColor={theme.secundaryText}
                                 />
                             </View>
 
                             {/* Campo Confirmação de Senha */}
                             <View style={styles.inputWrapper}>
-                                <Feather name="lock" size={18} color="#9ca3af" style={styles.inputIcon} />
+                                <Feather name="lock" size={18} color={theme.secundaryText} style={styles.inputIcon} />
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Confirme a Nova Senha"
@@ -136,6 +141,7 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ route, naviga
                                     value={confirmPassword}
                                     onChangeText={setConfirmPassword}
                                     editable={!isLoading}
+                                    placeholderTextColor={theme.secundaryText}
                                 />
                             </View>
 
@@ -167,13 +173,13 @@ const ResetPasswordScreen: React.FC<ResetPasswordScreenProps> = ({ route, naviga
     );
 };
 
-const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: "#f0f6ff" },
+const getStyles = (theme: any) => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: theme.background },
     centered: { flex: 1, justifyContent: "center", alignItems: "center", padding: 16 },
     card: {
         width: "100%",
         maxWidth: 380,
-        backgroundColor: "#fff",
+        backgroundColor: theme.card,
         borderRadius: 16,
         padding: 24,
         shadowColor: "#000",
@@ -181,22 +187,22 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 4,
     },
-    title: { fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 10, color: "#111827" },
-    subtitle: { fontSize: 14, color: "#4b5563", textAlign: "center", marginBottom: 20 },
+    title: { fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 10, color: theme.text },
+    subtitle: { fontSize: 14, color: theme.secundaryText, textAlign: "center", marginBottom: 20 },
     inputWrapper: {
         flexDirection: "row",
         alignItems: "center",
         borderWidth: 1,
-        borderColor: "#d1d5db",
+        borderColor: theme.secundaryText,
         borderRadius: 8,
         marginBottom: 12,
         paddingHorizontal: 12,
-        backgroundColor: "#fff",
+        backgroundColor: theme.card,
     },
     inputIcon: { marginRight: 8 },
-    input: { flex: 1, paddingVertical: 10, fontSize: 15, color: "#111827" },
+    input: { flex: 1, paddingVertical: 10, fontSize: 15, color: theme.text },
     primaryButton: {
-        backgroundColor: "#2563eb",
+        backgroundColor: theme.primary,
         padding: 14,
         borderRadius: 8,
         alignItems: "center",
@@ -207,19 +213,19 @@ const styles = StyleSheet.create({
     },
     primaryText: { color: "#fff", fontSize: 16, fontWeight: "600" },
     errorText: {
-        color: "#dc2626",
+        color: theme.error,
         textAlign: "center",
         marginBottom: 10,
         fontSize: 14,
         fontWeight: '500',
     },
     errorTextLarge: {
-        color: "#dc2626",
+        color: theme.error,
         textAlign: "center",
         fontSize: 16,
         fontWeight: '600',
     },
-    link: { textAlign: "center", marginTop: 14, fontSize: 14, color: "#4b5563", textDecorationLine: 'underline' },
+    link: { textAlign: "center", marginTop: 14, fontSize: 14, color: theme.secundaryText, textDecorationLine: 'underline' },
 });
 
 export default ResetPasswordScreen;

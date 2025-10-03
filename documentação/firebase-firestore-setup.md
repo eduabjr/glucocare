@@ -139,3 +139,6 @@ const firebaseConfig: FirebaseOptions = {
 5. **Testar biometria** no app
 
 Após seguir estes passos, o Firebase Firestore deve funcionar corretamente e a biometria deve estar disponível para login automático! 🎉
+
+
+

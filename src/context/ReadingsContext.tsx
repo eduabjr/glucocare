@@ -1,6 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-// ✅ 1. Importe a INTERFACE 'Reading' junto com as funções
 import { 
   Reading, 
   listReadings, 
@@ -8,20 +7,9 @@ import {
   deleteReading as dbDeleteReading, 
   initDB 
 } from '../services/dbService';
+import { syncOfflineData } from '../services/syncService';
 
 
-// ❌ 2. REMOVA a definição duplicada da interface 'Reading' daqui.
-/*
-interface Reading {
-  id: string;
-  glucose_level: number;
-  measurement_time: string;
-  ...
-}
-*/
-
-
-// Define o que o nosso contexto vai fornecer
 interface ReadingsContextData {
   readings: Reading[];
   loading: boolean;
@@ -33,7 +21,6 @@ interface ReadingsContextData {
 const ReadingsContext = createContext<ReadingsContextData>({} as ReadingsContextData);
 
 export const ReadingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // ✅ Agora este estado usa a interface importada, que é a correta.
   const [readings, setReadings] = useState<Reading[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -42,9 +29,9 @@ export const ReadingsProvider: React.FC<{ children: ReactNode }> = ({ children }
       setLoading(true);
       await initDB();
       const data = (await listReadings()) || [];
-      // ✅ O 'data' agora é 100% compatível com o tipo do estado 'readings'
       const sortedData = data.sort((a, b) => new Date(b.measurement_time).getTime() - new Date(a.measurement_time).getTime());
       setReadings(sortedData);
+      await syncOfflineData();
     } catch (error) {
       console.error("Erro ao carregar medições no contexto:", error);
       setReadings([]);
@@ -59,17 +46,25 @@ export const ReadingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         id: uuidv4(),
         ...readingData,
       };
-      // ✅ 'newReading' agora terá todas as propriedades obrigatórias, resolvendo o erro.
       await dbAddReading(newReading);
       await loadReadings();
+      await syncOfflineData();
     } catch (error) {
       console.error("Erro ao adicionar medição no contexto:", error);
       throw error;
     }
   };
   
-  // O resto do seu código continua igual...
-  const deleteReading = async (id: string) => { /* ... */ };
+  const deleteReading = async (id: string) => {
+    try {
+      await dbDeleteReading(id);
+      await loadReadings();
+      await syncOfflineData();
+    } catch (error) {
+      console.error("Erro ao deletar medição no contexto:", error);
+      throw error;
+    }
+  };
 
   return (
     <ReadingsContext.Provider value={{ readings, loading, loadReadings, addReading, deleteReading }}>

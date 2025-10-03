@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { View, Text, StyleSheet } from 'react-native';
 
 // Tipando as props do componente StatsCard

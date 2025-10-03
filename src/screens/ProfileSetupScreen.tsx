@@ -1,5 +1,5 @@
 import 'react-native-get-random-values';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import {
     View,
     Text,
@@ -20,6 +20,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { OnboardingStackParamList } from '../navigation/RootNavigator';
 import { saveOrUpdateUser, UserProfile, initDB } from '../services/dbService';
+import { ThemeContext } from '../context/ThemeContext';
 
 // Tipagem da tela
 type ProfileSetupScreenProps = NativeStackScreenProps<OnboardingStackParamList, 'ProfileSetup'>;
@@ -36,6 +37,9 @@ const formatNumericInput = (text: string): string => {
 };
 
 export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenProps) {
+    const { theme } = useContext(ThemeContext);
+    const styles = getStyles(theme);
+
     const { user, setUser } = useAuth();
 
     const [name, setName] = useState<string>('');
@@ -151,8 +155,8 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
             onboardingCompleted: false,
             googleId: user.googleId ?? '',
             biometricEnabled: user.biometricEnabled ?? false,
-            // ✅ CORREÇÃO: Adiciona o campo 'syncedAt' obrigatório com a data atual.
-            syncedAt: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            pending_sync: true,
         };
 
         try {
@@ -192,23 +196,25 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
 
                     {/* Nome */}
                     <View style={styles.inputWrapper}>
-                        <MaterialIcons name="person" size={20} color="#9ca3af" style={styles.inputIcon} />
+                        <MaterialIcons name="person" size={20} color={theme.secundaryText} style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
                             placeholder="Nome Completo"
                             value={name}
                             onChangeText={setName}
+                            placeholderTextColor={theme.secundaryText}
                         />
                     </View>
 
                     
                     {/* Data de nascimento */}
                     <View style={styles.inputWrapper}>
-                        <MaterialIcons name="event" size={20} color="#9ca3af" style={styles.inputIcon} />
+                        <MaterialIcons name="event" size={20} color={theme.secundaryText} style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
                             placeholder="DD/MM/AAAA"
                             value={birthDateText}
+                            placeholderTextColor={theme.secundaryText}
                             onChangeText={(text) => {
                                 setBirthDateText(text);
                                 
@@ -233,7 +239,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                             }}
                         />
                         <TouchableOpacity onPress={() => setShowDate(true)} style={styles.calendarIcon}>
-                            <MaterialIcons name="calendar-today" size={20} color="#9ca3af" />
+                            <MaterialIcons name="calendar-today" size={20} color={theme.secundaryText} />
                         </TouchableOpacity>
                     </View>
                     {showDate && (
@@ -248,7 +254,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
 
                     {/* Condição */}
                     <View style={styles.inputWrapper}>
-                         <MaterialIcons name="list" size={20} color="#9ca3af" style={styles.inputIcon} />
+                         <MaterialIcons name="list" size={20} color={theme.secundaryText} style={styles.inputIcon} />
                          {Platform.OS === 'ios' ? (
                              <TextInput
                                  style={styles.input}
@@ -260,6 +266,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                                      ''
                                  }
                                  editable={false}
+                                 placeholderTextColor={theme.secundaryText}
                              />
                          ) : null}
                          <Picker
@@ -268,7 +275,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                              style={[styles.pickerStyle, Platform.OS === 'ios' && { position: 'absolute', width: '100%', opacity: 0 }]}
                              itemStyle={styles.pickerItemStyle}
                          >
-                             <Picker.Item label="Selecione a Condição" value="" color="#9ca3af" />
+                             <Picker.Item label="Selecione a Condição" value="" color={theme.secundaryText} />
                              <Picker.Item label="Pré-diabetes" value="pre-diabetes" />
                              <Picker.Item label="Diabetes Tipo 1" value="tipo-1" />
                              <Picker.Item label="Diabetes Tipo 2" value="tipo-2" />
@@ -279,25 +286,27 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                     <View style={styles.rowContainer}>
                         {/* Altura (cm) */}
                         <View style={styles.halfInputWrapper}>
-                            <MaterialIcons name="height" size={20} color="#9ca3af" style={styles.inputIcon} />
+                            <MaterialIcons name="height" size={20} color={theme.secundaryText} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 placeholder="Altura (cm)"
                                 keyboardType="numeric"
                                 value={height}
                                 onChangeText={(text) => setHeight(formatNumericInput(text))}
+                                placeholderTextColor={theme.secundaryText}
                             />
                         </View>
 
                         {/* Peso (kg) */}
                         <View style={[styles.halfInputWrapper, { marginRight: 0 }]}>
-                            <MaterialIcons name="fitness-center" size={20} color="#9ca3af" style={styles.inputIcon} />
+                            <MaterialIcons name="fitness-center" size={20} color={theme.secundaryText} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 placeholder="Peso (kg)"
                                 keyboardType="numeric"
                                 value={weight}
                                 onChangeText={(text) => setWeight(formatNumericInput(text))}
+                                placeholderTextColor={theme.secundaryText}
                             />
                         </View>
                     </View>
@@ -342,11 +351,11 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
 }
 
 // Estilos
-const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#f0f6ff' },
+const getStyles = (theme: any) => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: theme.background },
     container: { flexGrow: 1, padding: 20 },
     card: {
-        backgroundColor: '#fff',
+        backgroundColor: theme.card,
         borderRadius: 16,
         padding: 24,
         shadowColor: '#000',
@@ -359,12 +368,12 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         textAlign: 'center',
         marginBottom: 8,
-        color: '#111827',
+        color: theme.text,
     },
     subtitle: { 
         fontSize: 15, 
         textAlign: 'center', 
-        color: '#6b7280', 
+        color: theme.secundaryText, 
         marginBottom: 24,
         lineHeight: 20,
     },
@@ -372,11 +381,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#d1d5db',
+        borderColor: theme.secundaryText,
         borderRadius: 12,
         marginBottom: 16,
         paddingHorizontal: 16,
-        backgroundColor: '#fff',
+        backgroundColor: theme.card,
         minHeight: 50,
     },
     rowContainer: {
@@ -389,22 +398,22 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#d1d5db',
+        borderColor: theme.secundaryText,
         borderRadius: 12,
         paddingHorizontal: 16,
-        backgroundColor: '#fff',
+        backgroundColor: theme.card,
         flex: 1,
         minHeight: 50,
     },
     inputIcon: { marginRight: 12 },
-    input: { flex: 1, fontSize: 16, paddingVertical: 12, color: '#111827' },
+    input: { flex: 1, fontSize: 16, paddingVertical: 12, color: theme.text },
     calendarIcon: { padding: 4 },
     sectionLabel: { 
         fontSize: 16, 
         fontWeight: '600', 
         marginBottom: 12, 
         marginTop: 8,
-        color: '#374151' 
+        color: theme.text 
     },
     restrictionButtonsContainer: {
         flexDirection: 'row',
@@ -417,18 +426,18 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
         paddingHorizontal: 10,
         borderWidth: 1,
-        borderColor: '#d1d5db',
+        borderColor: theme.secundaryText,
         borderRadius: 16,
         marginRight: 6,
         marginBottom: 6,
-        backgroundColor: '#f9fafb',
+        backgroundColor: theme.background,
     },
     restrictionButtonSelected: {
-        backgroundColor: '#2563eb',
-        borderColor: '#2563eb',
+        backgroundColor: theme.primary,
+        borderColor: theme.primary,
     },
     restrictionButtonText: {
-        color: '#374151',
+        color: theme.text,
         fontSize: 12,
         fontWeight: '500',
     },
@@ -436,7 +445,7 @@ const styles = StyleSheet.create({
         color: '#fff',
     },
     saveButton: {
-        backgroundColor: '#2563eb',
+        backgroundColor: theme.primary,
         padding: 16,
         borderRadius: 12,
         alignItems: 'center',
@@ -449,7 +458,7 @@ const styles = StyleSheet.create({
     saveText: { color: '#fff', fontWeight: '700', fontSize: 16 },
     pickerStyle: {
         flex: 1,
-        color: '#111827',
+        color: theme.text,
         height: 36,
     },
     pickerItemStyle: {

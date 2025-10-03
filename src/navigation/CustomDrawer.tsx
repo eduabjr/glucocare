@@ -3,6 +3,8 @@ import { DrawerContentScrollView, DrawerItem, DrawerContentComponentProps } from
 import { MaterialIcons, Ionicons, Feather } from "@expo/vector-icons";
 import { useAuth } from "../context/AuthContext"; // Certifique-se que o AuthContext está com a tipagem correta
 import { AppDrawerParamList } from "./types"; // Importa a tipagem central
+import { useContext } from "react";
+import { ThemeContext } from "../context/ThemeContext";
 
 // Tipagem para o array de itens de menu
 type MenuItem = {
@@ -27,6 +29,9 @@ const menuItems: MenuItem[] = [
 type CustomDrawerProps = DrawerContentComponentProps;
 
 export default function CustomDrawer({ navigation, ...rest }: CustomDrawerProps) {
+  const { theme } = useContext(ThemeContext);
+  const styles = getStyles(theme);
+
   const { logout, user } = useAuth(); // Pegue o objeto 'user' do seu contexto de autenticação
 
   const handleLogout = async () => {
@@ -57,12 +62,11 @@ export default function CustomDrawer({ navigation, ...rest }: CustomDrawerProps)
 
           return (
             <DrawerItem
-              key={item.screen}
               label={item.label}
-              labelStyle={[styles.label, isLocked && { color: "#9ca3af" }]} // Cor cinza se travado
+              labelStyle={[styles.label, isLocked && { color: theme.secundaryText }]} // Cor cinza se travado
               icon={({ color, size }) => {
                 if (isLocked) {
-                  return <MaterialIcons name="lock" color="#9ca3af" size={size - 2} />;
+                  return <MaterialIcons name="lock" color={theme.secundaryText} size={size - 2} />;
                 }
                 const IconComponent = item.icon.lib;
                 return <IconComponent name={item.icon.name as any} color={color} size={size - 2} />;
@@ -84,8 +88,8 @@ export default function CustomDrawer({ navigation, ...rest }: CustomDrawerProps)
         {/* Botão de Logout separado */}
         <DrawerItem
           label="Sair"
-          labelStyle={[styles.label, { color: "#dc2626" }]}
-          icon={() => <MaterialIcons name="logout" size={20} color="#dc2626" />}
+          labelStyle={[styles.label, { color: theme.error }]}
+          icon={() => <MaterialIcons name="logout" size={20} color={theme.error} />}
           onPress={handleLogout}
         />
       </View>
@@ -94,18 +98,18 @@ export default function CustomDrawer({ navigation, ...rest }: CustomDrawerProps)
 }
 
 // Estilos (permanecem os mesmos)
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f0f6ff",
+    backgroundColor: theme.background,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     padding: 20,
-    backgroundColor: "#fff",
+    backgroundColor: theme.card,
     borderBottomWidth: 1,
-    borderColor: "#f0f0f0",
+    borderColor: theme.background,
   },
   logo: {
     width: 44,
@@ -116,11 +120,11 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#111827",
+    color: theme.text,
   },
   subtitle: {
     fontSize: 13,
-    color: "#6b7280",
+    color: theme.secundaryText,
     marginTop: 2,
   },
   menu: {
@@ -129,7 +133,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 15,
     fontWeight: "500",
-    color: "#111827",
+    color: theme.text,
     marginLeft: -16, // Alinhamento fino do texto com o ícone
   },
 });

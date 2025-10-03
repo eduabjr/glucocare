@@ -11,3 +11,9 @@ yarn-error.log
 # Builds e pacotes
 /android/build/
 /ios/build/
+
+# Expo
+.expo/
+
+node_modules
+node_modules

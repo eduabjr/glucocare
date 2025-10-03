@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
@@ -16,23 +16,22 @@ export default function FileImport() {
             });
 
             // 1. Verifica cancelamento
-            if (res.type === 'cancel') {
+            if (res.canceled) {
                 setImporting(false);
                 return;
             }
 
-            // 2. Garante que o tipo seja 'success' (redundante após o check de 'cancel', mas bom para tipagem)
-            if (res.type !== 'success') {
-                 throw new Error('Falha ao selecionar arquivo. Tipo de resultado inesperado.');
+            // 2. Verifica se há arquivos selecionados
+            if (!res.assets || res.assets.length === 0) {
+                throw new Error('Nenhum arquivo foi selecionado.');
             }
 
-            // ✅ CORRIGIDO: Assume-se que, em caso de sucesso (com base no erro 2339),
-            // 'res' é o objeto do arquivo, sem a propriedade 'assets'.
-            const fileUri = res.uri;
-            const fileName = res.name;
+            // 3. Pega o primeiro arquivo (normalmente só um é selecionado)
+            const file = res.assets[0];
+            const fileUri = file.uri;
+            const fileName = file.name;
             
             if (!fileUri || !fileName) {
-                // Embora res.type === 'success' garanta teoricamente uri e name, é bom checar.
                 throw new Error('Dados do arquivo (URI ou Nome) não encontrados após seleção bem-sucedida.');
             }
 
@@ -40,7 +39,7 @@ export default function FileImport() {
             const lines = content.split('\n').filter(Boolean);
             let successCount = 0;
 
-            for (let line of lines) {
+            for (const line of lines) {
                 const parts = line.split(',');
                 const dateString = parts[0]?.trim();
                 const levelString = parts[1]?.trim();

@@ -1,0 +1,25 @@
+npm error code ERESOLVE
+npm error ERESOLVE unable to resolve dependency tree
+npm error
+npm error While resolving: glucocare@1.0.0
+npm error Found: expo@54.0.12
+npm error node_modules/expo
+npm error   expo@"^54.0.0" from the root project
+npm error   peer expo@"*" from @expo/dom-webview@0.2.7
+npm error   node_modules/@expo/dom-webview
+npm error     peerOptional @expo/dom-webview@"*" from expo@54.0.12
+npm error   1 more (@expo/metro-runtime)
+npm error
+npm error Could not resolve dependency:
+npm error peer expo@"^48.0.17" from @expo/webpack-config@18.1.4
+npm error node_modules/@expo/webpack-config
+npm error   @expo/webpack-config@"^18.0.1" from the root project
+npm error
+npm error Fix the upstream dependency conflict, or retry
+npm error this command with --force or --legacy-peer-deps
+npm error to accept an incorrect (and potentially broken) dependency resolution.
+npm error
+npm error
+npm error For a full report see:
+npm error C:\Users\Usuário\AppData\Local\npm-cache\_logs\2025-10-02T04_01_42_814Z-eresolve-report.txt
+npm error A complete log of this run can be found in: C:\Users\Usuário\AppData\Local\npm-cache\_logs\2025-10-02T04_01_42_814Z-debug-0.log

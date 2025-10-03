@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import {
@@ -8,12 +8,16 @@ import {
   EmailAuthProvider,
   sendEmailVerification,
 } from 'firebase/auth';
+import { ThemeContext } from '../context/ThemeContext';
 
 /**
  * Componente responsável por exibir o e-mail atual e gerenciar a troca de e-mail do usuário.
  * Este componente utiliza a lógica de reautenticação do Firebase.
  */
 const EmailManagement: React.FC = () => {
+    const { theme } = useContext(ThemeContext);
+    const styles = getStyles(theme);
+
     const [newEmail, setNewEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -113,7 +117,7 @@ const EmailManagement: React.FC = () => {
         
         {user && !user.emailVerified && (
           <View style={styles.verificationWarning}>
-            <MaterialIcons name="warning" size={16} color="#f59e0b" />
+            <MaterialIcons name="warning" size={16} color={theme.error} />
             <Text style={styles.verificationText}>Seu e-mail não está verificado. </Text>
             <TouchableOpacity onPress={handleResendVerification} disabled={loading}>
               <Text style={styles.resendLink}>
@@ -133,6 +137,7 @@ const EmailManagement: React.FC = () => {
           autoCapitalize="none"
           value={newEmail}
           onChangeText={setNewEmail}
+          placeholderTextColor={theme.secundaryText}
         />
         <TextInput
           style={styles.input}
@@ -140,10 +145,11 @@ const EmailManagement: React.FC = () => {
           secureTextEntry
           value={password}
           onChangeText={setPassword}
+          placeholderTextColor={theme.secundaryText}
         />
   
         <TouchableOpacity 
-          style={[styles.actionButton, { backgroundColor: '#2563eb', marginTop: 10 }]} 
+          style={[styles.actionButton, { backgroundColor: theme.primary, marginTop: 10 }]} 
           onPress={handleChangeEmail}
           disabled={loading}
         >
@@ -155,7 +161,7 @@ const EmailManagement: React.FC = () => {
         </TouchableOpacity>
         
         {message ? (
-          <Text style={[styles.statusText, { color: status === 'error' ? '#dc2626' : '#16a34a' }]}>
+          <Text style={[styles.statusText, { color: status === 'error' ? theme.error : theme.accent }]}>
             {message}
           </Text>
         ) : null}
@@ -163,21 +169,22 @@ const EmailManagement: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
-    text: { fontSize: 14, color: '#555' },
+const getStyles = (theme: any) => StyleSheet.create({
+    text: { fontSize: 14, color: theme.secundaryText },
     highlightText: {
         fontWeight: 'bold',
-        color: '#000',
+        color: theme.text,
     },
     input: {
         height: 44,
-        borderColor: '#e5e7eb',
+        borderColor: theme.secundaryText,
         borderWidth: 1,
         borderRadius: 8,
         paddingHorizontal: 12,
         marginTop: 8,
-        backgroundColor: '#f9fafb',
+        backgroundColor: theme.background,
         fontSize: 14,
+        color: theme.text,
     },
     actionButton: {
         flexDirection: 'row',
@@ -202,19 +209,19 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: 8,
         padding: 8,
-        backgroundColor: '#fef3c7', // Amarelo claro
+        backgroundColor: theme.error + '20',
         borderRadius: 8,
         borderLeftWidth: 4,
-        borderLeftColor: '#f59e0b',
+        borderLeftColor: theme.error,
     },
     verificationText: {
         fontSize: 13,
-        color: '#d97706',
+        color: theme.error,
         marginLeft: 4,
     },
     resendLink: {
         fontSize: 13,
-        color: '#f59e0b',
+        color: theme.error,
         fontWeight: 'bold',
         textDecorationLine: 'underline',
     }

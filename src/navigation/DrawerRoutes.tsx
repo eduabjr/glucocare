@@ -1,11 +1,11 @@
 // Em src/navigation/DrawerRoutes.tsx
 
 // Importações necessárias
-import { Platform, StatusBar, StyleSheet } from "react-native";
+import { Platform, StatusBar } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { createDrawerNavigator } from "@react-navigation/drawer"; // ✅ Adicione a importação
-import React from "react"; // Necessário para compilação JSX
+
 
 // Telas
 import DashboardScreen from "../screens/DashboardScreen";
@@ -144,10 +144,3 @@ function DrawerRoutes() {
 }
 
 export default DrawerRoutes;
-
-// Estilos adicionais
-const styles = StyleSheet.create({
-    menuIcon: {
-        marginLeft: 12,
-    },
-});

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import {
     View,
     Text,
@@ -10,9 +10,10 @@ import {
 } from "react-native";
 import { MaterialIcons, Feather } from "@expo/vector-icons";
 import { getUser, UserProfile } from "../services/dbService";
+import { ThemeContext } from "../context/ThemeContext";
 
 // 🚀 Mock do serviço de IA (mantido inalterado)
-async function getAISuggestions(profile: any) {
+async function getAISuggestions(_profile: any) {
     return new Promise((resolve, reject) => {
         setTimeout(() => {
             if (Math.random() > 0.1) {
@@ -39,6 +40,8 @@ const MessageOverlay = ({
     type: "success" | "error";
     onClose: () => void;
 }) => {
+    const { theme } = useContext(ThemeContext);
+    const styles = getStyles(theme);
     return (
         <Modal transparent={true} animationType="fade" visible={!!message}>
             <View style={styles.modalOverlay}>
@@ -46,7 +49,7 @@ const MessageOverlay = ({
                     <MaterialIcons
                         name={type === "success" ? "check-circle" : "error"}
                         size={40}
-                        color={type === "success" ? "#16a34a" : "#dc2626"}
+                        color={type === "success" ? theme.accent : theme.error}
                     />
                     <Text style={styles.messageText}>{message}</Text>
                     <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -63,14 +66,17 @@ interface Profile {
     name: string;
     condition: string;
     birthDate: string;
-    height: number | null;  
-    weight: number | null;  
+    height: number | null;
+    weight: number | null;
     restriction: string; 
     age: number | undefined; // <-- AGORA ACEITA UNDEFINED (resultado do cálculo)
     imc?: string | null;
 }
 
 export default function NutritionScreen() {
+    const { theme } = useContext(ThemeContext);
+    const styles = getStyles(theme);
+
     const [loading, setLoading] = useState<boolean>(false);
     const [mealPlan, setMealPlan] = useState<any | null>(null);
     const [profile, setProfile] = useState<Profile | null>(null);
@@ -114,11 +120,11 @@ export default function NutritionScreen() {
                     // Mapeamento de UserProfile (DB) para Profile (Local)
                     setProfile({
                         name: user.name,
-                        condition: user.condition,
-                        birthDate: user.birthDate,
-                        height: user.height,
-                        weight: user.weight,
-                        restriction: user.restriction,
+                        condition: user.condition ?? '',
+                        birthDate: user.birthDate ?? '',
+                        height: user.height ?? null,
+                        weight: user.weight ?? null,
+                        restriction: user.restriction ?? '',
                         age, // age é number | undefined
                         imc,
                     });
@@ -182,7 +188,7 @@ export default function NutritionScreen() {
             {profile && (
                 <View style={styles.card}>
                     <View style={styles.cardHeader}>
-                        <MaterialIcons name="person" size={22} color="#2563eb" />
+                        <MaterialIcons name="person" size={22} color={theme.primary} />
                         <Text style={styles.cardTitle}>Meu Perfil</Text>
                     </View>
                     <Text style={styles.profileName}>{profile.name}</Text>
@@ -223,7 +229,7 @@ export default function NutritionScreen() {
             {mealPlan && (
                 <View style={styles.card}>
                     <View style={styles.cardHeader}>
-                        <Feather name="clipboard" size={20} color="#16a34a" />
+                        <Feather name="clipboard" size={20} color={theme.accent} />
                         <Text style={styles.cardTitle}>
                             Plano Alimentar {profile?.condition ? `para ${profile.condition}` : ""}
                         </Text>
@@ -253,8 +259,8 @@ export default function NutritionScreen() {
             {/* Alimentos Recomendados */}
             <View style={styles.card}>
                 <View style={styles.cardHeader}>
-                    <Feather name="check-circle" size={20} color="#16a34a" />
-                    <Text style={[styles.cardTitle, { color: "#16a34a" }]}>Alimentos Recomendados</Text>
+                    <Feather name="check-circle" size={20} color={theme.accent} />
+                    <Text style={[styles.cardTitle, { color: theme.accent }]}>Alimentos Recomendados</Text>
                 </View>
                 <View style={styles.tagBox}>
                     {[
@@ -278,8 +284,8 @@ export default function NutritionScreen() {
             {/* Alimentos a Evitar */}
             <View style={styles.card}>
                 <View style={styles.cardHeader}>
-                    <Feather name="alert-circle" size={20} color="#dc2626" />
-                    <Text style={[styles.cardTitle, { color: "#dc2626" }]}>Alimentos a Evitar</Text>
+                    <Feather name="alert-circle" size={20} color={theme.error} />
+                    <Text style={[styles.cardTitle, { color: theme.error }]}>Alimentos a Evitar</Text>
                 </View>
                 <View style={styles.tagBox}>
                     {[
@@ -303,14 +309,14 @@ export default function NutritionScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#f0f6ff", padding: 16 },
+const getStyles = (theme: any) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: theme.background, padding: 16 },
     headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    title: { fontSize: 22, fontWeight: "700", color: "#111" },
-    subtitle: { fontSize: 14, color: "#666", marginBottom: 16 },
+    title: { fontSize: 22, fontWeight: "700", color: theme.text },
+    subtitle: { fontSize: 14, color: theme.secundaryText, marginBottom: 16 },
     updateButton: {
         flexDirection: "row",
-        backgroundColor: "#16a34a",
+        backgroundColor: theme.accent,
         paddingVertical: 8,
         paddingHorizontal: 12,
         borderRadius: 8,
@@ -318,7 +324,7 @@ const styles = StyleSheet.create({
     },
     updateText: { color: "#fff", fontWeight: "600", marginLeft: 6 },
     card: {
-        backgroundColor: "#fff",
+        backgroundColor: theme.card,
         borderRadius: 12,
         padding: 16,
         marginBottom: 16,
@@ -328,12 +334,12 @@ const styles = StyleSheet.create({
         elevation: 3,
     },
     cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
-    cardTitle: { fontSize: 16, fontWeight: "600", marginLeft: 8, color: "#111" },
-    profileName: { fontSize: 16, fontWeight: "600", color: "#111" },
+    cardTitle: { fontSize: 16, fontWeight: "600", marginLeft: 8, color: theme.text },
+    profileName: { fontSize: 16, fontWeight: "600", color: theme.text },
     badge: {
         alignSelf: "flex-start",
-        backgroundColor: "#e0f2fe",
-        color: "#0284c7",
+        backgroundColor: theme.primary + '20',
+        color: theme.primary,
         paddingHorizontal: 8,
         paddingVertical: 2,
         borderRadius: 6,
@@ -342,17 +348,17 @@ const styles = StyleSheet.create({
     },
     profileInfoRow: { flexDirection: "row", justifyContent: "space-between" },
     profileInfoBox: { flex: 1, alignItems: "center" },
-    infoLabel: { fontSize: 12, color: "#666" },
-    infoValue: { fontSize: 14, fontWeight: "600", color: "#111" },
-    restriction: { marginTop: 8, fontSize: 13, color: "#b91c1c" },
-    planText: { fontSize: 13, color: "#444", marginBottom: 12 },
+    infoLabel: { fontSize: 12, color: theme.secundaryText },
+    infoValue: { fontSize: 14, fontWeight: "600", color: theme.text },
+    restriction: { marginTop: 8, fontSize: 13, color: theme.error },
+    planText: { fontSize: 13, color: theme.secundaryText, marginBottom: 12 },
     mealRow: { marginBottom: 8 },
-    mealTitle: { fontSize: 14, fontWeight: "600", color: "#111" },
-    mealDesc: { fontSize: 13, color: "#555" },
+    mealTitle: { fontSize: 14, fontWeight: "600", color: theme.text },
+    mealDesc: { fontSize: 13, color: theme.secundaryText },
     tagBox: { flexDirection: "row", flexWrap: "wrap" },
     tagGreen: {
-        backgroundColor: "#dcfce7",
-        color: "#166534",
+        backgroundColor: theme.accent + '20',
+        color: theme.accent,
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderRadius: 20,
@@ -360,8 +366,8 @@ const styles = StyleSheet.create({
         fontSize: 13,
     },
     tagRed: {
-        backgroundColor: "#fee2e2",
-        color: "#b91c1c",
+        backgroundColor: theme.error + '20',
+        color: theme.error,
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderRadius: 20,
@@ -376,7 +382,7 @@ const styles = StyleSheet.create({
     },
     messageBox: {
         width: 300,
-        backgroundColor: "#fff",
+        backgroundColor: theme.card,
         borderRadius: 12,
         padding: 20,
         alignItems: "center",
@@ -386,11 +392,11 @@ const styles = StyleSheet.create({
         marginTop: 10,
         fontSize: 16,
         textAlign: "center",
-        color: "#333",
+        color: theme.text,
     },
     closeButton: {
         marginTop: 20,
-        backgroundColor: "#2563eb",
+        backgroundColor: theme.primary,
         paddingVertical: 10,
         paddingHorizontal: 20,
         borderRadius: 8,

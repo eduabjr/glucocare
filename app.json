@@ -38,33 +38,29 @@
         "expo-build-properties",
         {
           "android": {
-            "compileSdkVersion": 33,
-            "targetSdkVersion": 33,
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
             "minSdkVersion": 24
           },
           "ios": {
-            "deploymentTarget": "13.0"
+            "deploymentTarget": "15.1"
           }
         }
       ],
-      "expo-local-authentication"
+      "expo-local-authentication",
+      "expo-font",
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {
         "projectId": "bb849c02-0bbc-4d34-ac66-441748aa2550"
       },
-      "//": "====================== CREDENCIAIS DE AUTENTICAÇÃO ======================",
-      "//": "ID de Cliente para o Expo Go e Web. Vem da credencial 'Aplicativo da Web'.",
+      "//": "ID de Cliente para o build nativo iOS. Crie uma credencial 'iOS' se for buildar para iPhone/iPad.",
       "expoClientId": "360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com",
       "webClientId": "360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com",
-
-      "//": "ID de Cliente para o build nativo Android. Vem da credencial 'Android'.",
       "androidClientId": "360317541807-19cbu2121eftbm4d9p50mk3okma4bhtj.apps.googleusercontent.com",
-
-      "//": "ID de Cliente para o build nativo iOS. Crie uma credencial 'iOS' se for buildar para iPhone/iPad.",
       "iosClientId": "360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com"
     },
-    "sdkVersion": "48.0.0",
     "platforms": [
       "ios",
       "android",
@@ -72,4 +68,3 @@
     ]
   }
 }
-

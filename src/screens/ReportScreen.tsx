@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -8,8 +8,12 @@ import * as Sharing from 'expo-sharing';
 import { listReadings, Reading } from '../services/dbService'; // Funções do seu banco
 import { getReadingStatus } from '../components/utils/getReadingStatus'; // Sua função de status
 import { useAuth } from '../context/AuthContext'; // Para verificar o e-mail
+import { ThemeContext } from '../context/ThemeContext';
 
 export default function ReportScreen() {
+  const { theme } = useContext(ThemeContext);
+  const styles = getStyles(theme);
+
   const { user } = useAuth();
   const [readings, setReadings] = useState<Reading[]>([]);
   const [reportData, setReportData] = useState<Reading[]>([]);
@@ -82,11 +86,11 @@ export default function ReportScreen() {
         <head>
           <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
           <style>
-            body { font-family: Helvetica, sans-serif; }
+            body { font-family: Helvetica, sans-serif; color: ${theme.text}; }
             h1 { text-align: center; }
             table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; }
+            th, td { border: 1px solid ${theme.secundaryText}; padding: 8px; text-align: left; }
+            th { background-color: ${theme.background}; }
           </style>
         </head>
         <body>
@@ -155,10 +159,10 @@ export default function ReportScreen() {
           <Text style={styles.label}>Gerar por Período</Text>
           <View style={styles.datePickerRow}>
             <TouchableOpacity style={styles.dateInput} onPress={() => setShowPicker('start')}>
-              <Text>De: {startDate.toLocaleDateString('pt-BR')}</Text>
+              <Text style={{color: theme.text}}>De: {startDate.toLocaleDateString('pt-BR')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.dateInput} onPress={() => setShowPicker('end')}>
-              <Text>Até: {endDate.toLocaleDateString('pt-BR')}</Text>
+              <Text style={{color: theme.text}}>Até: {endDate.toLocaleDateString('pt-BR')}</Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity style={styles.button} onPress={() => handleGenerateReport('range')}>
@@ -176,7 +180,7 @@ export default function ReportScreen() {
         </View>
         
         {/* --- Card de Resultados --- */}
-        {loading && <ActivityIndicator size="large" color="#2563eb" />}
+        {loading && <ActivityIndicator size="large" color={theme.primary} />}
         {reportData.length > 0 && (
           <View style={styles.card}>
             <View style={styles.reportHeader}>
@@ -206,23 +210,23 @@ export default function ReportScreen() {
 }
 
 // Estilos (seguindo o padrão do seu app)
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#f0f6ff' },
-  lockedContainer: { flex: 1, padding: 20, backgroundColor: '#f0f6ff', justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 22, fontWeight: 'bold', marginBottom: 4, textAlign: 'center', color: '#111827' },
-  subtitle: { fontSize: 14, color: '#6b7280', marginBottom: 16, textAlign: 'center' },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 20, elevation: 2 },
-  label: { fontSize: 16, fontWeight: '600', marginBottom: 12, color: '#374151' },
-  button: { backgroundColor: '#2563eb', padding: 14, borderRadius: 8, alignItems: 'center', marginBottom: 10 },
+const getStyles = (theme: any) => StyleSheet.create({
+  container: { flex: 1, padding: 20, backgroundColor: theme.background },
+  lockedContainer: { flex: 1, padding: 20, backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 22, fontWeight: 'bold', marginBottom: 4, textAlign: 'center', color: theme.text },
+  subtitle: { fontSize: 14, color: theme.secundaryText, marginBottom: 16, textAlign: 'center' },
+  card: { backgroundColor: theme.card, borderRadius: 12, padding: 16, marginBottom: 20, elevation: 2 },
+  label: { fontSize: 16, fontWeight: '600', marginBottom: 12, color: theme.text },
+  button: { backgroundColor: theme.primary, padding: 14, borderRadius: 8, alignItems: 'center', marginBottom: 10 },
   buttonText: { color: '#fff', fontWeight: '600', fontSize: 15 },
   datePickerRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  dateInput: { borderWidth: 1, borderColor: '#d1d5db', padding: 12, borderRadius: 8, flex: 1, marginHorizontal: 4, alignItems: 'center' },
+  dateInput: { borderWidth: 1, borderColor: theme.secundaryText, padding: 12, borderRadius: 8, flex: 1, marginHorizontal: 4, alignItems: 'center' },
   reportHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  pdfButton: { backgroundColor: '#16a34a', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 },
+  pdfButton: { backgroundColor: theme.accent, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 },
   pdfButtonText: { color: '#fff', fontWeight: 'bold' },
-  readingItem: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  readingDate: { fontSize: 14, fontWeight: '500' },
-  readingContext: { fontSize: 12, color: '#6b7280', textTransform: 'capitalize' },
-  readingValue: { fontSize: 16, fontWeight: 'bold' },
-  readingStatus: { fontSize: 12, color: '#6b7280' },
+  readingItem: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.secundaryText },
+  readingDate: { fontSize: 14, fontWeight: '500', color: theme.text },
+  readingContext: { fontSize: 12, color: theme.secundaryText, textTransform: 'capitalize' },
+  readingValue: { fontSize: 16, fontWeight: 'bold', color: theme.text },
+  readingStatus: { fontSize: 12, color: theme.secundaryText },
 });

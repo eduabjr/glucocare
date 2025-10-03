@@ -17,7 +17,8 @@ export interface UserProfile {
     birthDate?: string;
     condition?: string;
     restriction?: string;
-    syncedAt?: string | null;
+    updated_at?: string;
+    pending_sync?: boolean;
     emailVerified?: boolean; // ADICIONADO: emailVerified
 }
 
@@ -91,7 +92,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                                 birthDate: userData?.['birthDate'] || '',
                                 condition: userData?.['condition'] || '',
                                 restriction: userData?.['restriction'] || '',
-                                syncedAt: userData?.['syncedAt'] || null,
                             };
                             
                             console.log('🔐 Status da biometria:', userProfile.biometricEnabled);

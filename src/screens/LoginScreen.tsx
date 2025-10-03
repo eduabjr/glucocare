@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import * as SecureStore from 'expo-secure-store';
 
 import { useAuth } from '../context/AuthContext';
 import { useGoogleAuth } from '../services/authService';
+import { ThemeContext } from '../context/ThemeContext';
 
 type LoginScreenProps = {
   navigation: {
@@ -27,6 +28,9 @@ type LoginScreenProps = {
 };
 
 export default function LoginScreen({ navigation }: LoginScreenProps) {
+  const { theme } = useContext(ThemeContext);
+  const styles = getStyles(theme);
+
   const { loginWithEmail, user } = useAuth();
   const { promptAsync, loading: googleLoading, error: googleError } = useGoogleAuth();
 
@@ -177,7 +181,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
             <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin} disabled={anyLoading}>
               {googleLoading ? (
-                <ActivityIndicator size="small" color="#374151" />
+                <ActivityIndicator size="small" color={theme.text} />
               ) : (
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                   <AntDesign name="google" size={20} color="#DB4437" style={styles.googleIconInline} />
@@ -193,11 +197,11 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             </View>
 
             <View style={styles.inputContainer}>
-              <MaterialIcons name="email" size={20} color="#9ca3af" style={styles.inputIcon} />
+              <MaterialIcons name="email" size={20} color={theme.secundaryText} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="E-mail"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={theme.secundaryText}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -208,11 +212,11 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             </View>
 
             <View style={styles.inputContainer}>
-              <MaterialIcons name="lock" size={20} color="#9ca3af" style={styles.inputIcon} />
+              <MaterialIcons name="lock" size={20} color={theme.secundaryText} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Senha"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={theme.secundaryText}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={showPassword}
@@ -227,7 +231,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                 <Ionicons
                   name={showPassword ? 'eye' : 'eye-off'}
                   size={22}
-                  color="#9ca3af"
+                  color={theme.secundaryText}
                 />
               </TouchableOpacity>
             </View>
@@ -251,7 +255,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                 onPress={handleBiometricLogin}
                 disabled={anyLoading}
               >
-                <MaterialIcons name="fingerprint" size={24} color="#374151" />
+                <MaterialIcons name="fingerprint" size={24} color={theme.text} />
                 <Text style={styles.biometricButtonText}>Entrar com biometria</Text>
               </TouchableOpacity>
             )}
@@ -280,10 +284,10 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f4f8',
+    backgroundColor: theme.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -293,7 +297,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.card,
     borderRadius: 20,
     paddingVertical: 32,
     paddingHorizontal: 24,
@@ -318,7 +322,7 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 24, // Reduzido para garantir uma única linha
     fontWeight: '700',
-    color: '#111827',
+    color: theme.text,
     textAlign: 'center',
     marginBottom: 24,
   },
@@ -326,9 +330,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.card,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: theme.secundaryText,
     borderRadius: 12,
     paddingVertical: 14,
     width: '100%',
@@ -351,7 +355,7 @@ const styles = StyleSheet.create({
   googleButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.text,
   },
   separator: {
     flexDirection: 'row',
@@ -362,20 +366,20 @@ const styles = StyleSheet.create({
   separatorLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: theme.secundaryText,
   },
   separatorText: {
     marginHorizontal: 16,
     fontSize: 14,
-    color: '#6b7280',
+    color: theme.secundaryText,
     fontWeight: '500',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
+    backgroundColor: theme.background,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: theme.secundaryText,
     borderRadius: 12,
     width: '100%',
     marginBottom: 16,
@@ -387,14 +391,14 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#111827',
+    color: theme.text,
     paddingVertical: 14,
   },
   eyeIcon: {
     padding: 4,
   },
   loginButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: theme.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -410,9 +414,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.card,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: theme.secundaryText,
     borderRadius: 12,
     paddingVertical: 14,
     width: '100%',
@@ -421,7 +425,7 @@ const styles = StyleSheet.create({
   biometricButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.text,
     marginLeft: 10,
   },
   buttonDisabled: {
@@ -437,7 +441,7 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: theme.secundaryText,
     fontWeight: '500',
   },
   registerLink: {
@@ -445,11 +449,10 @@ const styles = StyleSheet.create({
   },
   registerText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: theme.secundaryText,
   },
   registerTextBold: {
     fontWeight: '700',
-    color: '#2563eb',
+    color: theme.primary,
   },
 });
-

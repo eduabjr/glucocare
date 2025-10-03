@@ -176,3 +176,6 @@ eas login
 3. **Configure branches de proteção** no GitHub
 4. **Adicione testes automatizados** (opcional)
 5. **Configure CI/CD** para validações adicionais (opcional)
+
+
+

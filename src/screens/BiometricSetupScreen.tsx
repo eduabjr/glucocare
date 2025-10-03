@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import {
     View,
     Text,
@@ -15,12 +15,16 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 // ✨ PASSO 1: Importe 'useAuth' e 'UserProfile'
 import { useAuth, UserProfile } from '../context/AuthContext'; 
+import { ThemeContext } from '../context/ThemeContext';
 
 type BiometricSetupScreenProps = {
     navigation: { replace: (screen: string, params?: object) => void };
 };
 
-export default function BiometricSetupScreen({ navigation }: BiometricSetupScreenProps) {
+export default function BiometricSetupScreen({ navigation: _navigation }: BiometricSetupScreenProps) {
+    const { theme } = useContext(ThemeContext);
+    const styles = getStyles(theme);
+
     const [supported, setSupported] = useState<boolean>(false);
     const [loading, setLoading] = useState<boolean>(false);
     
@@ -51,7 +55,8 @@ export default function BiometricSetupScreen({ navigation }: BiometricSetupScree
             const completedProfile: UserProfile = {
                 ...userProfile,
                 onboardingCompleted: true,
-                syncedAt: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                pending_sync: true,
             };
 
             // ✅ CORREÇÃO: Salva o perfil atualizado no SecureStore
@@ -95,6 +100,8 @@ export default function BiometricSetupScreen({ navigation }: BiometricSetupScree
                     const updatedProfile: UserProfile = {
                         ...userProfile,
                         biometricEnabled: true,
+                        updated_at: new Date().toISOString(),
+                        pending_sync: true,
                     };
                     await SecureStore.setItemAsync('user_profile', JSON.stringify(updatedProfile));
                 }
@@ -126,6 +133,8 @@ export default function BiometricSetupScreen({ navigation }: BiometricSetupScree
                 const updatedProfile: UserProfile = {
                     ...userProfile,
                     biometricEnabled: false,
+                    updated_at: new Date().toISOString(),
+                    pending_sync: true,
                 };
                 await SecureStore.setItemAsync('user_profile', JSON.stringify(updatedProfile));
             }
@@ -143,7 +152,7 @@ export default function BiometricSetupScreen({ navigation }: BiometricSetupScree
     return (
         <SafeAreaView style={styles.safe}>
             <View style={styles.container}>
-                <MaterialIcons name="fingerprint" size={90} color="#7b2ff7" style={styles.icon} />
+                <MaterialIcons name="fingerprint" size={90} color={theme.primary} style={styles.icon} />
 
                 <Text style={styles.title}>Configurar Biometria</Text>
                 <Text style={styles.subtitle}>Proteja os seus dados com segurança extra</Text>
@@ -171,7 +180,7 @@ export default function BiometricSetupScreen({ navigation }: BiometricSetupScree
                             disabled={loading}
                         >
                             <LinearGradient
-                                colors={['#7b2ff7', '#f107a3']}
+                                colors={[theme.primary, theme.accent]}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 1 }}
                                 style={styles.enableButton}
@@ -201,7 +210,7 @@ export default function BiometricSetupScreen({ navigation }: BiometricSetupScree
 
                 <Text style={styles.footer}>
                     Você pode alterar essa configuração a qualquer momento em{"\n"}
-                    <Text style={{ fontWeight: '600', color: '#2563eb' }}>Configurações</Text>.
+                    <Text style={{ fontWeight: '600', color: theme.primary }}>Configurações</Text>.
                 </Text>
             </View>
         </SafeAreaView>
@@ -209,21 +218,21 @@ export default function BiometricSetupScreen({ navigation }: BiometricSetupScree
 }
 
 // Estilos
-const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#f0f6ff' },
+const getStyles = (theme: any) => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: theme.background },
     container: { flex: 1, padding: 24, alignItems: 'center' },
     icon: { marginTop: 40, marginBottom: 20 },
     title: {
         fontSize: 22,
         fontWeight: '700',
-        color: '#111827',
+        color: theme.text,
         textAlign: 'center',
         marginBottom: 4,
     },
-    subtitle: { fontSize: 14, color: '#555', marginBottom: 20, textAlign: 'center' },
+    subtitle: { fontSize: 14, color: theme.secundaryText, marginBottom: 20, textAlign: 'center' },
     card: {
         width: '100%',
-        backgroundColor: '#fff',
+        backgroundColor: theme.card,
         borderRadius: 16,
         padding: 20,
         alignItems: 'center',
@@ -232,22 +241,22 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 3,
     },
-    question: { fontSize: 16, fontWeight: '600', marginBottom: 16, color: '#111827' },
+    question: { fontSize: 16, fontWeight: '600', marginBottom: 16, color: theme.text },
     optionGreen: {
         width: '100%',
-        backgroundColor: '#e6f8f0',
+        backgroundColor: theme.accent + '20',
         padding: 12,
         borderRadius: 10,
         marginBottom: 12,
     },
     optionBlue: { 
         width: '100%',
-        backgroundColor: '#e8f0fe', 
+        backgroundColor: theme.primary + '20', 
         padding: 12, 
         borderRadius: 10 
     },
-    optionTitle: { fontSize: 15, fontWeight: '600', color: '#111827' },
-    optionDesc: { fontSize: 13, color: '#555', marginTop: 2 },
+    optionTitle: { fontSize: 15, fontWeight: '600', color: theme.text },
+    optionDesc: { fontSize: 13, color: theme.secundaryText, marginTop: 2 },
     enableButton: {
         paddingVertical: 15,
         borderRadius: 12,
@@ -261,13 +270,13 @@ const styles = StyleSheet.create({
     skipButton: {
         width: '100%',
         borderWidth: 1,
-        borderColor: '#d1d5db',
+        borderColor: theme.secundaryText,
         paddingVertical: 15,
         borderRadius: 12,
         alignItems: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: theme.card,
     },
-    skipText: { fontSize: 15, fontWeight: '600', color: '#111827' },
-    warning: { marginBottom: 20, fontSize: 15, color: '#dc2626', textAlign: 'center' },
-    footer: { marginTop: 28, fontSize: 12, color: '#6b7280', textAlign: 'center', lineHeight: 18 },
+    skipText: { fontSize: 15, fontWeight: '600', color: theme.text },
+    warning: { marginBottom: 20, fontSize: 15, color: theme.error, textAlign: 'center' },
+    footer: { marginTop: 28, fontSize: 12, color: theme.secundaryText, textAlign: 'center', lineHeight: 18 },
 });

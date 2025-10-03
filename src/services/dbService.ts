@@ -1,8 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 // Importa as instâncias e funções do Firebase/Firestore
-import { db, auth } from '../config/firebase'; 
-import { doc, setDoc, serverTimestamp, getDoc, deleteDoc } from 'firebase/firestore'; 
-import { User as FirebaseAuthUser } from 'firebase/auth'; 
+
+
 
 // --- NOME DO BANCO ---
 const DB_NAME = 'glucocare.db';
@@ -16,15 +15,16 @@ export interface UserProfile {
     id: string;
     name: string;
     email: string;
-    googleId: string;
-    onboardingCompleted: boolean;
-    biometricEnabled: boolean;
-    weight: number | null;
-    height: number | null;
-    birthDate: string;
-    condition: string;
-    restriction: string;
-    syncedAt: string | null;
+    googleId?: string;
+    onboardingCompleted?: boolean;
+    biometricEnabled?: boolean;
+    weight?: number | null;
+    height?: number | null;
+    birthDate?: string;
+    condition?: string;
+    restriction?: string;
+    updated_at?: string;
+    pending_sync?: boolean;
 }
 
 export interface Reading {
@@ -35,7 +35,9 @@ export interface Reading {
     meal_context: string | null;
     time_since_meal: string | null;
     notes: string | null;
-    syncedAt: string | null; 
+    updated_at?: string;
+    deleted?: boolean;
+    pending_sync?: boolean;
 }
 
 // ----------------------
@@ -54,7 +56,7 @@ export function getDB(): SQLite.Database {
  * Centraliza a lógica de execução de transações SQL, retornando uma Promise.
  * Isso elimina a repetição de código em todas as outras funções.
  */
-async function executeTransaction(sql: string, args: any[] = []): Promise<SQLite.SQLResultSet> {
+export async function executeTransaction(sql: string, args: any[] = []): Promise<SQLite.SQLResultSet> {
     const database = getDB();
     return new Promise((resolve, reject) => {
         database.transaction(
@@ -83,13 +85,14 @@ export async function initDB(): Promise<void> {
                 id TEXT PRIMARY KEY NOT NULL, full_name TEXT, email TEXT, google_id TEXT,
                 onboarding_completed INTEGER DEFAULT 0, biometric_enabled INTEGER DEFAULT 0,
                 weight REAL, height REAL, birth_date TEXT, diabetes_condition TEXT,
-                restriction TEXT, synced_at TEXT DEFAULT NULL 
+                restriction TEXT, updated_at TEXT, pending_sync INTEGER DEFAULT 0 
             );`
         );
         await executeTransaction(
             `CREATE TABLE IF NOT EXISTS readings (
                 id TEXT PRIMARY KEY NOT NULL, measurement_time TEXT, glucose_level REAL,
-                meal_context TEXT, time_since_meal TEXT, notes TEXT, synced_at TEXT DEFAULT NULL
+                meal_context TEXT, time_since_meal TEXT, notes TEXT, 
+                updated_at TEXT, deleted INTEGER DEFAULT 0, pending_sync INTEGER DEFAULT 0
             );`
         );
         console.log('Banco inicializado com sucesso ✅');
@@ -115,7 +118,8 @@ function normalizeUserRow(row: any): UserProfile {
         birthDate: String(row.birth_date ?? ''), 
         condition: String(row.diabetes_condition ?? ''), 
         restriction: String(row.restriction ?? ''),
-        syncedAt: row.synced_at ?? null, 
+        updated_at: row.updated_at,
+        pending_sync: !!row.pending_sync,
     };
 }
 
@@ -129,42 +133,13 @@ function normalizeReadingRow(row: any): Reading {
         meal_context: row.meal_context ?? null,
         time_since_meal: row.time_since_meal ?? null,
         notes: row.notes ?? null,
-        syncedAt: row.synced_at ?? null, 
+        updated_at: row.updated_at,
+        deleted: !!row.deleted,
+        pending_sync: !!row.pending_sync,
     };
 }
 
-// ----------------------
-// FUNÇÕES DE SINCRONIZAÇÃO (FIREBASE)
-// ----------------------
-function getFirebaseUID(): string | null {
-    return auth.currentUser?.uid || null;
-}
 
-// A função de sincronização de perfil (sem grandes alterações)
-export async function syncUserProfileToFirestore(profile: UserProfile): Promise<void> { /* ... (código original) ... */ }
-
-// A função de sincronização de leitura (sem grandes alterações)
-export async function syncReadingToFirestore(reading: Reading): Promise<void> { /* ... (código original) ... */ }
-
-/**
- * ✅ NOVA FUNÇÃO
- * Sincroniza a exclusão de uma leitura com o Firestore.
- */
-async function syncDeleteToFirestore(readingId: string): Promise<void> {
-    const uid = getFirebaseUID();
-    if (!uid) {
-        console.warn("Usuário não autenticado. Exclusão no Firestore ignorada.");
-        return;
-    }
-    try {
-        const readingRef = doc(db, 'users', uid, 'readings', readingId);
-        await deleteDoc(readingRef);
-        console.log(`Leitura ${readingId} excluída do Firestore.`);
-    } catch (error) {
-        console.error("Erro ao excluir leitura do Firestore:", error);
-        throw error;
-    }
-}
 
 
 // ----------------------
@@ -176,7 +151,8 @@ async function syncDeleteToFirestore(readingId: string): Promise<void> {
  * Salva ou atualiza usuário no SQLite e chama a sincronização.
  */
 export async function saveOrUpdateUser(profile: UserProfile): Promise<UserProfile> {
-    const sql = `INSERT OR REPLACE INTO users (id, full_name, email, google_id, onboarding_completed, biometric_enabled, weight, height, birth_date, diabetes_condition, restriction, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
+    const sql = `INSERT OR REPLACE INTO users (id, full_name, email, google_id, onboarding_completed, biometric_enabled, weight, height, birth_date, diabetes_condition, restriction, updated_at, pending_sync) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
+    const updated_at = new Date().toISOString();
     const params = [ 
         profile.id, 
         profile.name, 
@@ -189,16 +165,11 @@ export async function saveOrUpdateUser(profile: UserProfile): Promise<UserProfil
         profile.birthDate, 
         profile.condition, 
         profile.restriction,
-        profile.syncedAt
+        updated_at,
+        1 // pending_sync = true
     ];
 
     await executeTransaction(sql, params);
-    
-    try {
-        await syncUserProfileToFirestore(profile);
-    } catch (error) {
-        console.warn('Atenção: Falha na sincronização do perfil. Salvo apenas localmente.', error);
-    }
 
     const user = await getUser();
     if (!user) throw new Error("Falha ao buscar usuário após salvar.");
@@ -211,17 +182,12 @@ export async function saveOrUpdateUser(profile: UserProfile): Promise<UserProfil
  * Inserir leitura no SQLite e chama a sincronização.
  */
 export async function addReading(reading: Reading): Promise<boolean> {
-    const sql = `INSERT INTO readings (id, measurement_time, glucose_level, meal_context, time_since_meal, notes) VALUES (?, ?, ?, ?, ?, ?)`;
-    const params = [ reading.id, new Date(reading.timestamp).toISOString(), reading.glucose_level, reading.meal_context, reading.time_since_meal, reading.notes ];
+    const sql = `INSERT INTO readings (id, measurement_time, glucose_level, meal_context, time_since_meal, notes, updated_at, pending_sync) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    const updated_at = new Date().toISOString();
+    const params = [ reading.id, new Date(reading.timestamp).toISOString(), reading.glucose_level, reading.meal_context, reading.time_since_meal, reading.notes, updated_at, 1 ];
 
     await executeTransaction(sql, params);
 
-    try {
-        await syncReadingToFirestore(reading);
-    } catch (error) {
-        console.warn('Atenção: Falha na sincronização da leitura. Salvo apenas localmente.', error);
-    }
-    
     return true;
 }
 
@@ -244,7 +210,7 @@ export async function getUser(): Promise<UserProfile | null> {
  * Listar todas as leituras do SQLite.
  */
 export async function listReadings(): Promise<Reading[]> {
-    const result = await executeTransaction('SELECT * FROM readings ORDER BY datetime(measurement_time) DESC;');
+    const result = await executeTransaction('SELECT * FROM readings WHERE deleted = 0 ORDER BY datetime(measurement_time) DESC;');
     return result.rows._array.map(normalizeReadingRow);
 }
 
@@ -254,13 +220,9 @@ export async function listReadings(): Promise<Reading[]> {
  * Excluir leitura por ID no SQLite e sincroniza a exclusão com o Firestore.
  */
 export async function deleteReading(id: string): Promise<boolean> {
-    try {
-        await syncDeleteToFirestore(id);
-    } catch (error) {
-        console.warn(`Falha ao sincronizar exclusão para ${id}. Excluindo apenas localmente.`);
-    }
-
-    const result = await executeTransaction('DELETE FROM readings WHERE id = ?;', [id]);
+    const sql = `UPDATE readings SET deleted = 1, pending_sync = 1, updated_at = ? WHERE id = ?`;
+    const updated_at = new Date().toISOString();
+    const result = await executeTransaction(sql, [updated_at, id]);
     return result.rowsAffected > 0;
 }
 

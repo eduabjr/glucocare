@@ -1,6 +1,6 @@
 // src/screens/RegisterScreen.tsx
 import 'react-native-get-random-values';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useContext } from 'react';
 import {
     Text,
     TextInput,
@@ -19,6 +19,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 // Google Auth via hook compartilhado (no-proxy + id_token)
 import { useGoogleAuth } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
+import { ThemeContext } from '../context/ThemeContext';
 
 // 🚨 IMPORTAÇÕES FIREBASE ATUALIZADAS
 import { auth, db } from '../config/firebase'; 
@@ -78,7 +79,9 @@ interface RequirementItemProps {
 }
 
 const RequirementItem: React.FC<RequirementItemProps> = ({ met, label }) => {
-    const color = met ? '#10b981' : '#ef4444';
+    const { theme } = useContext(ThemeContext);
+    const validationStyles = getValidationStyles(theme);
+    const color = met ? theme.accent : theme.error;
     const icon = met ? 'check' : 'x';
 
     return (
@@ -93,18 +96,22 @@ interface PasswordRequirementsProps {
     rules: PasswordRules;
 }
 
-const PasswordRequirements: React.FC<PasswordRequirementsProps> = ({ rules }) => (
-    <View style={validationStyles.container}>
-        <Text style={validationStyles.title}>
-            Certifique-se de que sua nova senha contém
-        </Text>
-        <RequirementItem met={rules.length} label="No mínimo 8 dígitos" />
-        <RequirementItem met={rules.uppercase} label="Pelo menos 1 letra maiúscula (A–Z)" />
-        <RequirementItem met={rules.lowercase} label="Pelo menos 1 letra minúscula (a–z)" />
-        <RequirementItem met={rules.number} label="Pelo menos 1 número (0–9)" />
-        <RequirementItem met={rules.specialChar} label="Pelo menos 1 caractere especial (ex.: !@#$%^&*)" />
-    </View>
-);
+const PasswordRequirements: React.FC<PasswordRequirementsProps> = ({ rules }) => {
+    const { theme } = useContext(ThemeContext);
+    const validationStyles = getValidationStyles(theme);
+    return (
+        <View style={validationStyles.container}>
+            <Text style={validationStyles.title}>
+                Certifique-se de que sua nova senha contém
+            </Text>
+            <RequirementItem met={rules.length} label="No mínimo 8 dígitos" />
+            <RequirementItem met={rules.uppercase} label="Pelo menos 1 letra maiúscula (A–Z)" />
+            <RequirementItem met={rules.lowercase} label="Pelo menos 1 letra minúscula (a–z)" />
+            <RequirementItem met={rules.number} label="Pelo menos 1 número (0–9)" />
+            <RequirementItem met={rules.specialChar} label="Pelo menos 1 caractere especial (ex.: !@#$%^&*)" />
+        </View>
+    );
+};
 
 // ------------------------------------
 // FUNÇÃO DE SINCRONIZAÇÃO DE PERFIL NO FIRESTORE
@@ -153,6 +160,10 @@ async function sendVerificationEmail(user: User) {
 // ------------------------------------
 
 export default function RegisterScreen({ navigation }: { navigation: NavigationProp }) {
+    const { theme } = useContext(ThemeContext);
+    const styles = getStyles(theme);
+    const validationStyles = getValidationStyles(theme);
+
     const [email, setEmail] = useState<string>('');
     const [password, setPassword] = useState<string>('');
     const [confirmPassword, setConfirmPassword] = useState<string>('');
@@ -316,7 +327,7 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
                     <AntDesign
                         name="adduser"
                         size={52}
-                        color="#2563eb"
+                        color={theme.primary}
                         style={{ alignSelf: 'center', marginBottom: 12 }}
                     />
 
@@ -344,7 +355,7 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
                     
                     {/* Email com ícone */}
                     <View style={styles.inputRow}>
-                        <MaterialIcons name="email" size={20} color="#9ca3af" style={styles.inputIcon} />
+                        <MaterialIcons name="email" size={20} color={theme.secundaryText} style={styles.inputIcon} />
                         <TextInput
                             style={[styles.inputFlex, emailError ? styles.inputError : null]}
                             placeholder="E-mail"
@@ -353,6 +364,7 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
                             value={email}
                             onChangeText={setEmail}
                             onBlur={() => setEmailError(validateEmail(email) ? '' : 'Digite um e-mail válido.')}
+                            placeholderTextColor={theme.secundaryText}
                         />
                     </View>
                     {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
@@ -362,13 +374,14 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
                         Crie sua senha
                     </Text>
                     <View style={styles.passwordContainer}>
-                        <MaterialIcons name="lock" size={20} color="#9ca3af" style={styles.inputIcon} />
+                        <MaterialIcons name="lock" size={20} color={theme.secundaryText} style={styles.inputIcon} />
                         <TextInput
                             style={[styles.inputFlex, { marginBottom: 0, paddingRight: 50 }]}
                             placeholder="Senha"
                             secureTextEntry={!showPassword}
                             value={password}
                             onChangeText={setPassword}
+                            placeholderTextColor={theme.secundaryText}
                         />
                         <TouchableOpacity
                             onPress={() => setShowPassword(!showPassword)}
@@ -377,7 +390,7 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
                             <Feather
                                 name={showPassword ? 'eye' : 'eye-off'}
                                 size={24}
-                                color="#6b7280"
+                                color={theme.secundaryText}
                             />
                         </TouchableOpacity>
                     </View>
@@ -393,7 +406,7 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
                         Confirme sua senha
                     </Text>
                     <View style={styles.passwordContainer}>
-                        <MaterialIcons name="lock" size={20} color="#9ca3af" style={styles.inputIcon} />
+                        <MaterialIcons name="lock" size={20} color={theme.secundaryText} style={styles.inputIcon} />
                         <TextInput
                             style={[styles.inputFlex, confirmPasswordError ? styles.inputError : null, { paddingRight: 50 }]}
                             placeholder="Confirmar Senha"
@@ -401,6 +414,7 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
                             value={confirmPassword}
                             onChangeText={setConfirmPassword}
                             onBlur={() => setConfirmPasswordError(password === confirmPassword ? '' : 'As senhas não coincidem.')}
+                            placeholderTextColor={theme.secundaryText}
                         />
                         <TouchableOpacity
                             onPress={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -409,7 +423,7 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
                             <Feather
                                 name={showConfirmPassword ? 'eye' : 'eye-off'}
                                 size={24}
-                                color="#6b7280"
+                                color={theme.secundaryText}
                             />
                         </TouchableOpacity>
                     </View>
@@ -442,69 +456,69 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
     );
 }
 
-const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#f0f6ff' },
+const getStyles = (theme: any) => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: theme.background },
     container: { flexGrow: 1, justifyContent: 'center', padding: 16 },
     title: {
         fontSize: 22,
         fontWeight: '700',
         textAlign: 'center',
-        color: '#111827',
+        color: theme.text,
     },
     subtitle: {
         fontSize: 13,
         textAlign: 'center',
-        color: '#6b7280',
+        color: theme.secundaryText,
         marginBottom: 12,
     },
     googleButton: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#d1d5db',
-        backgroundColor: '#fff',
+        borderColor: theme.secundaryText,
+        backgroundColor: theme.card,
         paddingVertical: 10,
         borderRadius: 10,
         justifyContent: 'center',
         marginBottom: 10,
     },
-    googleText: { fontSize: 15, fontWeight: '600', color: '#111' },
-    orText: { textAlign: 'center', color: '#6b7280', marginVertical: 8 },
+    googleText: { fontSize: 15, fontWeight: '600', color: theme.text },
+    orText: { textAlign: 'center', color: theme.secundaryText, marginVertical: 8 },
     input: {
         borderWidth: 1,
-        borderColor: '#d1d5db',
+        borderColor: theme.secundaryText,
         borderRadius: 10,
         padding: 12,
-        backgroundColor: '#fff',
+        backgroundColor: theme.card,
         fontSize: 15,
         marginBottom: 6,
-        color: '#111827',
+        color: theme.text,
         width: '100%',
     },
     inputRow: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#d1d5db',
+        borderColor: theme.secundaryText,
         borderRadius: 10,
         paddingHorizontal: 10,
-        backgroundColor: '#fff',
+        backgroundColor: theme.card,
         marginBottom: 6,
     },
     inputFlex: {
         flex: 1,
         paddingVertical: 12,
         fontSize: 15,
-        color: '#111827',
+        color: theme.text,
     },
     inputIcon: {
         marginRight: 8,
     },
     inputError: {
-        borderColor: 'red',
+        borderColor: theme.error,
     },
     errorText: {
-        color: 'red',
+        color: theme.error,
         fontSize: 12,
         marginBottom: 6,
         paddingHorizontal: 4,
@@ -512,7 +526,7 @@ const styles = StyleSheet.create({
     buttonPrimary: {
         padding: 12,
         borderRadius: 10,
-        backgroundColor: '#2563eb',
+        backgroundColor: theme.primary,
         alignItems: 'center',
         marginTop: 10,
     },
@@ -521,19 +535,19 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: 12,
         fontSize: 14,
-        color: '#4b5563',
+        color: theme.secundaryText,
     },
-    loginLink: { color: '#2563eb', fontWeight: '600' },
+    loginLink: { color: theme.primary, fontWeight: '600' },
     passwordContainer: {
         position: 'relative',
         marginBottom: 6,
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#d1d5db',
+        borderColor: theme.secundaryText,
         borderRadius: 10,
         paddingHorizontal: 10,
-        backgroundColor: '#fff',
+        backgroundColor: theme.card,
     },
     eyeIcon: {
         position: 'absolute',
@@ -544,21 +558,21 @@ const styles = StyleSheet.create({
     },
 });
 
-const validationStyles = StyleSheet.create({
+const getValidationStyles = (theme: any) => StyleSheet.create({
     container: {
         marginTop: 10,
         marginBottom: 16,
         paddingHorizontal: 5,
-        backgroundColor: '#ffffff',
+        backgroundColor: theme.card,
         borderRadius: 8,
         padding: 10,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: theme.background,
     },
     title: {
         fontSize: 13,
         fontWeight: '700',
-        color: '#374151',
+        color: theme.text,
         marginBottom: 8,
     },
     itemContainer: {

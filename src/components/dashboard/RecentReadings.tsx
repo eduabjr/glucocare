@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { listReadings } from '../../services/glucoseService';
 // ✅ CAMINHO ADAPTADO: Usa '../utils/' porque 'utils' está dentro de 'components'
@@ -42,7 +42,7 @@ export default function RecentReadings() {
                 <FlatList
                     data={readings}
                     renderItem={renderItem}
-                    keyExtractor={(item) => item.id}
+                    keyExtractor={(item: Reading) => item.id}
                 />
             )}
         </View>

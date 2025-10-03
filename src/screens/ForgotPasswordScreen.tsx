@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import {
     View,
     Text,
@@ -8,13 +8,14 @@ import {
     Alert,
     ActivityIndicator,
 } from "react-native";
-import { Feather, MaterialIcons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 // ✅ CORREÇÃO: Importando o ParamList correto do navegador onde esta tela vive.
 import { AuthStackParamList } from "../navigation/RootNavigator"; 
 import { sendPasswordResetEmail } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
+import { ThemeContext } from "../context/ThemeContext";
 
 // 💡 Importa o objeto de autenticação configurado
 import { auth } from "../config/firebase";
@@ -26,6 +27,9 @@ type ForgotPasswordScreenProps = NativeStackScreenProps<AuthStackParamList, 'For
 
 
 const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation }) => {
+    const { theme } = useContext(ThemeContext);
+    const styles = getStyles(theme);
+
     const [email, setEmail] = useState<string>("");
     const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -90,7 +94,7 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
                     <Text style={styles.title}>Esqueceu a senha?</Text>
 
                     <View style={styles.inputWrapper}>
-                        <MaterialIcons name="email" size={20} color="#9ca3af" style={styles.inputIcon} />
+                        <MaterialIcons name="email" size={20} color={theme.secundaryText} style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
                             placeholder="Digite seu e-mail"
@@ -99,6 +103,7 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
                             value={email}
                             onChangeText={setEmail}
                             editable={!isLoading}
+                            placeholderTextColor={theme.secundaryText}
                         />
                     </View>
 
@@ -120,13 +125,13 @@ const ForgotPasswordScreen: React.FC<ForgotPasswordScreenProps> = ({ navigation 
     );
 };
 
-const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: "#f0f6ff" },
+const getStyles = (theme: any) => StyleSheet.create({
+    safe: { flex: 1, backgroundColor: theme.background },
     centered: { flex: 1, justifyContent: "center", alignItems: "center", padding: 16 },
     card: {
         width: "100%",
         maxWidth: 380,
-        backgroundColor: "#fff",
+        backgroundColor: theme.card,
         borderRadius: 16,
         padding: 24,
         shadowColor: "#000",
@@ -134,28 +139,28 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 4,
     },
-    title: { fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 20, color: "#111827" },
+    title: { fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 20, color: theme.text },
     inputWrapper: {
         flexDirection: "row",
         alignItems: "center",
         borderWidth: 1,
-        borderColor: "#d1d5db",
+        borderColor: theme.secundaryText,
         borderRadius: 8,
         marginBottom: 12,
         paddingHorizontal: 12,
-        backgroundColor: "#fff",
+        backgroundColor: theme.card,
     },
     inputIcon: { marginRight: 8 },
-    input: { flex: 1, paddingVertical: 10, fontSize: 15, color: "#111827" },
+    input: { flex: 1, paddingVertical: 10, fontSize: 15, color: theme.text },
     primaryButton: {
-        backgroundColor: "#2563eb",
+        backgroundColor: theme.primary,
         padding: 14,
         borderRadius: 8,
         alignItems: "center",
         marginTop: 8,
     },
     primaryText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-    link: { textAlign: "center", marginTop: 14, fontSize: 14, color: "#4b5563" },
+    link: { textAlign: "center", marginTop: 14, fontSize: 14, color: theme.secundaryText },
 });
 
 export default ForgotPasswordScreen;

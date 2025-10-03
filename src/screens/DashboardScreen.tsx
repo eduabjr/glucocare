@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { listReadings, initDB, deleteReading } from '../services/dbService';
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SecureStore from 'expo-secure-store';
+import { ThemeContext } from '../context/ThemeContext';
 
 // CORREÇÃO 1.2: Adicionando tipagem para os props
 interface MessageOverlayProps {
@@ -24,6 +25,9 @@ interface MessageOverlayProps {
 
 // Componente de mensagem de alerta personalizado
 const MessageOverlay = ({ message, type, onClose }: MessageOverlayProps) => {
+  const { theme } = useContext(ThemeContext);
+  const styles = getStyles(theme);
+
   return (
     <Modal transparent animationType="fade" visible={!!message}>
       <View style={styles.modalOverlay}>
@@ -31,7 +35,7 @@ const MessageOverlay = ({ message, type, onClose }: MessageOverlayProps) => {
           <MaterialIcons
             name={type === 'success' ? 'check-circle' : 'error'}
             size={40}
-            color={type === 'success' ? '#16a34a' : '#dc2626'}
+            color={type === 'success' ? theme.accent : theme.error}
           />
           <Text style={styles.messageText}>{message}</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -54,6 +58,8 @@ type DashboardScreenProps = {
 };
 
 export default function DashboardScreen({ navigation }: DashboardScreenProps) {
+  const { theme } = useContext(ThemeContext);
+  const styles = getStyles(theme);
   const insets = useSafeAreaInsets();
 
   const [readings, setReadings] = useState<any[]>([]);
@@ -121,7 +127,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
   };
 
   const getReadingStatus = (value: number) => {
-    if (!value || isNaN(value)) return { label: 'Inválido', text: '#6b7280', bg: '#f3f4f6' };
+    if (!value || isNaN(value)) return { label: 'Inválido', text: theme.secundaryText, bg: theme.background };
     if (value < 70) return { label: 'Baixo', text: '#b45309', bg: '#fef3c7' };
     if (value > 180) return { label: 'Alto', text: '#b91c1c', bg: '#fee2e2' };
     return { label: 'Normal', text: '#047857', bg: '#d1fae5' };
@@ -227,7 +233,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
         }}
       >
         <LinearGradient colors={['#eff6ff', '#dbeafe']} style={styles.card}>
-          <View style={[styles.iconCircle, { backgroundColor: '#3b82f6' }]}>
+          <View style={[styles.iconCircle, { backgroundColor: theme.primary }]}>
             <MaterialIcons name="show-chart" size={20} color="#fff" />
           </View>
           <Text style={styles.cardLabel}>Última Medição</Text>
@@ -237,7 +243,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
         </LinearGradient>
 
         <LinearGradient colors={['#ecfdf5', '#d1fae5']} style={styles.card}>
-          <View style={[styles.iconCircle, { backgroundColor: '#10b981' }]}>
+          <View style={[styles.iconCircle, { backgroundColor: theme.accent }]}>
             <Ionicons name="stats-chart" size={20} color="#fff" />
           </View>
           <Text style={styles.cardLabel}>Média Geral</Text>
@@ -247,7 +253,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
         </LinearGradient>
 
         <LinearGradient colors={['#faf5ff', '#ede9fe']} style={styles.card}>
-          <View style={[styles.iconCircle, { backgroundColor: '#8b5cf6' }]}>
+          <View style={[styles.iconCircle, { backgroundColor: theme.secundary }]}>
             <FontAwesome5 name="bullseye" size={18} color="#fff" />
           </View>
           <Text style={styles.cardLabel}>Medições Normais</Text>
@@ -268,7 +274,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#2563eb" style={{ marginTop: 20 }} />
+        <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 20 }} />
       ) : (
         <View style={[styles.recentBox, { maxHeight: listHeight }]}>
           <Text style={styles.sectionTitle}>Medições Recentes</Text>
@@ -296,10 +302,10 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#f0f6ff',
+    backgroundColor: theme.background,
     paddingHorizontal: 20,
   },
   headerRow: {
@@ -309,10 +315,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     marginTop: 8,
   },
-  pageSubtitle: { fontSize: 14, color: '#6b7280', maxWidth: 220 },
+  pageSubtitle: { fontSize: 14, color: theme.secundaryText, maxWidth: 220 },
 
   addButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: theme.primary,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -341,12 +347,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
-  cardLabel: { color: '#374151', fontSize: 14, marginBottom: 6 },
-  cardValue: { color: '#111827', fontSize: 20, fontWeight: '700' },
-  unit: { fontSize: 13, fontWeight: '400', color: '#6b7280' },
+  cardLabel: { color: theme.secundaryText, fontSize: 14, marginBottom: 6 },
+  cardValue: { color: theme.text, fontSize: 20, fontWeight: '700' },
+  unit: { fontSize: 13, fontWeight: '400', color: theme.secundaryText },
 
   recentBox: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     padding: 12,
     borderRadius: 12,
     elevation: 2,
@@ -356,13 +362,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 10,
-    color: '#111827',
+    color: theme.text,
   },
   list: { marginBottom: 20 },
-  empty: { textAlign: 'center', color: '#9ca3af', marginTop: 20 },
+  empty: { textAlign: 'center', color: theme.secundaryText, marginTop: 20 },
 
   readingCard: {
-    backgroundColor: '#f9fafb',
+    backgroundColor: theme.background,
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
@@ -373,14 +379,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  readingValue: { fontSize: 18, fontWeight: 'bold', color: '#111827' },
+  readingValue: { fontSize: 18, fontWeight: 'bold', color: theme.text },
   statusBadge: {
     borderRadius: 12,
     paddingVertical: 4,
     paddingHorizontal: 10,
   },
   readingStatus: { fontSize: 13, fontWeight: '700' },
-  readingDate: { fontSize: 12, color: '#6b7280', marginTop: 4 },
+  readingDate: { fontSize: 12, color: theme.secundaryText, marginTop: 4 },
 
   modalOverlay: {
     flex: 1,
@@ -390,7 +396,7 @@ const styles = StyleSheet.create({
   },
   messageBox: {
     width: 300,
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     borderRadius: 12,
     padding: 20,
     alignItems: 'center',
@@ -400,11 +406,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     textAlign: 'center',
-    color: '#333',
+    color: theme.text,
   },
   closeButton: {
     marginTop: 20,
-    backgroundColor: '#2563eb',
+    backgroundColor: theme.primary,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -416,7 +422,7 @@ const styles = StyleSheet.create({
 
   deleteButton: {
     marginTop: 10,
-    backgroundColor: '#f97316',
+    backgroundColor: theme.error,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,

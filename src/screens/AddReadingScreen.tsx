@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useContext } from 'react';
 import {
   View,
   Text,
@@ -14,11 +14,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'; 
 import { Picker } from '@react-native-picker/picker';
 import { v4 as uuidv4 } from 'uuid';
-import * as SecureStore from 'expo-secure-store';
 
 import { addReading } from '../services/dbService';
-// CORREÇÃO 1: Mudar para importação padrão do serviço
-import GoogleSyncService from '../services/googleSync'; 
+import { ThemeContext } from '../context/ThemeContext';
 
 type MealContext = '' | 'jejum' | 'pre-refeicao' | 'pos-refeicao' | 'antes-dormir' | 'madrugada';
 
@@ -27,6 +25,9 @@ type AddReadingScreenProps = {
 };
 
 export default function AddReadingScreen({ navigation }: AddReadingScreenProps) {
+  const { theme } = useContext(ThemeContext);
+  const styles = getStyles(theme);
+
   const [glucose, setGlucose] = useState<string>('');
   const [date, setDate] = useState<Date>(new Date());
   const [showDate, setShowDate] = useState<boolean>(false);
@@ -73,25 +74,11 @@ export default function AddReadingScreen({ navigation }: AddReadingScreenProps) 
         meal_context: mealContext,
         time_since_meal: null,
         notes: notes.trim() || null,
-        // ✅ CORREÇÃO DO ERRO 2345: Adiciona as propriedades 'timestamp' e 'syncedAt'
         timestamp: date.getTime(), 
-        syncedAt: null, 
       };
 
       // 🔹 Salva no SQLite
-      await addReading(reading as any); // Usando 'as any' temporariamente, idealmente a interface Reading deve ser importada e usada.
-
-      // 🔹 Se o usuário tem token Google → sincroniza automaticamente
-      const token = await SecureStore.getItemAsync('google_token');
-      if (token) {
-        try {
-          // CORREÇÃO 1: Chamar a função através do objeto importado
-          await GoogleSyncService.uploadReadingsToDrive(token); 
-          console.log('Medições sincronizadas com Google Drive!');
-        } catch (err) {
-          console.warn('Falha ao sincronizar com Drive:', err);
-        }
-      }
+      await addReading(reading as any);
 
       Alert.alert('Sucesso', 'Medição salva com sucesso!');
       resetForm();
@@ -103,7 +90,7 @@ export default function AddReadingScreen({ navigation }: AddReadingScreenProps) 
   };
 
   // CORREÇÃO 2: Usa o tipo correto DateTimePickerEvent (e resolve aviso 'event')
-  const onDateChange = (event: DateTimePickerEvent, selectedDate: Date | undefined) => { 
+  const onDateChange = (_event: DateTimePickerEvent, selectedDate: Date | undefined) => { 
     if (selectedDate) {
       setShowDate(false);
       setDate(selectedDate);
@@ -125,6 +112,7 @@ export default function AddReadingScreen({ navigation }: AddReadingScreenProps) 
           keyboardType="numeric"
           value={glucose}
           onChangeText={setGlucose}
+          placeholderTextColor={theme.secundaryText}
         />
         <Text style={styles.limitText}>
           ⚠️ Intervalo permitido: mínimo 30 — máximo 600 mg/dL
@@ -132,7 +120,7 @@ export default function AddReadingScreen({ navigation }: AddReadingScreenProps) 
 
         <Text style={styles.label}>Data e Hora *</Text>
         <TouchableOpacity style={styles.input} onPress={() => setShowDate(true)}>
-          <Text>{date.toLocaleString()}</Text>
+          <Text style={{color: theme.text}}>{date.toLocaleString()}</Text>
         </TouchableOpacity>
         {showDate && (
           <DateTimePicker
@@ -147,7 +135,8 @@ export default function AddReadingScreen({ navigation }: AddReadingScreenProps) 
         <View style={styles.pickerWrapper}>
           <Picker
             selectedValue={mealContext}
-            onValueChange={(itemValue) => setMealContext(itemValue as MealContext)}
+            onValueChange={(itemValue: string) => setMealContext(itemValue as MealContext)}
+            style={{color: theme.text}}
           >
             <Picker.Item label="Selecione o contexto" value="" />
             <Picker.Item label="Jejum" value="jejum" />
@@ -165,6 +154,7 @@ export default function AddReadingScreen({ navigation }: AddReadingScreenProps) 
           value={notes}
           onChangeText={setNotes}
           multiline
+          placeholderTextColor={theme.secundaryText}
         />
       </View>
 
@@ -186,14 +176,14 @@ export default function AddReadingScreen({ navigation }: AddReadingScreenProps) 
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#f0f6ff' }, // fundo padrão
+const getStyles = (theme: any) => StyleSheet.create({
+  container: { flex: 1, padding: 20, backgroundColor: theme.background }, // fundo padrão
 
-  title: { fontSize: 22, fontWeight: 'bold', marginBottom: 4, textAlign: 'center', color: '#111827' },
-  subtitle: { fontSize: 14, color: '#6b7280', marginBottom: 16, textAlign: 'center' },
+  title: { fontSize: 22, fontWeight: 'bold', marginBottom: 4, textAlign: 'center', color: theme.text },
+  subtitle: { fontSize: 14, color: theme.secundaryText, marginBottom: 16, textAlign: 'center' },
 
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.card,
     borderRadius: 12,
     padding: 16,
     shadowColor: '#000',
@@ -203,29 +193,30 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
-  label: { fontSize: 14, fontWeight: '600', marginTop: 12, marginBottom: 6, color: '#374151' },
+  label: { fontSize: 14, fontWeight: '600', marginTop: 12, marginBottom: 6, color: theme.text },
   input: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: theme.secundaryText,
     padding: 12,
     borderRadius: 8,
     fontSize: 16,
-    backgroundColor: '#f9fafb',
+    backgroundColor: theme.background,
+    color: theme.text,
   },
 
   limitText: {
     fontSize: 12,
-    color: '#b91c1c',
+    color: theme.error,
     marginTop: 4,
     marginBottom: 6,
   },
 
   pickerWrapper: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: theme.secundaryText,
     borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: '#f9fafb',
+    backgroundColor: theme.background,
   },
 
   buttonsRow: { flexDirection: 'row', justifyContent: 'space-between' },
@@ -235,9 +226,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
-  cancelButton: { backgroundColor: '#e5e7eb', marginRight: 10 },
-  saveButton: { backgroundColor: '#2563eb', marginLeft: 10 },
+  cancelButton: { backgroundColor: theme.secundary, marginRight: 10 },
+  saveButton: { backgroundColor: theme.primary, marginLeft: 10 },
 
-  cancelText: { color: '#111827', fontWeight: '600', fontSize: 15 },
+  cancelText: { color: theme.text, fontWeight: '600', fontSize: 15 },
   saveText: { color: '#fff', fontWeight: '600', fontSize: 15 },
 });

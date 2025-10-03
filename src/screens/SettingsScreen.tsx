@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Switch, TextInput, Modal } from 'react-native';
+import React, { useState, useEffect, useContext } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Switch, TextInput, Modal, Appearance } from 'react-native';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
@@ -7,6 +7,7 @@ import { updateEmail, updatePassword, reauthenticateWithCredential, EmailAuthPro
 import { auth } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { saveOrUpdateUser } from '../services/dbService';
+import { ThemeContext } from '../context/ThemeContext';
 
 // Tipos para os ícones
 type MaterialIconName = React.ComponentProps<typeof MaterialIcons>['name'];
@@ -28,36 +29,49 @@ interface SettingsCardCommunityProps {
 }
 
 // Componente para cards com MaterialIcons
-const SettingsCard: React.FC<SettingsCardProps> = ({ title, description, iconName, onPress }) => (
-    <TouchableOpacity style={styles.cardContainer} onPress={onPress}>
-        <View style={styles.iconBackground}>
-            <MaterialIcons name={iconName} size={24} color="#FFFFFF" />
-        </View>
-        <View style={styles.textContainer}>
-            <Text style={styles.cardTitle}>{title}</Text>
-            <Text style={styles.cardDescription}>{description}</Text>
-        </View>
-        <MaterialIcons name="chevron-right" size={24} color="#B0B0B0" />
-    </TouchableOpacity>
-);
+const SettingsCard: React.FC<SettingsCardProps> = ({ title, description, iconName, onPress }) => {
+    const { theme } = useContext(ThemeContext);
+    const styles = getStyles(theme);
+
+    return (
+        <TouchableOpacity style={styles.cardContainer} onPress={onPress}>
+            <View style={styles.iconBackground}>
+                <MaterialIcons name={iconName} size={24} color="#FFFFFF" />
+            </View>
+            <View style={styles.textContainer}>
+                <Text style={styles.cardTitle}>{title}</Text>
+                <Text style={styles.cardDescription}>{description}</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color={theme.secundaryText} />
+        </TouchableOpacity>
+    );
+};
 
 // Componente para cards com MaterialCommunityIcons
-const SettingsCardCommunity: React.FC<SettingsCardCommunityProps> = ({ title, description, iconName, onPress }) => (
-    <TouchableOpacity style={styles.cardContainer} onPress={onPress}>
-        <View style={styles.iconBackground}>
-            <MaterialCommunityIcons name={iconName} size={24} color="#FFFFFF" />
-        </View>
-        <View style={styles.textContainer}>
-            <Text style={styles.cardTitle}>{title}</Text>
-            <Text style={styles.cardDescription}>{description}</Text>
-        </View>
-        <MaterialIcons name="chevron-right" size={24} color="#B0B0B0" />
-    </TouchableOpacity>
-);
+const SettingsCardCommunity: React.FC<SettingsCardCommunityProps> = ({ title, description, iconName, onPress }) => {
+    const { theme } = useContext(ThemeContext);
+    const styles = getStyles(theme);
+
+    return (
+        <TouchableOpacity style={styles.cardContainer} onPress={onPress}>
+            <View style={styles.iconBackground}>
+                <MaterialCommunityIcons name={iconName} size={24} color="#FFFFFF" />
+            </View>
+            <View style={styles.textContainer}>
+                <Text style={styles.cardTitle}>{title}</Text>
+                <Text style={styles.cardDescription}>{description}</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color={theme.secundaryText} />
+        </TouchableOpacity>
+    );
+};
 
 // Componente principal
 const SettingsScreen: React.FC = () => {
     const { user, setUser, logout } = useAuth();
+    const { theme, toggleTheme, isDarkMode } = useContext(ThemeContext);
+    const styles = getStyles(theme);
+
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [biometricEnabled, setBiometricEnabled] = useState(false);
     const [biometricSupported, setBiometricSupported] = useState(false);
@@ -94,6 +108,12 @@ const SettingsScreen: React.FC = () => {
             console.error('Erro ao carregar configurações:', error);
         }
     };
+
+    const handleThemeChange = async (value: boolean) => {
+        toggleTheme();
+        Alert.alert('Sucesso', `Tema alterado para ${value ? 'escuro' : 'claro'}!`);
+    };
+
 
     const handleSignOut = async () => {
         try {
@@ -326,7 +346,7 @@ const SettingsScreen: React.FC = () => {
                         <MaterialIcons name="lock" size={20} color="#9CA3AF" />
                     )}
                     {user?.emailVerified && (
-                        <MaterialIcons name="chevron-right" size={24} color="#B0B0B0" />
+                        <MaterialIcons name="chevron-right" size={24} color={theme.secundaryText} />
                     )}
                 </TouchableOpacity>
 
@@ -367,7 +387,7 @@ const SettingsScreen: React.FC = () => {
                         <MaterialIcons name="lock" size={20} color="#9CA3AF" />
                     )}
                     {user?.emailVerified && (
-                        <MaterialIcons name="chevron-right" size={24} color="#B0B0B0" />
+                        <MaterialIcons name="chevron-right" size={24} color={theme.secundaryText} />
                     )}
                 </TouchableOpacity>
             </View>
@@ -394,7 +414,7 @@ const SettingsScreen: React.FC = () => {
                                 Configurada e ativa
                             </Text>
                         </View>
-                        <MaterialIcons name="check-circle" size={24} color="#4CAF50" />
+                        <MaterialIcons name="check-circle" size={24} color={theme.accent} />
                     </View>
                 )}
             </View>
@@ -402,6 +422,23 @@ const SettingsScreen: React.FC = () => {
             {/* General Settings */}
             <Text style={styles.sectionTitle}>GERAL</Text>
             <View style={styles.cardGroup}>
+                <View style={styles.cardContainer}>
+                    <View style={styles.iconBackground}>
+                        <MaterialIcons name="brightness-6" size={24} color="#FFFFFF" />
+                    </View>
+                    <View style={styles.textContainer}>
+                        <Text style={styles.cardTitle}>Tema do Aplicativo</Text>
+                        <Text style={styles.cardDescription}>
+                            {isDarkMode ? 'Modo Escuro' : 'Modo Claro'}
+                        </Text>
+                    </View>
+                    <Switch
+                        value={isDarkMode}
+                        onValueChange={handleThemeChange}
+                        trackColor={{ false: '#E0E0E0', true: theme.accent }}
+                        thumbColor={'#FFFFFF'}
+                    />
+                </View>
                 <View style={styles.cardContainer}>
                     <View style={styles.iconBackground}>
                         <MaterialIcons name="notifications" size={24} color="#FFFFFF" />
@@ -415,7 +452,7 @@ const SettingsScreen: React.FC = () => {
                     <Switch
                         value={notificationsEnabled}
                         onValueChange={handleNotificationsToggle}
-                        trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
+                        trackColor={{ false: '#E0E0E0', true: theme.accent }}
                         thumbColor={notificationsEnabled ? '#FFFFFF' : '#FFFFFF'}
                     />
                 </View>
@@ -551,10 +588,10 @@ const SettingsScreen: React.FC = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F5F7FA',
+        backgroundColor: theme.background,
         padding: 16,
     },
     profileSection: {
@@ -566,7 +603,7 @@ const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: '#007BFF',
+        backgroundColor: theme.primary,
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 10,
@@ -579,22 +616,22 @@ const styles = StyleSheet.create({
     profileName: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#333333',
+        color: theme.text,
     },
     profileEmail: {
         fontSize: 14,
-        color: '#666666',
+        color: theme.secundaryText,
     },
     sectionTitle: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#666666',
+        color: theme.secundaryText,
         marginTop: 15,
         marginBottom: 8,
         paddingHorizontal: 5,
     },
     cardGroup: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: theme.card,
         borderRadius: 12,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
@@ -608,13 +645,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 15,
         borderBottomWidth: 1,
-        borderBottomColor: '#F0F0F0',
+        borderBottomColor: theme.background,
     },
     iconBackground: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#4A90E2',
+        backgroundColor: theme.secundary,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 15,
@@ -625,20 +662,20 @@ const styles = StyleSheet.create({
     cardTitle: {
         fontSize: 16,
         fontWeight: '500',
-        color: '#333333',
+        color: theme.text,
     },
     cardDescription: {
         fontSize: 12,
-        color: '#888888',
+        color: theme.secundaryText,
     },
     logoutButton: {
         marginTop: 30,
         padding: 15,
-        backgroundColor: '#FF4D4D',
+        backgroundColor: theme.error,
         borderRadius: 12,
         alignItems: 'center',
         marginBottom: 20,
-        shadowColor: '#FF4D4D',
+        shadowColor: theme.error,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
         shadowRadius: 5,
@@ -657,7 +694,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     modalContent: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: theme.card,
         borderRadius: 16,
         padding: 24,
         width: '90%',
@@ -666,7 +703,7 @@ const styles = StyleSheet.create({
     modalTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#333333',
+        color: theme.text,
         marginBottom: 20,
         textAlign: 'center',
     },
@@ -677,7 +714,8 @@ const styles = StyleSheet.create({
         padding: 12,
         marginBottom: 16,
         fontSize: 16,
-        backgroundColor: '#F9F9F9',
+        backgroundColor: theme.background,
+        color: theme.text,
     },
     modalButtons: {
         flexDirection: 'row',
@@ -695,7 +733,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#E0E0E0',
     },
     confirmButton: {
-        backgroundColor: '#2563eb',
+        backgroundColor: theme.primary,
     },
     cancelButtonText: {
         color: '#666666',
@@ -710,16 +748,16 @@ const styles = StyleSheet.create({
     // Estilos para elementos bloqueados
     lockedCard: {
         opacity: 0.5,
-        backgroundColor: '#F5F5F5',
+        backgroundColor: theme.background,
     },
     lockedIconBackground: {
         backgroundColor: '#E5E5E5',
     },
     lockedText: {
-        color: '#9CA3AF',
+        color: theme.secundaryText,
     },
     lockedDescription: {
-        color: '#9CA3AF',
+        color: theme.secundaryText,
     },
 });
 
