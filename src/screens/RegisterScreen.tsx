@@ -290,14 +290,48 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
             navigation.replace('ProfileSetup'); 
         } catch (err: any) {
             console.error('handleRegister - erro:', err);
-            // Melhora a exibição de erros comuns do Firebase
-            let errorMessage = 'Não foi possível registrar sua conta.';
+            // Tratamento melhorado de erros do Firebase
             if (err.code === 'auth/email-already-in-use') {
-                errorMessage = 'Este e-mail já está sendo usado.';
+                Alert.alert(
+                    'E-mail já cadastrado',
+                    'Este e-mail já está sendo usado por outra conta. Gostaria de fazer login em vez de criar uma nova conta?',
+                    [
+                        {
+                            text: 'Cancelar',
+                            style: 'cancel'
+                        },
+                        {
+                            text: 'Fazer Login',
+                            onPress: () => navigation.navigate('Login')
+                        }
+                    ]
+                );
             } else if (err.code === 'auth/weak-password') {
-                errorMessage = 'A senha é muito fraca. Siga os requisitos.';
+                Alert.alert(
+                    'Senha fraca',
+                    'A senha não atende aos requisitos de segurança. Verifique os critérios abaixo.'
+                );
+            } else if (err.code === 'auth/invalid-email') {
+                Alert.alert(
+                    'E-mail inválido',
+                    'O formato do e-mail não é válido. Verifique se digitou corretamente.'
+                );
+            } else if (err.code === 'auth/network-request-failed') {
+                Alert.alert(
+                    'Erro de conexão',
+                    'Verifique sua conexão com a internet e tente novamente.'
+                );
+            } else if (err.code === 'auth/too-many-requests') {
+                Alert.alert(
+                    'Muitas tentativas',
+                    'Muitas tentativas de criação de conta. Aguarde alguns minutos e tente novamente.'
+                );
+            } else {
+                Alert.alert(
+                    'Erro no registro',
+                    'Não foi possível criar sua conta. Tente novamente mais tarde.'
+                );
             }
-            Alert.alert('Erro', errorMessage);
         } finally {
             setIsLoading(false);
         }
