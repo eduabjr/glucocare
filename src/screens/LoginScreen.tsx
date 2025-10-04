@@ -31,7 +31,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   const { theme } = useContext(ThemeContext);
   const styles = getStyles(theme);
 
-  const { loginWithEmail, user } = useAuth();
+  const { loginWithEmail, user, hasExistingAccount } = useAuth();
   const { promptAsync, loading: googleLoading, error: googleError } = useGoogleAuth();
 
   const [email, setEmail] = useState('');
@@ -179,22 +179,27 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
             <Text style={styles.welcomeText}>Bem-vindo ao GlucoCare</Text>
 
-            <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin} disabled={anyLoading}>
-              {googleLoading ? (
-                <ActivityIndicator size="small" color={theme.text} />
-              ) : (
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                  <AntDesign name="google" size={20} color="#DB4437" style={styles.googleIconInline} />
-                  <Text style={styles.googleButtonText}>Entrar com Google</Text>
-                </View>
-              )}
-            </TouchableOpacity>
+            {/* ✅ NOVO: Botão Google só aparece na primeira vez (quando não há conta existente) */}
+            {!hasExistingAccount && (
+              <>
+                <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin} disabled={anyLoading}>
+                  {googleLoading ? (
+                    <ActivityIndicator size="small" color={theme.text} />
+                  ) : (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                      <AntDesign name="google" size={20} color="#DB4437" style={styles.googleIconInline} />
+                      <Text style={styles.googleButtonText}>Entrar com Google</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
 
-            <View style={styles.separator}>
-              <View style={styles.separatorLine} />
-              <Text style={styles.separatorText}>OU</Text>
-              <View style={styles.separatorLine} />
-            </View>
+                <View style={styles.separator}>
+                  <View style={styles.separatorLine} />
+                  <Text style={styles.separatorText}>OU</Text>
+                  <View style={styles.separatorLine} />
+                </View>
+              </>
+            )}
 
             <View style={styles.inputContainer}>
               <MaterialIcons name="email" size={20} color={theme.secundaryText} style={styles.inputIcon} />

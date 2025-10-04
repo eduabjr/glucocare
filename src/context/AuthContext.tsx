@@ -26,6 +26,7 @@ export interface UserProfile {
 interface AuthContextType {
     user: UserProfile | null;
     isLoading: boolean;
+    hasExistingAccount: boolean; // ✅ NOVO: Indica se existe conta cadastrada
     signInWithGoogle: (idToken: string) => Promise<void>;
     loginWithEmail: (email: string, pass: string) => Promise<void>;
     logout: () => Promise<void>;
@@ -38,6 +39,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<UserProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [hasExistingAccount, setHasExistingAccount] = useState(false); // ✅ NOVO: Estado para conta existente
 
     useEffect(() => {
         // Initialize database on app start
@@ -80,6 +82,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                             const userData = userDoc.data();
                             console.log('👤 Dados do usuário carregados:', userData);
                             
+                            // ✅ NOVO: Marca que existe conta cadastrada
+                            setHasExistingAccount(true);
+                            
                             // ✅ CORREÇÃO: Verifica se o usuário tem dados básicos para considerar onboarding completo
                             const hasBasicInfo = userData?.['full_name'] || userData?.['name'];
                             const hasMedicalInfo = userData?.['diabetes_condition'] || userData?.['condition'];
@@ -115,6 +120,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                             setUser(userProfile);
                         } else {
                             console.log('🆕 Criando novo perfil para usuário');
+                            // ✅ NOVO: Marca que NÃO existe conta cadastrada (primeira vez)
+                            setHasExistingAccount(false);
+                            
                             // Se for um novo utilizador (ex: primeiro login com Google), cria um perfil básico
                             const googleId = firebaseUser.providerData.find(p => p.providerId === 'google.com')?.uid;
                             const newUserProfile: UserProfile = {
@@ -156,6 +164,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 } else {
                     console.log('🚪 Usuário não autenticado');
                     setUser(null);
+                    // ✅ NOVO: Reset do estado de conta existente quando usuário desloga
+                    setHasExistingAccount(false);
                 }
             } catch (error) {
                 console.error('❌ Erro geral no AuthContext:', error);
@@ -218,6 +228,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const value = {
         user,
         isLoading,
+        hasExistingAccount, // ✅ NOVO: Exporta estado de conta existente
         signInWithGoogle,
         loginWithEmail,
         logout,

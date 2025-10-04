@@ -179,7 +179,7 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
     const { promptAsync: promptGoogle, loading: googleLoading, error: googleError } = useGoogleAuth();
     
     // Auth context para atualizar o usuário após registro
-    const { setUser } = useAuth();
+    const { setUser, hasExistingAccount } = useAuth();
 
     // Usando o hook para as regras de validação
     const { rules, isPasswordValid } = usePasswordValidation(password);
@@ -368,25 +368,29 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
 
                     <Text style={styles.title}>Criar Conta</Text>
                     <Text style={styles.subtitle}>
-                        Preencha os dados ou use sua conta Google
+                        {hasExistingAccount ? 'Preencha os dados para criar nova conta' : 'Preencha os dados ou use sua conta Google'}
                     </Text>
 
-                    {/* Botão Google */}
-                    <TouchableOpacity
-                        style={[styles.googleButton, (googleLoading || isLoading) && { opacity: 0.5 }]}
-                        disabled={googleLoading || isLoading}
-                        onPress={handleGoogleSignIn}
-                    >
-                        <AntDesign
-                            name="google"
-                            size={20}
-                            color="#DB4437"
-                            style={{ marginRight: 8 }}
-                        />
-                        <Text style={styles.googleText}>Cadastrar com Google</Text>
-                    </TouchableOpacity>
+                    {/* ✅ NOVO: Botão Google só aparece na primeira vez (quando não há conta existente) */}
+                    {!hasExistingAccount && (
+                        <>
+                            <TouchableOpacity
+                                style={[styles.googleButton, (googleLoading || isLoading) && { opacity: 0.5 }]}
+                                disabled={googleLoading || isLoading}
+                                onPress={handleGoogleSignIn}
+                            >
+                                <AntDesign
+                                    name="google"
+                                    size={20}
+                                    color="#DB4437"
+                                    style={{ marginRight: 8 }}
+                                />
+                                <Text style={styles.googleText}>Cadastrar com Google</Text>
+                            </TouchableOpacity>
 
-                    <Text style={styles.orText}>ou</Text>
+                            <Text style={styles.orText}>ou</Text>
+                        </>
+                    )}
                     
                     {/* Email com ícone */}
                     <View style={styles.inputRow}>
