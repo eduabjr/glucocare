@@ -30,6 +30,7 @@ interface AuthContextType {
     loginWithEmail: (email: string, pass: string) => Promise<void>;
     logout: () => Promise<void>;
     setUser: React.Dispatch<React.SetStateAction<UserProfile | null>>;
+    updateBiometricStatus: (enabled: boolean) => Promise<void>; // ✅ NOVA FUNÇÃO
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -82,15 +83,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                             const userProfile: UserProfile = { 
                                 id: firebaseUser.uid, 
                                 emailVerified: firebaseUser.emailVerified,
-                                name: userData?.['name'] || 'Utilizador',
+                                name: userData?.['full_name'] || userData?.['name'] || 'Utilizador',
                                 email: userData?.['email'] || firebaseUser.email || '',
-                                googleId: userData?.['googleId'] || '',
-                                onboardingCompleted: userData?.['onboardingCompleted'] || false,
-                                biometricEnabled: userData?.['biometricEnabled'] || false,
+                                googleId: userData?.['google_id'] || userData?.['googleId'] || '',
+                                onboardingCompleted: userData?.['onboarding_completed'] || userData?.['onboardingCompleted'] || false,
+                                biometricEnabled: userData?.['biometric_enabled'] || userData?.['biometricEnabled'] || false,
                                 weight: userData?.['weight'] || null,
                                 height: userData?.['height'] || null,
-                                birthDate: userData?.['birthDate'] || '',
-                                condition: userData?.['condition'] || '',
+                                birthDate: userData?.['birth_date'] || userData?.['birthDate'] || '',
+                                condition: userData?.['diabetes_condition'] || userData?.['condition'] || '',
                                 restriction: userData?.['restriction'] || '',
                             };
                             
@@ -111,8 +112,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                             if (googleId) {
                                 newUserProfile.googleId = googleId;
                             }
-                            // Salva este novo perfil na base de dados
-                            await setDoc(userRef, newUserProfile);
+                            // ✅ CORREÇÃO: Salva este novo perfil na base de dados com campos corretos
+                            const firestoreProfile = {
+                                ...newUserProfile,
+                                full_name: newUserProfile.name,
+                                created_at: new Date().toISOString(),
+                                provider: 'google',
+                                email_verified: newUserProfile.emailVerified
+                            };
+                            await setDoc(userRef, firestoreProfile);
                             console.log('💾 Novo perfil salvo no Firestore');
                             setUser(newUserProfile);
                         }
@@ -171,6 +179,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         await signOut(auth);
     };
 
+    // ✅ NOVA FUNÇÃO: Atualizar biometria no Firestore
+    const updateBiometricStatus = async (enabled: boolean) => {
+        if (!user) return;
+        
+        try {
+            const userRef = doc(db, 'users', user.id);
+            await setDoc(userRef, { 
+                biometric_enabled: enabled,
+                updated_at: new Date().toISOString()
+            }, { merge: true });
+            
+            console.log(`✅ Biometria ${enabled ? 'habilitada' : 'desabilitada'} no Firestore`);
+            
+            // Atualiza o contexto local
+            setUser(prev => prev ? { ...prev, biometricEnabled: enabled } : null);
+        } catch (error) {
+            console.error('❌ Erro ao atualizar biometria no Firestore:', error);
+        }
+    };
+
     const value = {
         user,
         isLoading,
@@ -178,6 +206,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         loginWithEmail,
         logout,
         setUser,
+        updateBiometricStatus, // ✅ NOVA FUNÇÃO EXPORTADA
     };
 
     return (

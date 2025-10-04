@@ -29,7 +29,7 @@ export default function BiometricSetupScreen({ navigation: _navigation }: Biomet
     const [loading, setLoading] = useState<boolean>(false);
     
     // ✨ PASSO 2: Obtenha a função 'setUser' do AuthContext
-    const { setUser } = useAuth();
+    const { setUser, updateBiometricStatus } = useAuth();
 
     useEffect(() => {
         (async () => {
@@ -64,11 +64,28 @@ export default function BiometricSetupScreen({ navigation: _navigation }: Biomet
 
             // ✅ CORREÇÃO: Sincroniza com o Firestore
             try {
-                const { saveOrUpdateUser } = await import('../services/dbService');
-                await saveOrUpdateUser(completedProfile);
-                console.log('Perfil sincronizado com Firestore após completar onboarding');
+                const { doc, setDoc } = await import('firebase/firestore');
+                const { db } = await import('../config/firebase');
+                
+                const userRef = doc(db, 'users', completedProfile.id);
+                const firestoreData = {
+                    full_name: completedProfile.name,
+                    email: completedProfile.email,
+                    onboarding_completed: completedProfile.onboardingCompleted,
+                    biometric_enabled: completedProfile.biometricEnabled,
+                    weight: completedProfile.weight,
+                    height: completedProfile.height,
+                    birth_date: completedProfile.birthDate,
+                    diabetes_condition: completedProfile.condition,
+                    restriction: completedProfile.restriction,
+                    updated_at: completedProfile.updated_at,
+                    provider: 'manual'
+                };
+                
+                await setDoc(userRef, firestoreData, { merge: true });
+                console.log('✅ Perfil sincronizado com Firestore após completar onboarding');
             } catch (syncError) {
-                console.error('Erro ao sincronizar perfil com Firestore:', syncError);
+                console.error('❌ Erro ao sincronizar perfil com Firestore:', syncError);
                 // Continua mesmo se a sincronização falhar
             }
 
@@ -104,6 +121,9 @@ export default function BiometricSetupScreen({ navigation: _navigation }: Biomet
                         pending_sync: true,
                     };
                     await SecureStore.setItemAsync('user_profile', JSON.stringify(updatedProfile));
+                    
+                    // ✅ NOVA CORREÇÃO: Atualiza biometria no Firestore
+                    await updateBiometricStatus(true);
                 }
                 
                 Alert.alert('Sucesso', 'Biometria ativada com sucesso!');
@@ -137,6 +157,9 @@ export default function BiometricSetupScreen({ navigation: _navigation }: Biomet
                     pending_sync: true,
                 };
                 await SecureStore.setItemAsync('user_profile', JSON.stringify(updatedProfile));
+                
+                // ✅ NOVA CORREÇÃO: Atualiza biometria no Firestore
+                await updateBiometricStatus(false);
             }
             
             // ✨ PASSO 5: Chama a nova função aqui também

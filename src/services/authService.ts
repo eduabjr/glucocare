@@ -41,6 +41,8 @@ export function useGoogleAuth(): UseGoogleAuthReturn {
         webClientId: Constants.expoConfig?.extra?.['webClientId'], // Opcional, mas bom ter
         // ==================================================================
         scopes: ["profile", "email"],
+        // ✅ CORREÇÃO: Configurações adicionais para evitar erro 400
+        redirectUri: "https://auth.expo.io/@eduabjr/glucocare"
     });
 
     // Função de promptAsync encapsulada para gerenciar o estado de 'loading'
