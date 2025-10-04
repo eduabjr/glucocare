@@ -19,6 +19,7 @@ type MenuItem = {
 const menuItems: MenuItem[] = [
   { label: "Dashboard", screen: "Dashboard", icon: { name: "dashboard", lib: MaterialIcons } },
   { label: "Nova Medição", screen: "AddReading", icon: { name: "add-circle-outline", lib: Ionicons } },
+  { label: "Conectar Dispositivo", screen: "DeviceConnection", icon: { name: "bluetooth", lib: MaterialIcons } },
   { label: "Gráficos", screen: "Charts", icon: { name: "bar-chart", lib: MaterialIcons } },
   { label: "Alimentação", screen: "Nutrition", icon: { name: "restaurant-menu", lib: MaterialIcons } },
   { label: "Relatório de Glicemia", screen: "Report", icon: { name: "description", lib: MaterialIcons } },
