@@ -9,8 +9,8 @@ import {
     Modal,
 } from "react-native";
 import { MaterialIcons, Feather } from "@expo/vector-icons";
-import { getUser, UserProfile } from "../services/dbService";
 import { ThemeContext } from "../context/ThemeContext";
+import { useAuth, UserProfile } from "../context/AuthContext";
 
 // 🚀 Mock do serviço de IA (mantido inalterado)
 async function getAISuggestions(_profile: any) {
@@ -75,6 +75,7 @@ interface Profile {
 
 export default function NutritionScreen() {
     const { theme } = useContext(ThemeContext);
+    const { user } = useAuth(); // ✅ NOVO: Usar AuthContext
     const styles = getStyles(theme);
 
     const [loading, setLoading] = useState<boolean>(false);
@@ -93,46 +94,40 @@ export default function NutritionScreen() {
     };
 
     useEffect(() => {
-        (async () => {
-            try {
-                const user: UserProfile | null = await getUser();
-                if (user) {
-                    // Cálculo da idade
-                    let age: number | undefined = undefined;
-                    if (user.birthDate) {
-                        const birth = new Date(user.birthDate);
-                        if (!isNaN(birth.getTime())) {
-                            const today = new Date();
-                            age = today.getFullYear() - birth.getFullYear();
-                            const m = today.getMonth() - birth.getMonth();
-                            if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-                                age--;
-                            }
-                        }
+        // ✅ CORREÇÃO: Usar dados do AuthContext em vez de getUser()
+        if (user) {
+            // Cálculo da idade
+            let age: number | undefined = undefined;
+            if (user.birthDate) {
+                const birth = new Date(user.birthDate);
+                if (!isNaN(birth.getTime())) {
+                    const today = new Date();
+                    age = today.getFullYear() - birth.getFullYear();
+                    const m = today.getMonth() - birth.getMonth();
+                    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+                        age--;
                     }
-
-                    // Cálculo do IMC
-                    const imc =
-                        user.weight && user.height
-                            ? (user.weight / Math.pow(user.height / 100, 2)).toFixed(1)
-                            : null;
-
-                    // Mapeamento de UserProfile (DB) para Profile (Local)
-                    setProfile({
-                        name: user.name,
-                        condition: user.condition ?? '',
-                        birthDate: user.birthDate ?? '',
-                        height: user.height ?? null,
-                        weight: user.weight ?? null,
-                        restriction: user.restriction ?? '',
-                        age, // age é number | undefined
-                        imc,
-                    });
                 }
-            } catch (err) {
-                console.error("Erro ao carregar perfil:", err);
             }
-        })();
+
+            // Cálculo do IMC
+            const imc =
+                user.weight && user.height
+                    ? (user.weight / Math.pow(user.height / 100, 2)).toFixed(1)
+                    : null;
+
+            // Mapeamento de UserProfile (AuthContext) para Profile (Local)
+            setProfile({
+                name: user.name,
+                condition: user.condition ?? '',
+                birthDate: user.birthDate ?? '',
+                height: user.height ?? null,
+                weight: user.weight ?? null,
+                restriction: user.restriction ?? '',
+                age, // age é number | undefined
+                imc,
+            });
+        }
 
         // Plano padrão inicial
         setMealPlan({
@@ -141,7 +136,7 @@ export default function NutritionScreen() {
             dinner: "Sopa de legumes com 1 fatia de pão integral e 1 porção de peixe assado.",
             snacks: "1 maçã ou 1 punhado de castanhas.",
         });
-    }, []);
+    }, [user]); // ✅ CORREÇÃO: Dependência do user do AuthContext
 
     const updateSuggestions = async () => {
         if (!profile) {

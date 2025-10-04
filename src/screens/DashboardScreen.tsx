@@ -15,6 +15,7 @@ import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SecureStore from 'expo-secure-store';
 import { ThemeContext } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 // CORREÇÃO 1.2: Adicionando tipagem para os props
 interface MessageOverlayProps {
@@ -61,6 +62,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
   const { theme } = useContext(ThemeContext);
   const styles = getStyles(theme);
   const insets = useSafeAreaInsets();
+  const { user } = useAuth(); // ✅ NOVO: Importar dados do usuário do contexto
 
   const [readings, setReadings] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -220,8 +222,60 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
 
   const listHeight = WINDOW_HEIGHT - insets.top - insets.bottom - headerHeight - cardsHeight - 120;
 
+  // ✅ NOVO: Calcular dados do perfil
+  const getUserAge = () => {
+    if (!user?.birthDate) return null;
+    const birth = new Date(user.birthDate);
+    if (isNaN(birth.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const getIMC = () => {
+    if (!user?.weight || !user?.height) return null;
+    return (user.weight / Math.pow(user.height / 100, 2)).toFixed(1);
+  };
+
   return (
     <SafeAreaView style={[styles.safe, { paddingBottom: insets.bottom + 12 }]} edges={['top', 'bottom']}>
+      {/* ✅ NOVO: Seção de boas-vindas com dados do perfil */}
+      {user && (
+        <View style={styles.welcomeSection}>
+          <Text style={styles.welcomeText}>Olá, {user.name}!</Text>
+          <View style={styles.profileInfoRow}>
+            {getUserAge() && (
+              <View style={styles.profileInfoBox}>
+                <Text style={styles.profileInfoLabel}>Idade</Text>
+                <Text style={styles.profileInfoValue}>{getUserAge()} anos</Text>
+              </View>
+            )}
+            {user.height && (
+              <View style={styles.profileInfoBox}>
+                <Text style={styles.profileInfoLabel}>Altura</Text>
+                <Text style={styles.profileInfoValue}>{user.height} cm</Text>
+              </View>
+            )}
+            {user.weight && (
+              <View style={styles.profileInfoBox}>
+                <Text style={styles.profileInfoLabel}>Peso</Text>
+                <Text style={styles.profileInfoValue}>{user.weight} kg</Text>
+              </View>
+            )}
+            {getIMC() && (
+              <View style={styles.profileInfoBox}>
+                <Text style={styles.profileInfoLabel}>IMC</Text>
+                <Text style={styles.profileInfoValue}>{getIMC()}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      )}
+
       <View
         style={styles.headerRow}
         onLayout={(e) => {
@@ -325,12 +379,50 @@ const getStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.background,
     paddingHorizontal: 20,
   },
+  // ✅ NOVO: Estilos para seção de boas-vindas
+  welcomeSection: {
+    backgroundColor: theme.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    marginTop: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  welcomeText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 12,
+  },
+  profileInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+  },
+  profileInfoBox: {
+    flex: 1,
+    alignItems: 'center',
+    minWidth: 70,
+    marginBottom: 8,
+  },
+  profileInfoLabel: {
+    fontSize: 12,
+    color: theme.secundaryText,
+    marginBottom: 2,
+  },
+  profileInfoValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.text,
+  },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 16,
-    marginTop: 8,
   },
   pageSubtitle: { fontSize: 14, color: theme.secundaryText, maxWidth: 220 },
 
