@@ -60,6 +60,57 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     }
   }, [googleError]);
 
+  // ✅ NOVO: Auto-login com biometria se habilitada
+  useEffect(() => {
+    const autoBiometricLogin = async () => {
+      // Só tenta auto-login se:
+      // 1. Biometria está suportada
+      // 2. Biometria está habilitada
+      // 3. Não há usuário logado
+      // 4. Credenciais estão salvas
+      if (biometricSupported && biometricEnabled && !user) {
+        try {
+          const savedEmail = await SecureStore.getItemAsync('registered_email');
+          const savedPassword = await SecureStore.getItemAsync('saved_password');
+          const googleLoginAvailable = await SecureStore.getItemAsync('google_login_available');
+          
+          if (savedEmail) {
+            console.log('🔄 Tentando auto-login com biometria...');
+            
+            const result = await LocalAuthentication.authenticateAsync({
+              promptMessage: 'Use sua biometria para fazer login automático',
+              fallbackLabel: 'Usar senha',
+              disableDeviceFallback: false,
+            });
+
+            if (result.success) {
+              console.log('✅ Auto-login biométrico bem-sucedido');
+              
+              // Tenta login com email/senha primeiro
+              if (savedPassword) {
+                await loginWithEmail(savedEmail, savedPassword);
+              } else if (googleLoginAvailable === 'true') {
+                // Se não tem senha mas tem Google, mostra aviso
+                Alert.alert(
+                  'Login com Google',
+                  'Sua conta está vinculada ao Google. Use o botão "Entrar com Google" para fazer login.',
+                  [{ text: 'OK' }]
+                );
+              }
+            }
+          }
+        } catch (error) {
+          console.log('❌ Auto-login biométrico falhou ou foi cancelado:', error);
+          // Não mostra erro para o usuário, apenas log
+        }
+      }
+    };
+
+    // Aguarda um pouco para carregar os estados antes de tentar auto-login
+    const timer = setTimeout(autoBiometricLogin, 1000);
+    return () => clearTimeout(timer);
+  }, [biometricSupported, biometricEnabled, user, loginWithEmail]);
+
   const checkBiometricSupport = async () => {
     try {
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
@@ -90,6 +141,16 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     setIsLoading(true);
     try {
       await loginWithEmail(email.trim(), password);
+      
+      // ✅ NOVO: Salva as credenciais no SecureStore para biometria
+      try {
+        await SecureStore.setItemAsync('registered_email', email.trim());
+        await SecureStore.setItemAsync('saved_password', password);
+        console.log('💾 Credenciais salvas no SecureStore para biometria');
+      } catch (secureStoreError) {
+        console.error('❌ Erro ao salvar credenciais no SecureStore:', secureStoreError);
+        // Não falha o login se não conseguir salvar as credenciais
+      }
     } catch (error: any) {
       console.error('Erro no login:', error);
       let errorMessage = 'Erro ao fazer login. Tente novamente.';

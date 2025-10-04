@@ -62,7 +62,6 @@ function DrawerRoutes() {
                     backgroundColor: "#2563eb",
                     elevation: 4,
                     shadowOpacity: 0.2,
-                    height: 56 + (Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : insets.top),
                 },
                 headerTintColor: "#fff",
                 headerTitleStyle: { fontWeight: "700", fontSize: 18 },
@@ -71,7 +70,11 @@ function DrawerRoutes() {
                 drawerActiveTintColor: "#fff",
                 drawerInactiveTintColor: "#333",
                 drawerStyle: { width: 280 },
-                sceneContainerStyle: { backgroundColor: "#f0f6ff" },
+                sceneContainerStyle: { 
+                    backgroundColor: "#f0f6ff",
+                    paddingTop: insets.top // Garante que o conteúdo respeite a safe area
+                },
+                headerStatusBarHeight: insets.top, // Configura a altura da status bar
             }}
         >
             <Drawer.Screen

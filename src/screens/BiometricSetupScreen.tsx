@@ -71,7 +71,7 @@ export default function BiometricSetupScreen({ navigation: _navigation }: Biomet
                 const firestoreData = {
                     full_name: completedProfile.name,
                     email: completedProfile.email,
-                    onboarding_completed: completedProfile.onboardingCompleted,
+                    onboarding_completed: true, // ✅ FORÇA PARA TRUE
                     biometric_enabled: completedProfile.biometricEnabled,
                     weight: completedProfile.weight,
                     height: completedProfile.height,
@@ -83,7 +83,7 @@ export default function BiometricSetupScreen({ navigation: _navigation }: Biomet
                 };
                 
                 await setDoc(userRef, firestoreData, { merge: true });
-                console.log('✅ Perfil sincronizado com Firestore após completar onboarding');
+                console.log('✅ Perfil sincronizado com Firestore após completar onboarding - onboarding_completed: true');
             } catch (syncError) {
                 console.error('❌ Erro ao sincronizar perfil com Firestore:', syncError);
                 // Continua mesmo se a sincronização falhar
@@ -198,26 +198,33 @@ export default function BiometricSetupScreen({ navigation: _navigation }: Biomet
                         </View>
 
                         <TouchableOpacity
-                            style={{ width: '100%', marginTop: 18, marginBottom: 12 }}
+                            style={styles.actionButtonWrapper}
                             onPress={enableBiometric}
                             disabled={loading}
                         >
                             <LinearGradient
-                                colors={[theme.primary, theme.accent]}
+                                colors={['#ecfdf5', '#d1fae5']}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 1 }}
                                 style={styles.enableButton}
                             >
                                 {loading ? (
-                                    <ActivityIndicator color="#fff" />
+                                    <ActivityIndicator color="#059669" />
                                 ) : (
                                     <Text style={styles.enableText}>Habilitar Biometria →</Text>
                                 )}
                             </LinearGradient>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.skipButton} onPress={skipBiometric} disabled={loading}>
-                            <Text style={styles.skipText}>✕ Pular por Agora</Text>
+                        <TouchableOpacity style={styles.actionButtonWrapper} onPress={skipBiometric} disabled={loading}>
+                            <LinearGradient
+                                colors={['#fef2f2', '#fee2e2']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.skipButton}
+                            >
+                                <Text style={styles.skipText}>✕ Pular por Agora</Text>
+                            </LinearGradient>
                         </TouchableOpacity>
                     </View>
                 ) : (
@@ -225,8 +232,15 @@ export default function BiometricSetupScreen({ navigation: _navigation }: Biomet
                         <Text style={styles.warning}>
                             O seu dispositivo não suporta autenticação biométrica.
                         </Text>
-                        <TouchableOpacity style={styles.skipButton} onPress={skipBiometric} disabled={loading}>
-                            <Text style={styles.skipText}>Continuar</Text>
+                        <TouchableOpacity style={styles.actionButtonWrapper} onPress={skipBiometric} disabled={loading}>
+                            <LinearGradient
+                                colors={['#fef2f2', '#fee2e2']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.skipButton}
+                            >
+                                <Text style={styles.skipText}>Continuar</Text>
+                            </LinearGradient>
                         </TouchableOpacity>
                     </View>
                 )}
@@ -280,6 +294,20 @@ const getStyles = (theme: any) => StyleSheet.create({
     },
     optionTitle: { fontSize: 15, fontWeight: '600', color: theme.text },
     optionDesc: { fontSize: 13, color: theme.secundaryText, marginTop: 2 },
+    actionButtonWrapper: {
+        width: '100%',
+        marginTop: 18,
+        marginBottom: 12,
+        borderRadius: 10,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+    },
     enableButton: {
         paddingVertical: 15,
         borderRadius: 12,
@@ -289,7 +317,7 @@ const getStyles = (theme: any) => StyleSheet.create({
         shadowRadius: 6,
         elevation: 3,
     },
-    enableText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+    enableText: { color: '#059669', fontSize: 16, fontWeight: '700' },
     skipButton: {
         width: '100%',
         borderWidth: 1,
@@ -299,7 +327,7 @@ const getStyles = (theme: any) => StyleSheet.create({
         alignItems: 'center',
         backgroundColor: theme.card,
     },
-    skipText: { fontSize: 15, fontWeight: '600', color: theme.text },
+    skipText: { fontSize: 15, fontWeight: '600', color: '#dc2626' },
     warning: { marginBottom: 20, fontSize: 15, color: theme.error, textAlign: 'center' },
     footer: { marginTop: 28, fontSize: 12, color: theme.secundaryText, textAlign: 'center', lineHeight: 18 },
 });

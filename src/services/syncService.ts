@@ -10,7 +10,25 @@ async function pushUsers() {
     if (user && user.pending_sync) {
         try {
             const userRef = doc(db, 'users', user.id);
-            await setDoc(userRef, { ...user, updated_at: new Date().toISOString() }, { merge: true });
+            
+            // Mapeia os campos do SQLite para o formato do Firestore
+            const firestoreUserData = {
+                id: user.id,
+                full_name: user.name,
+                email: user.email,
+                google_id: user.googleId,
+                onboarding_completed: user.onboardingCompleted,
+                biometric_enabled: user.biometricEnabled,
+                weight: user.weight,
+                height: user.height,
+                birth_date: user.birthDate,
+                diabetes_condition: user.condition, // Mapeia condition para diabetes_condition
+                restriction: user.restriction,
+                updated_at: new Date().toISOString(),
+                email_verified: user.emailVerified || false
+            };
+            
+            await setDoc(userRef, firestoreUserData, { merge: true });
             await executeTransaction('UPDATE users SET pending_sync = 0 WHERE id = ?', [user.id]);
             console.log('👤 User profile pushed to Firestore');
         } catch (error) {
@@ -76,10 +94,26 @@ async function pullChanges() {
     const userSnapshot = await getDoc(userRef);
 
     if (userSnapshot.exists()) {
-        const remoteUser = userSnapshot.data() as UserProfile;
-        const remoteUpdatedAt = remoteUser.updated_at ? new Date(remoteUser.updated_at).getTime() : 0;
+        const firestoreData = userSnapshot.data();
+        const remoteUpdatedAt = firestoreData.updated_at ? new Date(firestoreData.updated_at).getTime() : 0;
         if (remoteUpdatedAt > lastPulledAt) {
-            await saveOrUpdateUser(remoteUser as any);
+            // Mapeia os campos do Firestore para o formato do SQLite
+            const userProfile: UserProfile = {
+                id: firestoreData.id,
+                name: firestoreData.full_name,
+                email: firestoreData.email,
+                googleId: firestoreData.google_id,
+                onboardingCompleted: firestoreData.onboarding_completed,
+                biometricEnabled: firestoreData.biometric_enabled,
+                weight: firestoreData.weight,
+                height: firestoreData.height,
+                birthDate: firestoreData.birth_date,
+                condition: firestoreData.diabetes_condition, // Mapeia diabetes_condition para condition
+                restriction: firestoreData.restriction,
+                emailVerified: firestoreData.email_verified || false
+            };
+            
+            await saveOrUpdateUser(userProfile);
             console.log('👤 User profile pulled from Firestore');
         }
     }

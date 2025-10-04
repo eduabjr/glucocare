@@ -13,13 +13,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 // Importações do projeto
 import { useAuth } from '../context/AuthContext';
 import { OnboardingStackParamList } from '../navigation/RootNavigator';
 import { saveOrUpdateUser, UserProfile, initDB } from '../services/dbService';
+import { syncOfflineData } from '../services/syncService';
 import { ThemeContext } from '../context/ThemeContext';
 
 // Tipagem da tela
@@ -162,6 +164,9 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
         try {
             await saveOrUpdateUser(updatedProfileData);
             setUser(updatedProfileData);
+            
+            // Sincroniza dados com o Firestore
+            await syncOfflineData();
 
             // Verifica se está no onboarding ou na edição do perfil
             if (!user.onboardingCompleted) {
@@ -169,7 +174,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                 Alert.alert('Sucesso', 'Perfil salvo! Próxima etapa: Biometria.');
                 navigation.replace('BiometricSetup');
             } else {
-                // Está editando o perfil - volta para a tela anterior
+                // Está editando o perfil - volta para a tela anterior (que deve ser o Dashboard)
                 Alert.alert('Sucesso', 'Perfil atualizado com sucesso!');
                 navigation.goBack();
             }
@@ -181,18 +186,28 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
     };
 
     return (
-        <SafeAreaView style={styles.safe}>
+        <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
             <ScrollView contentContainerStyle={styles.container}>
-                <View style={styles.card}>
+                <View style={styles.headerContainer}>
+                    <View style={styles.iconContainer}>
+                        <MaterialCommunityIcons 
+                            name="account-edit" 
+                            size={36} 
+                            color={theme.primary} 
+                        />
+                    </View>
                     <Text style={styles.title}>
                         {user?.onboardingCompleted ? 'Editar Perfil' : 'Complete seu Perfil'}
                     </Text>
                     <Text style={styles.subtitle}>
                         {user?.onboardingCompleted 
-                            ? 'Atualize suas informações para personalizar sua experiência.'
+                            ? 'Atualize suas informações pessoais.'
                             : 'Estas informações nos ajudam a personalizar sua experiência.'
                         }
                     </Text>
+                </View>
+
+                <View style={styles.card}>
 
                     {/* Nome */}
                     <View style={styles.inputWrapper}>
@@ -339,10 +354,17 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                     </View>
 
                     {/* Botão Salvar */}
-                    <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                        <Text style={styles.saveText}>
-                            {user?.onboardingCompleted ? 'Salvar Alterações' : 'Salvar e Continuar'}
-                        </Text>
+                    <TouchableOpacity style={styles.actionButtonWrapper} onPress={handleSave}>
+                        <LinearGradient
+                            colors={['#ecfdf5', '#d1fae5']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.saveButton}
+                        >
+                            <Text style={styles.saveText}>
+                                {user?.onboardingCompleted ? 'Salvar Alterações' : 'Salvar e Continuar'}
+                            </Text>
+                        </LinearGradient>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -353,83 +375,96 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
 // Estilos
 const getStyles = (theme: any) => StyleSheet.create({
     safe: { flex: 1, backgroundColor: theme.background },
-    container: { flexGrow: 1, padding: 20 },
+    container: { flexGrow: 1, padding: 20, paddingTop: 8 },
+    headerContainer: {
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    iconContainer: {
+        backgroundColor: theme.primary + '20',
+        borderRadius: 30,
+        width: 54,
+        height: 54,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 10,
+    },
     card: {
         backgroundColor: theme.card,
-        borderRadius: 16,
-        padding: 24,
+        borderRadius: 15,
+        padding: 18,
         shadowColor: '#000',
         shadowOpacity: 0.08,
         shadowRadius: 8,
         elevation: 4,
     },
     title: {
-        fontSize: 24,
+        fontSize: 21,
         fontWeight: '700',
         textAlign: 'center',
-        marginBottom: 8,
+        marginBottom: 5,
         color: theme.text,
     },
     subtitle: { 
-        fontSize: 15, 
+        fontSize: 14, 
         textAlign: 'center', 
         color: theme.secundaryText, 
-        marginBottom: 24,
-        lineHeight: 20,
+        marginBottom: 18,
+        lineHeight: 19,
     },
     inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
         borderColor: theme.secundaryText,
-        borderRadius: 12,
-        marginBottom: 16,
-        paddingHorizontal: 16,
+        borderRadius: 11,
+        marginBottom: 14,
+        paddingHorizontal: 15,
         backgroundColor: theme.card,
-        minHeight: 50,
+        minHeight: 48,
     },
     rowContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 16,
-        gap: 12,
+        marginBottom: 14,
+        gap: 11,
     },
     halfInputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
         borderColor: theme.secundaryText,
-        borderRadius: 12,
-        paddingHorizontal: 16,
+        borderRadius: 11,
+        paddingHorizontal: 15,
         backgroundColor: theme.card,
         flex: 1,
-        minHeight: 50,
+        minHeight: 48,
     },
-    inputIcon: { marginRight: 12 },
-    input: { flex: 1, fontSize: 16, paddingVertical: 12, color: theme.text },
-    calendarIcon: { padding: 4 },
+    inputIcon: { marginRight: 11 },
+    input: { flex: 1, fontSize: 15, paddingVertical: 11, color: theme.text },
+    calendarIcon: { padding: 3 },
     sectionLabel: { 
-        fontSize: 16, 
+        fontSize: 15, 
         fontWeight: '600', 
-        marginBottom: 12, 
-        marginTop: 8,
+        marginBottom: 10, 
+        marginTop: 6,
         color: theme.text 
     },
     restrictionButtonsContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'flex-start',
-        marginBottom: 20,
-        gap: 8,
+        marginBottom: 18,
+        gap: 7,
     },
     restrictionButton: {
-        paddingVertical: 6,
-        paddingHorizontal: 10,
+        paddingVertical: 7,
+        paddingHorizontal: 11,
         borderWidth: 1,
         borderColor: theme.secundaryText,
-        borderRadius: 16,
-        marginRight: 6,
-        marginBottom: 6,
+        borderRadius: 15,
+        marginRight: 5,
+        marginBottom: 5,
         backgroundColor: theme.background,
     },
     restrictionButtonSelected: {
@@ -444,22 +479,28 @@ const getStyles = (theme: any) => StyleSheet.create({
     restrictionButtonTextSelected: {
         color: '#fff',
     },
-    saveButton: {
-        backgroundColor: theme.primary,
-        padding: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-        marginTop: 24,
+    actionButtonWrapper: {
+        marginTop: 18,
+        borderRadius: 11,
+        elevation: 2,
         shadowColor: '#000',
-        shadowOpacity: 0.15,
-        shadowRadius: 6,
-        elevation: 4,
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
     },
-    saveText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+    saveButton: {
+        padding: 15,
+        borderRadius: 11,
+        alignItems: 'center',
+    },
+    saveText: { color: '#059669', fontWeight: '700', fontSize: 15 },
     pickerStyle: {
         flex: 1,
         color: theme.text,
-        height: 36,
+        height: 34,
     },
     pickerItemStyle: {
         fontSize: 14,

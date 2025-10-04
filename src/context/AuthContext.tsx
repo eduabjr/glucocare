@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { onAuthStateChanged, User, signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential, signOut } from 'firebase/auth';
+import { onAuthStateChanged, User, signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential, signOut, reload } from 'firebase/auth';
 import { auth, db } from '../config/firebase'; // ✨ ADICIONADO: Importar 'db' do Firebase
 import { doc, getDoc, setDoc } from 'firebase/firestore'; // ✨ ADICIONADO: Funções do Firestore
 import { initDB } from '../services/dbService'; // ✨ ADICIONADO: Importar initDB
+import AsyncStorage from '@react-native-async-storage/async-storage'; // ✅ NOVO: Para persistir estado
 
 // A sua interface de perfil de utilizador detalhada
 export interface UserProfile {
@@ -32,6 +33,7 @@ interface AuthContextType {
     logout: () => Promise<void>;
     setUser: React.Dispatch<React.SetStateAction<UserProfile | null>>;
     updateBiometricStatus: (enabled: boolean) => Promise<void>; // ✅ NOVA FUNÇÃO
+    refreshUserEmailStatus: () => Promise<boolean | undefined>; // ✅ NOVA FUNÇÃO: Atualiza status do email
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,6 +49,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             try {
                 await initDB();
                 console.log('Database initialized successfully');
+                
+                // ✅ NOVO: Carrega o estado de conta existente do AsyncStorage
+                const savedHasExistingAccount = await AsyncStorage.getItem('hasExistingAccount');
+                if (savedHasExistingAccount !== null) {
+                    setHasExistingAccount(JSON.parse(savedHasExistingAccount));
+                    console.log('📱 Estado de conta existente carregado:', JSON.parse(savedHasExistingAccount));
+                }
                 
                 // 🧪 Teste de conexão com Firestore
                 const { testFirestoreConnection } = await import('../utils/firestoreTest');
@@ -82,16 +91,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                             const userData = userDoc.data();
                             console.log('👤 Dados do usuário carregados:', userData);
                             
-                            // ✅ NOVO: Marca que existe conta cadastrada
+                            // ✅ NOVO: Marca que existe conta cadastrada e salva no AsyncStorage
                             setHasExistingAccount(true);
+                            await AsyncStorage.setItem('hasExistingAccount', JSON.stringify(true));
+                            console.log('💾 Estado de conta existente salvo: true');
                             
-                            // ✅ CORREÇÃO: Verifica se o usuário tem dados básicos para considerar onboarding completo
+                            // ✅ CORREÇÃO: Verifica se o usuário tem dados para considerar onboarding completo
                             const hasBasicInfo = userData?.['full_name'] || userData?.['name'];
                             const hasMedicalInfo = userData?.['diabetes_condition'] || userData?.['condition'];
                             const hasPhysicalInfo = userData?.['weight'] && userData?.['height'];
+                            const explicitOnboardingFlag = userData?.['onboarding_completed'];
                             
-                            // Considera onboarding completo se tem informações básicas e médicas
-                            const isOnboardingComplete = hasBasicInfo && hasMedicalInfo && userData?.['onboarding_completed'] !== false;
+                            // ✅ NOVA LÓGICA CORRIGIDA: Para usuários existentes, assume onboarding completo
+                            // a menos que explicitamente marcado como false
+                            const isOnboardingComplete = 
+                                explicitOnboardingFlag === true || 
+                                (explicitOnboardingFlag !== false && hasBasicInfo);
+                            
+                            console.log('🔍 Debug do onboarding:', {
+                                explicitOnboardingFlag,
+                                hasBasicInfo,
+                                hasMedicalInfo,
+                                hasPhysicalInfo,
+                                isOnboardingComplete,
+                                userDataKeys: Object.keys(userData || {}),
+                                userData: userData
+                            });
                             
                             const userProfile: UserProfile = { 
                                 id: firebaseUser.uid, 
@@ -112,16 +137,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                                 hasBasicInfo,
                                 hasMedicalInfo,
                                 hasPhysicalInfo,
+                                explicitOnboardingFlag,
                                 isOnboardingComplete,
-                                onboardingFromDB: userData?.['onboarding_completed']
+                                userDataKeys: Object.keys(userData || {}),
+                                userData: userData
                             });
+                            
+                            // ✅ NOVA VERIFICAÇÃO: Se o usuário tem informações básicas, assume onboarding completo
+                            if (!isOnboardingComplete && hasBasicInfo) {
+                                console.log('⚠️ Usuário tem informações básicas mas onboarding_completed não está true. Corrigindo...');
+                                // Força o onboarding como completo se tem informações básicas
+                                const correctedProfile = {
+                                    ...userProfile,
+                                    onboardingCompleted: true
+                                };
+                                
+                                // Atualiza no Firestore
+                                try {
+                                    await setDoc(userRef, { 
+                                        onboarding_completed: true,
+                                        updated_at: new Date().toISOString()
+                                    }, { merge: true });
+                                    console.log('✅ Onboarding corrigido no Firestore');
+                                } catch (error) {
+                                    console.error('❌ Erro ao corrigir onboarding no Firestore:', error);
+                                }
+                                
+                                setUser(correctedProfile);
+                                return;
+                            }
                             
                             console.log('🔐 Status da biometria:', userProfile.biometricEnabled);
                             setUser(userProfile);
                         } else {
                             console.log('🆕 Criando novo perfil para usuário');
-                            // ✅ NOVO: Marca que NÃO existe conta cadastrada (primeira vez)
+                            // ✅ NOVO: Marca que NÃO existe conta cadastrada (primeira vez) e salva no AsyncStorage
                             setHasExistingAccount(false);
+                            await AsyncStorage.setItem('hasExistingAccount', JSON.stringify(false));
+                            console.log('💾 Estado de conta existente salvo: false');
                             
                             // Se for um novo utilizador (ex: primeiro login com Google), cria um perfil básico
                             const googleId = firebaseUser.providerData.find(p => p.providerId === 'google.com')?.uid;
@@ -164,8 +217,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 } else {
                     console.log('🚪 Usuário não autenticado');
                     setUser(null);
-                    // ✅ NOVO: Reset do estado de conta existente quando usuário desloga
-                    setHasExistingAccount(false);
+                    // ✅ CORREÇÃO: NÃO resetar hasExistingAccount no logout
+                    // O estado deve persistir para controlar a visibilidade do botão Google
                 }
             } catch (error) {
                 console.error('❌ Erro geral no AuthContext:', error);
@@ -181,7 +234,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsLoading(true);
         try {
             const credential = GoogleAuthProvider.credential(idToken);
-            await signInWithCredential(auth, credential);
+            const result = await signInWithCredential(auth, credential);
+            
+            // ✅ NOVO: Salva credenciais para biometria (se disponível)
+            if (result.user?.email) {
+                try {
+                    const AsyncStorage = require('@react-native-async-storage/async-storage');
+                    await AsyncStorage.setItem('registered_email', result.user.email);
+                    // Para Google, não temos senha, mas marcamos que biometria pode ser usada
+                    await AsyncStorage.setItem('google_login_available', 'true');
+                    console.log('💾 Credenciais Google salvas para biometria');
+                } catch (secureStoreError) {
+                    console.error('❌ Erro ao salvar credenciais Google:', secureStoreError);
+                }
+            }
         } catch (error) {
             console.error("Erro no login com Google (AuthContext):", error);
             setIsLoading(false);
@@ -225,6 +291,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    // ✅ NOVA FUNÇÃO: Atualiza o status de verificação do email
+    const refreshUserEmailStatus = async () => {
+        try {
+            const currentUser = auth.currentUser;
+            if (!currentUser) {
+                console.log('❌ Nenhum usuário autenticado para atualizar status do email');
+                return;
+            }
+
+            // Recarrega os dados do usuário do Firebase para obter o status atualizado
+            await reload(currentUser);
+            
+            console.log('📧 Status do email atualizado:', currentUser.emailVerified);
+            
+            // Atualiza o contexto com o novo status
+            setUser(prev => prev ? { 
+                ...prev, 
+                emailVerified: currentUser.emailVerified 
+            } : null);
+
+            // Salva o status no AsyncStorage para uso local
+            await AsyncStorage.setItem('isEmailVerified', currentUser.emailVerified.toString());
+            
+            return currentUser.emailVerified;
+        } catch (error) {
+            console.error('❌ Erro ao atualizar status do email:', error);
+            throw error;
+        }
+    };
+
     const value = {
         user,
         isLoading,
@@ -234,6 +330,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         logout,
         setUser,
         updateBiometricStatus, // ✅ NOVA FUNÇÃO EXPORTADA
+        refreshUserEmailStatus, // ✅ NOVA FUNÇÃO: Atualiza status do email
     };
 
     return (

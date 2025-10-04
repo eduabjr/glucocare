@@ -25,19 +25,23 @@ export interface UserProfile {
     restriction?: string;
     updated_at?: string;
     pending_sync?: boolean;
+    emailVerified?: boolean;
 }
 
 export interface Reading {
     id: string;
-    measurement_time: string; 
+    user_id?: string;
+    measurement_time?: string; 
     timestamp: number; 
     glucose_level: number;
-    meal_context: string | null;
-    time_since_meal: string | null;
-    notes: string | null;
+    meal_context?: string | null;
+    time_since_meal?: string | null;
+    notes?: string | null;
+    created_at?: string;
     updated_at?: string;
     deleted?: boolean;
     pending_sync?: boolean;
+    ai_confidence?: number;
 }
 
 // ----------------------

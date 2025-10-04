@@ -1,0 +1,23 @@
+RELATÓRIO DE GLICOSE - EXEMPLO PDF
+
+Data: 15/01/2024
+Hora: 08:30
+Glicose: 95 mg/dL
+
+Data: 15/01/2024  
+Hora: 14:00
+Glicose: 120 mg/dL
+
+Data: 16/01/2024
+Hora: 07:45
+Glicose: 88 mg/dL
+
+Data: 16/01/2024
+Hora: 12:30
+Glicose: 135 mg/dL
+
+Data: 16/01/2024
+Hora: 18:00
+Glicose: 105 mg/dL
+
+Observações: Este é um exemplo de como os dados devem aparecer em um PDF para serem importados corretamente.

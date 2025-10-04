@@ -300,7 +300,7 @@ const SettingsScreen: React.FC = () => {
             {/* User Profile Section */}
             <View style={styles.profileSection}>
                 <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{user?.name?.[0] || 'U'}</Text>
+                    <MaterialIcons name="settings" size={32} color="#FFFFFF" />
                 </View>
                 <Text style={styles.profileName}>{user?.name || 'Usuário Não Conectado'}</Text>
                 <Text style={styles.profileEmail}>{user?.email || 'N/A'}</Text>
