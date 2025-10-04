@@ -80,13 +80,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                             const userData = userDoc.data();
                             console.log('👤 Dados do usuário carregados:', userData);
                             
+                            // ✅ CORREÇÃO: Verifica se o usuário tem dados básicos para considerar onboarding completo
+                            const hasBasicInfo = userData?.['full_name'] || userData?.['name'];
+                            const hasMedicalInfo = userData?.['diabetes_condition'] || userData?.['condition'];
+                            const hasPhysicalInfo = userData?.['weight'] && userData?.['height'];
+                            
+                            // Considera onboarding completo se tem informações básicas e médicas
+                            const isOnboardingComplete = hasBasicInfo && hasMedicalInfo && userData?.['onboarding_completed'] !== false;
+                            
                             const userProfile: UserProfile = { 
                                 id: firebaseUser.uid, 
                                 emailVerified: firebaseUser.emailVerified,
                                 name: userData?.['full_name'] || userData?.['name'] || 'Utilizador',
                                 email: userData?.['email'] || firebaseUser.email || '',
                                 googleId: userData?.['google_id'] || userData?.['googleId'] || '',
-                                onboardingCompleted: userData?.['onboarding_completed'] || userData?.['onboardingCompleted'] || false,
+                                onboardingCompleted: isOnboardingComplete,
                                 biometricEnabled: userData?.['biometric_enabled'] || userData?.['biometricEnabled'] || false,
                                 weight: userData?.['weight'] || null,
                                 height: userData?.['height'] || null,
@@ -94,6 +102,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                                 condition: userData?.['diabetes_condition'] || userData?.['condition'] || '',
                                 restriction: userData?.['restriction'] || '',
                             };
+                            
+                            console.log('📋 Status do onboarding:', {
+                                hasBasicInfo,
+                                hasMedicalInfo,
+                                hasPhysicalInfo,
+                                isOnboardingComplete,
+                                onboardingFromDB: userData?.['onboarding_completed']
+                            });
                             
                             console.log('🔐 Status da biometria:', userProfile.biometricEnabled);
                             setUser(userProfile);

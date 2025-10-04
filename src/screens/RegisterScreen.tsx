@@ -286,8 +286,9 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
                 'Sucesso', 
                 'Conta criada com sucesso! Verifique seu e-mail para validar sua conta.'
             );
-            // O usuário navega para a configuração de perfil, mesmo sem confirmar o e-mail, conforme solicitado.
-            navigation.replace('ProfileSetup'); 
+            // ✅ CORREÇÃO: O usuário navega para a configuração de perfil
+            // O RootNavigator irá automaticamente mostrar o OnboardingStack porque onboardingCompleted = false
+            navigation.replace('Auth'); 
         } catch (err: any) {
             console.error('handleRegister - erro:', err);
             // Tratamento melhorado de erros do Firebase

@@ -15,7 +15,6 @@ import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SecureStore from 'expo-secure-store';
 import { ThemeContext } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext';
 
 // CORREÇÃO 1.2: Adicionando tipagem para os props
 interface MessageOverlayProps {
@@ -54,7 +53,7 @@ const WINDOW_HEIGHT = Dimensions.get('window').height;
 type DashboardScreenProps = {
   navigation: { 
     addListener: (event: 'focus', callback: () => void) => () => void;
-    navigate: (screen: string, params?: any) => void;
+    navigate: (screen: string) => void;
   };
 };
 
@@ -62,7 +61,6 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
   const { theme } = useContext(ThemeContext);
   const styles = getStyles(theme);
   const insets = useSafeAreaInsets();
-  const { user } = useAuth(); // ✅ NOVO: Importar dados do usuário do contexto
 
   const [readings, setReadings] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -176,36 +174,12 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
           {item.measurement_time ? new Date(item.measurement_time).toLocaleString() : 'Sem data'}
         </Text>
         {longPressId === item.id && (
-          <View style={styles.actionButtonsContainer}>
-            <TouchableOpacity
-              style={styles.actionButtonWrapper}
-              onPress={() => handleEditReading(item)}
-            >
-              <LinearGradient
-                colors={['#3b82f6', '#1d4ed8']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.actionButton}
-              >
-                <MaterialIcons name="edit" size={16} color="#fff" />
-                <Text style={styles.editButtonText}>Editar</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButtonWrapper}
-              onPress={() => handleDeleteReading(item.id || '')}
-            >
-              <LinearGradient
-                colors={['#ef4444', '#dc2626']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.actionButton}
-              >
-                <MaterialIcons name="delete" size={16} color="#fff" />
-                <Text style={styles.deleteButtonText}>Excluir</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => handleDeleteReading(item.id || '')}
+          >
+            <Text style={styles.deleteButtonText}>Excluir Medição</Text>
+          </TouchableOpacity>
         )}
       </TouchableOpacity>
     );
@@ -227,71 +201,10 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
     }
   };
 
-  const handleEditReading = (item: any) => {
-    setLongPressId(null); // Fecha os botões de ação
-    // Navega para a tela de adicionar medição com os dados preenchidos para edição
-    navigation.navigate('AddReading', { 
-      editMode: true, 
-      readingData: item 
-    });
-  };
-
   const listHeight = WINDOW_HEIGHT - insets.top - insets.bottom - headerHeight - cardsHeight - 120;
-
-  // ✅ NOVO: Calcular dados do perfil
-  const getUserAge = () => {
-    if (!user?.birthDate) return null;
-    const birth = new Date(user.birthDate);
-    if (isNaN(birth.getTime())) return null;
-    const today = new Date();
-    let age = today.getFullYear() - birth.getFullYear();
-    const m = today.getMonth() - birth.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-      age--;
-    }
-    return age;
-  };
-
-  const getIMC = () => {
-    if (!user?.weight || !user?.height) return null;
-    return (user.weight / Math.pow(user.height / 100, 2)).toFixed(1);
-  };
 
   return (
     <SafeAreaView style={[styles.safe, { paddingBottom: insets.bottom + 12 }]} edges={['top', 'bottom']}>
-      {/* ✅ NOVO: Seção de boas-vindas com dados do perfil */}
-      {user && (
-        <View style={styles.welcomeSection}>
-          <Text style={styles.welcomeText}>Olá, {user.name}!</Text>
-          <View style={styles.profileInfoRow}>
-            {getUserAge() && (
-              <View style={styles.profileInfoBox}>
-                <Text style={styles.profileInfoLabel}>Idade</Text>
-                <Text style={styles.profileInfoValue}>{getUserAge()} anos</Text>
-              </View>
-            )}
-            {user.height && (
-              <View style={styles.profileInfoBox}>
-                <Text style={styles.profileInfoLabel}>Altura</Text>
-                <Text style={styles.profileInfoValue}>{user.height} cm</Text>
-              </View>
-            )}
-            {user.weight && (
-              <View style={styles.profileInfoBox}>
-                <Text style={styles.profileInfoLabel}>Peso</Text>
-                <Text style={styles.profileInfoValue}>{user.weight} kg</Text>
-              </View>
-            )}
-            {getIMC() && (
-              <View style={styles.profileInfoBox}>
-                <Text style={styles.profileInfoLabel}>IMC</Text>
-                <Text style={styles.profileInfoValue}>{getIMC()}</Text>
-              </View>
-            )}
-          </View>
-        </View>
-      )}
-
       <View
         style={styles.headerRow}
         onLayout={(e) => {
@@ -395,50 +308,12 @@ const getStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.background,
     paddingHorizontal: 20,
   },
-  // ✅ NOVO: Estilos para seção de boas-vindas
-  welcomeSection: {
-    backgroundColor: theme.card,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    marginTop: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  welcomeText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.text,
-    marginBottom: 12,
-  },
-  profileInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-  },
-  profileInfoBox: {
-    flex: 1,
-    alignItems: 'center',
-    minWidth: 70,
-    marginBottom: 8,
-  },
-  profileInfoLabel: {
-    fontSize: 12,
-    color: theme.secundaryText,
-    marginBottom: 2,
-  },
-  profileInfoValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.text,
-  },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 16,
+    marginTop: 8,
   },
   pageSubtitle: { fontSize: 14, color: theme.secundaryText, maxWidth: 220 },
 
@@ -545,40 +420,16 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontWeight: '600',
   },
 
-  actionButtonsContainer: {
-    flexDirection: 'row',
-    marginTop: 12,
-    gap: 10,
-  },
-  actionButtonWrapper: {
-    flex: 1,
-    borderRadius: 12,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-  },
-  actionButton: {
-    flexDirection: 'row',
+  deleteButton: {
+    marginTop: 10,
+    backgroundColor: theme.error,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    gap: 6,
-  },
-  editButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 13,
   },
   deleteButtonText: {
     color: '#fff',
-    fontWeight: '700',
-    fontSize: 13,
+    fontWeight: '600',
   },
 });
