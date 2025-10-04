@@ -53,7 +53,7 @@ const WINDOW_HEIGHT = Dimensions.get('window').height;
 type DashboardScreenProps = {
   navigation: { 
     addListener: (event: 'focus', callback: () => void) => () => void;
-    navigate: (screen: string) => void;
+    navigate: (screen: string, params?: any) => void;
   };
 };
 
@@ -174,12 +174,36 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
           {item.measurement_time ? new Date(item.measurement_time).toLocaleString() : 'Sem data'}
         </Text>
         {longPressId === item.id && (
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => handleDeleteReading(item.id || '')}
-          >
-            <Text style={styles.deleteButtonText}>Excluir Medição</Text>
-          </TouchableOpacity>
+          <View style={styles.actionButtonsContainer}>
+            <TouchableOpacity
+              style={styles.actionButtonWrapper}
+              onPress={() => handleEditReading(item)}
+            >
+              <LinearGradient
+                colors={['#f0f9ff', '#e0f2fe']}
+                style={styles.actionButton}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <MaterialIcons name="edit" size={16} color="#0369a1" />
+                <Text style={styles.actionButtonText}>Editar</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionButtonWrapper}
+              onPress={() => handleDeleteReading(item.id || '')}
+            >
+              <LinearGradient
+                colors={['#fef2f2', '#fee2e2']}
+                style={styles.actionButton}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <MaterialIcons name="delete" size={16} color="#dc2626" />
+                <Text style={styles.actionButtonText}>Excluir</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         )}
       </TouchableOpacity>
     );
@@ -187,6 +211,11 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
 
   const handleLongPress = (id: string) => {
     setLongPressId((currentId) => (currentId === id ? null : id));
+  };
+
+  const handleEditReading = (reading: any) => {
+    navigation.navigate('AddReading', { readingToEdit: reading });
+    setLongPressId(null); // Fecha os botões de ação
   };
 
   const handleDeleteReading = async (id: string) => {
@@ -418,6 +447,39 @@ const getStyles = (theme: any) => StyleSheet.create({
   closeButtonText: {
     color: '#fff',
     fontWeight: '600',
+  },
+
+  // ✅ NOVO: Estilos para botões de ação
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    marginTop: 12,
+    gap: 8,
+  },
+  actionButtonWrapper: {
+    flex: 1,
+    borderRadius: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    gap: 6,
+  },
+  actionButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.text,
   },
 
   deleteButton: {
