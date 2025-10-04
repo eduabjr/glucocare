@@ -178,16 +178,32 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
         {longPressId === item.id && (
           <View style={styles.actionButtonsContainer}>
             <TouchableOpacity
-              style={[styles.actionButton, styles.editButton]}
+              style={styles.actionButtonWrapper}
               onPress={() => handleEditReading(item)}
             >
-              <Text style={styles.editButtonText}>Editar</Text>
+              <LinearGradient
+                colors={['#3b82f6', '#1d4ed8']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.actionButton}
+              >
+                <MaterialIcons name="edit" size={16} color="#fff" />
+                <Text style={styles.editButtonText}>Editar</Text>
+              </LinearGradient>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.actionButton, styles.deleteButton]}
+              style={styles.actionButtonWrapper}
               onPress={() => handleDeleteReading(item.id || '')}
             >
-              <Text style={styles.deleteButtonText}>Excluir</Text>
+              <LinearGradient
+                colors={['#ef4444', '#dc2626']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.actionButton}
+              >
+                <MaterialIcons name="delete" size={16} color="#fff" />
+                <Text style={styles.deleteButtonText}>Excluir</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         )}
@@ -531,30 +547,38 @@ const getStyles = (theme: any) => StyleSheet.create({
 
   actionButtonsContainer: {
     flexDirection: 'row',
-    marginTop: 10,
-    gap: 8,
+    marginTop: 12,
+    gap: 10,
+  },
+  actionButtonWrapper: {
+    flex: 1,
+    borderRadius: 12,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
   },
   actionButton: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  editButton: {
-    backgroundColor: theme.primary,
-  },
-  deleteButton: {
-    backgroundColor: theme.error,
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 6,
   },
   editButtonText: {
     color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
+    fontWeight: '700',
+    fontSize: 13,
   },
   deleteButtonText: {
     color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
+    fontWeight: '700',
+    fontSize: 13,
   },
 });
