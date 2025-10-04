@@ -216,6 +216,35 @@ export async function listReadings(): Promise<Reading[]> {
 
 
 /**
+ * ✅ NOVO
+ * Atualizar leitura existente no SQLite.
+ */
+export async function updateReading(id: string, reading: Reading): Promise<boolean> {
+    const sql = `UPDATE readings SET 
+        measurement_time = ?, 
+        glucose_level = ?, 
+        meal_context = ?, 
+        time_since_meal = ?, 
+        notes = ?, 
+        updated_at = ?, 
+        pending_sync = 1 
+        WHERE id = ?`;
+    const updated_at = new Date().toISOString();
+    const params = [
+        reading.measurement_time,
+        reading.glucose_level,
+        reading.meal_context,
+        reading.time_since_meal,
+        reading.notes,
+        updated_at,
+        id
+    ];
+    
+    const result = await executeTransaction(sql, params);
+    return result.rowsAffected > 0;
+}
+
+/**
  * ✅ CORREÇÃO CRÍTICA
  * Excluir leitura por ID no SQLite e sincroniza a exclusão com o Firestore.
  */

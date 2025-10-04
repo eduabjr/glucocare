@@ -1,4 +1,4 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,24 +15,46 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { Picker } from '@react-native-picker/picker';
 import { v4 as uuidv4 } from 'uuid';
 
-import { addReading } from '../services/dbService';
+import { addReading, updateReading } from '../services/dbService';
 import { ThemeContext } from '../context/ThemeContext';
 
 type MealContext = '' | 'jejum' | 'pre-refeicao' | 'pos-refeicao' | 'antes-dormir' | 'madrugada';
 
 type AddReadingScreenProps = {
-  navigation: { goBack: () => void }; // Tipagem do navigation
+  navigation: { 
+    goBack: () => void;
+    getParam?: (param: string) => any;
+  };
+  route?: {
+    params?: {
+      readingToEdit?: any;
+    };
+  };
 };
 
-export default function AddReadingScreen({ navigation }: AddReadingScreenProps) {
+export default function AddReadingScreen({ navigation, route }: AddReadingScreenProps) {
   const { theme } = useContext(ThemeContext);
   const styles = getStyles(theme);
+
+  // ✅ NOVO: Detecta se está editando uma medição
+  const readingToEdit = route?.params?.readingToEdit;
+  const isEditing = !!readingToEdit;
 
   const [glucose, setGlucose] = useState<string>('');
   const [date, setDate] = useState<Date>(new Date());
   const [showDate, setShowDate] = useState<boolean>(false);
   const [mealContext, setMealContext] = useState<MealContext>('');
   const [notes, setNotes] = useState<string>('');
+
+  // ✅ NOVO: Carrega dados da medição para edição
+  useEffect(() => {
+    if (isEditing && readingToEdit) {
+      setGlucose(String(readingToEdit.glucose_level || ''));
+      setDate(readingToEdit.measurement_time ? new Date(readingToEdit.measurement_time) : new Date());
+      setMealContext(readingToEdit.meal_context || '');
+      setNotes(readingToEdit.notes || '');
+    }
+  }, [isEditing, readingToEdit]);
 
   const resetForm = () => {
     setGlucose('');
@@ -59,16 +81,15 @@ export default function AddReadingScreen({ navigation }: AddReadingScreenProps) 
         return;
       }
 
-      // Gera UUID com fallback
-      let id: string;
-      try {
-        id = uuidv4();
-      } catch {
-        id = `id-${Date.now()}`;
-      }
-
       const reading = {
-        id,
+        id: isEditing ? readingToEdit.id : (() => {
+          // Gera UUID com fallback apenas para novas medições
+          try {
+            return uuidv4();
+          } catch {
+            return `id-${Date.now()}`;
+          }
+        })(),
         measurement_time: date.toISOString(),
         glucose_level: n,
         meal_context: mealContext,
@@ -77,15 +98,20 @@ export default function AddReadingScreen({ navigation }: AddReadingScreenProps) 
         timestamp: date.getTime(), 
       };
 
-      // 🔹 Salva no SQLite
-      await addReading(reading as any);
+      // ✅ NOVO: Salva ou atualiza conforme o modo
+      if (isEditing) {
+        await updateReading(readingToEdit.id, reading as any);
+        Alert.alert('Sucesso', 'Medição atualizada com sucesso!');
+      } else {
+        await addReading(reading as any);
+        Alert.alert('Sucesso', 'Medição salva com sucesso!');
+      }
 
-      Alert.alert('Sucesso', 'Medição salva com sucesso!');
       resetForm();
       navigation.goBack();
     } catch (err) {
       console.error('handleSave AddReading - erro:', err);
-      Alert.alert('Erro', 'Falha inesperada ao salvar medição.');
+      Alert.alert('Erro', `Falha inesperada ao ${isEditing ? 'atualizar' : 'salvar'} medição.`);
     }
   };
 
@@ -101,8 +127,10 @@ export default function AddReadingScreen({ navigation }: AddReadingScreenProps) 
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Nova Medição</Text>
-      <Text style={styles.subtitle}>Registre sua medição para acompanhamento</Text>
+      <Text style={styles.title}>{isEditing ? 'Editar Medição' : 'Nova Medição'}</Text>
+      <Text style={styles.subtitle}>
+        {isEditing ? 'Atualize os dados da sua medição' : 'Registre sua medição para acompanhamento'}
+      </Text>
 
       <View style={styles.card}>
         <Text style={styles.label}>Nível de Glicose (mg/dL) *</Text>
@@ -169,7 +197,7 @@ export default function AddReadingScreen({ navigation }: AddReadingScreenProps) 
           style={[styles.button, styles.saveButton]}
           onPress={handleSave}
         >
-          <Text style={styles.saveText}>Salvar Medição</Text>
+          <Text style={styles.saveText}>{isEditing ? 'Atualizar Medição' : 'Salvar Medição'}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
