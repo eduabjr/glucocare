@@ -1,5 +1,5 @@
 import { db } from '../config/firebase';
-import { doc, setDoc, writeBatch, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, setDoc, writeBatch, collection, query, where, getDocs, getDoc } from 'firebase/firestore';
 import { getUser, listReadings, executeTransaction, saveOrUpdateUser, addReading, deleteReading, UserProfile } from './dbService';
 import { getLastPulledAt, setLastPulledAt } from './syncStateService';
 import { Reading } from './dbService';
@@ -72,18 +72,16 @@ async function pullChanges() {
 
     // Pull user profile changes
     const userRef = doc(db, 'users', user.id);
-    const userQuery = query(userRef as any); // a bug in firestore type
-    const userSnapshot = await getDocs(userQuery);
+    // ✅ CORREÇÃO: Para um documento específico, usamos getDoc, não getDocs com query
+    const userSnapshot = await getDoc(userRef);
 
-    if (!userSnapshot.empty) {
-        userSnapshot.forEach(async (doc) => {
-            const remoteUser = doc.data() as UserProfile;
-            const remoteUpdatedAt = remoteUser.updated_at ? new Date(remoteUser.updated_at).getTime() : 0;
-            if (remoteUpdatedAt > lastPulledAt) {
-                await saveOrUpdateUser(remoteUser as any);
-                console.log('👤 User profile pulled from Firestore');
-            }
-        });
+    if (userSnapshot.exists()) {
+        const remoteUser = userSnapshot.data() as UserProfile;
+        const remoteUpdatedAt = remoteUser.updated_at ? new Date(remoteUser.updated_at).getTime() : 0;
+        if (remoteUpdatedAt > lastPulledAt) {
+            await saveOrUpdateUser(remoteUser as any);
+            console.log('👤 User profile pulled from Firestore');
+        }
     }
 
 
