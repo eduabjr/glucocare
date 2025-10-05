@@ -9,13 +9,14 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { listReadings, initDB, deleteReading } from '../services/dbService'; 
 import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
-import { measurementRecommendationService, PatternAnalysis, TimeRecommendation } from '../services/measurementRecommendationService';
+import { measurementRecommendationService, MeasurementPattern } from '../services/measurementRecommendationService';
 
 interface MessageOverlayProps {
   message: string | null;
@@ -73,6 +74,8 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<'success' | 'error'>('success');
   const [longPressId, setLongPressId] = useState<string | null>(null);
+  const [measurementRecommendations, setMeasurementRecommendations] = useState<MeasurementPattern | null>(null);
+  const [analyzingPatterns, setAnalyzingPatterns] = useState(false);
 
   // Cálculo das estatísticas
   const ultima = readings.length > 0 ? readings[0].glucose_level || 0 : 0;
@@ -88,7 +91,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
     : 0;
   const total = readings.length;
 
-  const [patternAnalysis, setPatternAnalysis] = useState<PatternAnalysis | null>(null);
+  const [patternAnalysis, setPatternAnalysis] = useState<any | null>(null);
   const [showRecommendations, setShowRecommendations] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
 
@@ -99,6 +102,36 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
 
   const clearMessage = () => setMessage(null);
 
+  // Função para analisar padrões de medição e gerar recomendações
+  const analyzeMeasurementPatterns = async () => {
+    if (readings.length < 3) {
+      console.log('Poucas medições para análise de padrões');
+      return;
+    }
+
+    setAnalyzingPatterns(true);
+    try {
+      const recommendations = await measurementRecommendationService.generateAndScheduleRecommendations();
+      
+      if (recommendations) {
+        setMeasurementRecommendations(recommendations);
+        console.log('Recomendações geradas:', recommendations);
+        
+        // Mostra mensagem de sucesso se for a primeira análise
+        const hasAnalyzed = await AsyncStorage.getItem('hasAnalyzedPatterns');
+        if (!hasAnalyzed) {
+          showMessage(`Análise concluída! Recomendamos medir às ${recommendations.bestMeasurementTime}`, 'success');
+          await AsyncStorage.setItem('hasAnalyzedPatterns', 'true');
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao analisar padrões:', error);
+      showMessage('Erro ao analisar padrões de medição', 'error');
+    } finally {
+      setAnalyzingPatterns(false);
+    }
+  };
+
   const analyzePatterns = async () => {
     if (readings.length < 3) {
       showMessage('Precisamos de pelo menos 3 medições para gerar recomendações personalizadas.', 'error');
@@ -107,7 +140,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
 
     setAnalyzing(true);
     try {
-      const analysis = await measurementRecommendationService.analyzeMeasurementPatterns(readings);
+      const analysis = await measurementRecommendationService.analyzeMeasurementPatterns();
       setPatternAnalysis(analysis);
       setShowRecommendations(true);
       showMessage('🤖 Recomendações personalizadas geradas com base nas suas medições!', 'success');
@@ -166,6 +199,11 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
         setLoading(true);
         await initDB();
         await loadReadings();
+
+        // Analisa padrões de medição para gerar recomendações
+        if (readings.length >= 3) {
+          analyzeMeasurementPatterns();
+        }
 
         if (!user?.emailVerified) {
           setMessage('Por favor, verifique seu e-mail para ter acesso a todas as funcionalidades!');
@@ -413,7 +451,8 @@ const getStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     gap: 6,
   },
-  addButtonText: { color: '#0369a1', fontWeight: '700', fontSize: 14 },
+  addButtonText: { color: '#0369a1', fontWeight: '700', fontSize: 16 },
+
 
   // Cards de estatísticas
   cardsContainer: {
@@ -448,22 +487,25 @@ const getStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
-  cardLabel: { color: theme.secundaryText, fontSize: 13, marginBottom: 4 },
-  cardValue: { color: theme.text, fontSize: 18, fontWeight: '700' },
-  unit: { fontSize: 13, fontWeight: '400', color: theme.secundaryText },
+  cardLabel: { color: theme.secundaryText, fontSize: 14, marginBottom: 5 },
+  cardValue: { color: theme.text, fontSize: 20, fontWeight: '700' },
+  unit: { fontSize: 14, fontWeight: '400', color: theme.secundaryText },
 
   // Seção de medições recentes (altura fixa para 3 medições)
   recentBox: {
     backgroundColor: theme.card,
     padding: 12,
     marginHorizontal: 20,
-    marginTop: 4,
-    marginBottom: 4, // Aproximado do limite inferior
+    marginTop: 0, // Aumentado significativamente para subir a caixa inteira
+    marginBottom: 0, // Removido para ir até o limite da tela
     borderRadius: 12,
     elevation: 2,
+    flex: 1, // Ocupa todo o espaço disponível
+    borderBottomLeftRadius: 0, // Remove borda inferior esquerda
+    borderBottomRightRadius: 0, // Remove borda inferior direita
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     marginBottom: 8,
     color: theme.text,
@@ -484,14 +526,14 @@ const getStyles = (theme: any) => StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  readingValue: { fontSize: 16, fontWeight: 'bold', color: theme.text },
+  readingValue: { fontSize: 18, fontWeight: 'bold', color: theme.text },
   statusBadge: {
     borderRadius: 12,
     paddingVertical: 4,
     paddingHorizontal: 10,
   },
-  readingStatus: { fontSize: 13, fontWeight: '700' },
-  readingDate: { fontSize: 11, color: theme.secundaryText, marginTop: 2 },
+  readingStatus: { fontSize: 14, fontWeight: '700' },
+  readingDate: { fontSize: 12, color: theme.secundaryText, marginTop: 2 },
 
   modalOverlay: {
     flex: 1,

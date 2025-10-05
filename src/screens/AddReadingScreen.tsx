@@ -217,7 +217,7 @@ export default function AddReadingScreen({ navigation, route }: AddReadingScreen
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionButtonWrapper} onPress={handleSave}>
             <LinearGradient
-              colors={['#ecfdf5', '#d1fae5']}
+              colors={['#2563eb', '#1d4ed8']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.button}
@@ -324,5 +324,5 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
 
   cancelText: { color: '#dc2626', fontWeight: '600', fontSize: 14 },
-  saveText: { color: '#059669', fontWeight: '600', fontSize: 14 },
+  saveText: { color: '#ffffff', fontWeight: '600', fontSize: 14 },
 });

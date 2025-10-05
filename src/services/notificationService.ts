@@ -10,6 +10,13 @@ export interface NotificationData {
   data?: any;
 }
 
+export interface ScheduleNotificationData extends NotificationData {
+  trigger?: {
+    date?: Date;
+    seconds?: number;
+  };
+}
+
 class NotificationService {
   
   // Solicitar permissões para notificações (temporário - sempre true)
@@ -33,6 +40,35 @@ class NotificationService {
       console.log('Notificação enviada:', title);
     } catch (error) {
       console.error('Erro ao enviar notificação:', error);
+    }
+  }
+
+  // Agendar notificação local (temporário - simula agendamento)
+  async scheduleLocalNotification(notification: ScheduleNotificationData): Promise<void> {
+    try {
+      console.log('Agendando notificação:', notification.title);
+      console.log('Para:', notification.trigger?.date || 'Imediatamente');
+      
+      // Simula agendamento - em produção usaria expo-notifications
+      if (notification.trigger?.date) {
+        const now = new Date();
+        const triggerDate = notification.trigger.date;
+        
+        if (triggerDate > now) {
+          console.log(`Notificação agendada para ${triggerDate.toLocaleString()}`);
+          // Em produção, aqui usaria expo-notifications para agendar
+          // Por enquanto, apenas loga a informação
+        } else {
+          // Se a data já passou, envia imediatamente
+          await this.sendLocalNotification(notification.title, notification.body, notification.data);
+        }
+      } else {
+        // Envia imediatamente se não há trigger
+        await this.sendLocalNotification(notification.title, notification.body, notification.data);
+      }
+    } catch (error) {
+      console.error('Erro ao agendar notificação:', error);
+      throw error;
     }
   }
 
