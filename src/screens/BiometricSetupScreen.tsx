@@ -62,6 +62,15 @@ export default function BiometricSetupScreen({ navigation: _navigation }: Biomet
             // ✅ CORREÇÃO: Salva o perfil atualizado no SecureStore
             await SecureStore.setItemAsync('user_profile', JSON.stringify(completedProfile));
 
+            // ✅ NOVA CORREÇÃO: Salva também no banco SQLite local
+            try {
+                const { saveOrUpdateUser } = await import('../services/dbService');
+                await saveOrUpdateUser(completedProfile);
+                console.log('✅ Perfil salvo no banco SQLite local');
+            } catch (dbError) {
+                console.error('❌ Erro ao salvar perfil no banco local:', dbError);
+            }
+
             // ✅ CORREÇÃO: Sincroniza com o Firestore
             try {
                 const { doc, setDoc } = await import('firebase/firestore');
@@ -122,6 +131,15 @@ export default function BiometricSetupScreen({ navigation: _navigation }: Biomet
                     };
                     await SecureStore.setItemAsync('user_profile', JSON.stringify(updatedProfile));
                     
+                    // ✅ NOVA CORREÇÃO: Salva também no banco SQLite local
+                    try {
+                        const { saveOrUpdateUser } = await import('../services/dbService');
+                        await saveOrUpdateUser(updatedProfile);
+                        console.log('✅ Perfil com biometria salvo no banco SQLite local');
+                    } catch (dbError) {
+                        console.error('❌ Erro ao salvar perfil com biometria no banco local:', dbError);
+                    }
+                    
                     // ✅ NOVA CORREÇÃO: Atualiza biometria no Firestore
                     await updateBiometricStatus(true);
                 }
@@ -157,6 +175,15 @@ export default function BiometricSetupScreen({ navigation: _navigation }: Biomet
                     pending_sync: true,
                 };
                 await SecureStore.setItemAsync('user_profile', JSON.stringify(updatedProfile));
+                
+                // ✅ NOVA CORREÇÃO: Salva também no banco SQLite local
+                try {
+                    const { saveOrUpdateUser } = await import('../services/dbService');
+                    await saveOrUpdateUser(updatedProfile);
+                    console.log('✅ Perfil com biometria desabilitada salvo no banco SQLite local');
+                } catch (dbError) {
+                    console.error('❌ Erro ao salvar perfil com biometria desabilitada no banco local:', dbError);
+                }
                 
                 // ✅ NOVA CORREÇÃO: Atualiza biometria no Firestore
                 await updateBiometricStatus(false);

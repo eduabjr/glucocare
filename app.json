@@ -20,6 +20,9 @@
       "bundleIdentifier": "com.eduabjr.glucocare",
       "infoPlist": {
         "NSFaceIDUsageDescription": "Allow $(PRODUCT_NAME) to use Face ID",
+        "NSBluetoothAlwaysUsageDescription": "Allow $(PRODUCT_NAME) to connect to glucose meters via Bluetooth",
+        "NSBluetoothPeripheralUsageDescription": "Allow $(PRODUCT_NAME) to connect to glucose meters via Bluetooth",
+        "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to scan for Bluetooth devices",
         "CFBundleDocumentTypes": [
           {
             "CFBundleTypeName": "CSV Files",
@@ -63,7 +66,13 @@
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.USE_BIOMETRIC",
-        "android.permission.USE_FINGERPRINT"
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_SCAN"
       ],
       "intentFilters": [
         {
@@ -171,7 +180,13 @@
       ],
       "expo-local-authentication",
       "expo-font",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to scan for Bluetooth devices."
+        }
+      ]
     ],
     "extra": {
       "eas": {

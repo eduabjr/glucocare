@@ -32,6 +32,7 @@ export type RootStackParamList = {
     Auth: undefined;
     Onboarding: undefined;
     App: undefined;
+    ProfileSetup: undefined; // ✅ NOVO: Modal para acesso posterior ao perfil
 };
 
 // --- Inicialização dos Navegadores ---
@@ -97,6 +98,17 @@ export default function RootNavigator() {
                     // 3. Se HÁ usuário E o onboarding FOI COMPLETO, mostra o app principal (Drawer).
                     <RootStack.Screen name="App" component={DrawerRoutes} />
                 )}
+                
+                {/* ✅ NOVO: Modal para acesso posterior ao perfil */}
+                <RootStack.Screen 
+                    name="ProfileSetup" 
+                    component={ProfileSetupScreen} 
+                    options={{ 
+                        presentation: 'modal',
+                        headerShown: true,
+                        title: 'Editar Perfil'
+                    }} 
+                />
             </RootStack.Navigator>
         </NavigationContainer>
     );

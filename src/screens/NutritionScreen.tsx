@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {
     View,
     Text,
@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { MaterialIcons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 import { ThemeContext } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { aiService, AISuggestions, ExtendedAISuggestions } from "../services/aiService";
@@ -199,7 +200,7 @@ const MealPlanCard = ({ mealPlan, profile, theme }: any) => {
 // ===================================================================================
 export default function NutritionScreen() {
     const { theme } = useContext(ThemeContext);
-    const { user } = useAuth();
+    const { user, refreshUserProfile } = useAuth();
     const styles = getStyles(theme);
 
     const [loading, setLoading] = useState<boolean>(false);
@@ -213,37 +214,86 @@ export default function NutritionScreen() {
         setMessageType(type);
     };
 
-    useEffect(() => {
-                if (user) {
-                    let age: number | undefined = undefined;
-                    if (user.birthDate) {
-                        const birth = new Date(user.birthDate);
-                        if (!isNaN(birth.getTime())) {
-                            const today = new Date();
-                            age = today.getFullYear() - birth.getFullYear();
-                            const m = today.getMonth() - birth.getMonth();
-                            if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-                                age--;
-                            }
-                        }
-                    }
-
-                    const imc =
-                        user.weight && user.height
-                            ? (user.weight / Math.pow(user.height / 100, 2)).toFixed(1)
-                            : null;
-
-                    setProfile({
-                        name: user.name,
-                        condition: user.condition ?? '',
-                        birthDate: user.birthDate ?? '',
-                        height: user.height ?? null,
-                        weight: user.weight ?? null,
-                        restriction: user.restriction ?? '',
-                age,
-                        imc,
-                    });
+    // Função auxiliar para atualizar profile a partir dos dados do usuário
+    const updateProfileFromUser = (userData: any) => {
+        let age: number | undefined = undefined;
+        if (userData.birthDate) {
+            const birth = new Date(userData.birthDate);
+            if (!isNaN(birth.getTime())) {
+                const today = new Date();
+                age = today.getFullYear() - birth.getFullYear();
+                const m = today.getMonth() - birth.getMonth();
+                if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+                    age--;
                 }
+            }
+        }
+
+        const imc =
+            userData.weight && userData.height
+                ? (userData.weight / Math.pow(userData.height / 100, 2)).toFixed(1)
+                : null;
+
+        const profileFromUser = {
+            name: userData.name,
+            condition: userData.condition ?? '',
+            birthDate: userData.birthDate ?? '',
+            height: userData.height ?? null,
+            weight: userData.weight ?? null,
+            restriction: userData.restriction ?? '',
+            age,
+            imc,
+        };
+
+        setProfile(profileFromUser);
+    };
+
+    useEffect(() => {
+        console.log('🔍 NutritionScreen - useEffect executado com user:', user);
+        if (user) {
+            console.log('📊 Dados do usuário recebidos:', {
+                name: user.name,
+                condition: user.condition,
+                birthDate: user.birthDate,
+                height: user.height,
+                weight: user.weight,
+                restriction: user.restriction
+            });
+
+            let age: number | undefined = undefined;
+            if (user.birthDate) {
+                const birth = new Date(user.birthDate);
+                if (!isNaN(birth.getTime())) {
+                    const today = new Date();
+                    age = today.getFullYear() - birth.getFullYear();
+                    const m = today.getMonth() - birth.getMonth();
+                    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+                        age--;
+                    }
+                }
+            }
+
+            const imc =
+                user.weight && user.height
+                    ? (user.weight / Math.pow(user.height / 100, 2)).toFixed(1)
+                    : null;
+
+            const newProfile = {
+                name: user.name,
+                condition: user.condition ?? '',
+                birthDate: user.birthDate ?? '',
+                height: user.height ?? null,
+                weight: user.weight ?? null,
+                restriction: user.restriction ?? '',
+                age,
+                imc,
+            };
+
+            console.log('👤 Profile criado:', newProfile);
+            setProfile(newProfile);
+        } else {
+            console.log('❌ Usuário não encontrado no AuthContext');
+        }
         
         // Define sugestões iniciais para que a tela não fique vazia
         if (!extendedSuggestions) {
@@ -263,6 +313,77 @@ export default function NutritionScreen() {
             updateSuggestions(true);
         }
     }, [user]);
+
+    // Recarrega dados quando a tela recebe foco
+    useFocusEffect(
+        React.useCallback(() => {
+            console.log('🎯 NutritionScreen recebeu foco - recarregando dados');
+            
+            const loadUserData = async () => {
+                try {
+                    // Primeiro tenta recarregar do banco local
+                    const refreshedUser = await refreshUserProfile();
+                    
+                    if (refreshedUser) {
+                        console.log('🔄 Dados atualizados do usuário:', {
+                            name: refreshedUser.name,
+                            condition: refreshedUser.condition,
+                            birthDate: refreshedUser.birthDate,
+                            height: refreshedUser.height,
+                            weight: refreshedUser.weight,
+                            restriction: refreshedUser.restriction
+                        });
+
+                        // Recalcula idade e IMC
+                        let age: number | undefined = undefined;
+                        if (refreshedUser.birthDate) {
+                            const birth = new Date(refreshedUser.birthDate);
+                            if (!isNaN(birth.getTime())) {
+                                const today = new Date();
+                                age = today.getFullYear() - birth.getFullYear();
+                                const m = today.getMonth() - birth.getMonth();
+                                if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+                                    age--;
+                                }
+                            }
+                        }
+
+                        const imc =
+                            refreshedUser.weight && refreshedUser.height
+                                ? (refreshedUser.weight / Math.pow(refreshedUser.height / 100, 2)).toFixed(1)
+                                : null;
+
+                        const refreshedProfile = {
+                            name: refreshedUser.name,
+                            condition: refreshedUser.condition ?? '',
+                            birthDate: refreshedUser.birthDate ?? '',
+                            height: refreshedUser.height ?? null,
+                            weight: refreshedUser.weight ?? null,
+                            restriction: refreshedUser.restriction ?? '',
+                            age,
+                            imc,
+                        };
+
+                        console.log('🔄 Profile atualizado ao receber foco:', refreshedProfile);
+                        setProfile(refreshedProfile);
+                    } else if (user) {
+                        // Fallback: usa dados do contexto se não conseguir recarregar
+                        console.log('⚠️ Usando dados do contexto como fallback');
+                        updateProfileFromUser(user);
+                    }
+                } catch (error) {
+                    console.error('❌ Erro ao recarregar dados do usuário:', error);
+                    // Em caso de erro, usa dados do contexto atual
+                    if (user) {
+                        console.log('🔄 Usando dados do contexto após erro');
+                        updateProfileFromUser(user);
+                    }
+                }
+            };
+            
+            loadUserData();
+        }, [refreshUserProfile, user])
+    );
 
     const updateSuggestions = async (isInitialLoad = false) => {
         if (!user || !profile) {

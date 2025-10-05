@@ -162,11 +162,31 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
         };
 
         try {
+            console.log('💾 Salvando perfil:', updatedProfileData);
             await saveOrUpdateUser(updatedProfileData);
+            console.log('✅ Perfil salvo no banco local');
+            
+            console.log('🔄 Atualizando AuthContext com novos dados');
             setUser(updatedProfileData);
+            console.log('✅ AuthContext atualizado');
+            
+            // ✅ NOVO: Força atualização do perfil em todas as telas
+            try {
+                // Recarrega o perfil do banco local para garantir consistência
+                const { getUser } = await import('../services/dbService');
+                const updatedUser = await getUser();
+                if (updatedUser) {
+                    setUser(updatedUser);
+                    console.log('✅ Perfil atualizado em todas as telas');
+                }
+            } catch (refreshError) {
+                console.error('❌ Erro ao atualizar perfil globalmente:', refreshError);
+            }
             
             // Sincroniza dados com o Firestore
+            console.log('🌐 Sincronizando com Firestore...');
             await syncOfflineData();
+            console.log('✅ Sincronização concluída');
 
             // Verifica se está no onboarding ou na edição do perfil
             if (!user.onboardingCompleted) {
@@ -174,8 +194,9 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                 Alert.alert('Sucesso', 'Perfil salvo! Próxima etapa: Biometria.');
                 navigation.replace('BiometricSetup');
             } else {
-                // Está editando o perfil - volta para a tela anterior (que deve ser o Dashboard)
+                // Está editando o perfil - volta para a tela anterior
                 Alert.alert('Sucesso', 'Perfil atualizado com sucesso!');
+                // ✅ CORREÇÃO: Usa goBack() que funciona tanto no onboarding quanto no drawer
                 navigation.goBack();
             }
 
@@ -230,11 +251,14 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                             placeholder="DD/MM/AAAA"
                             value={birthDateText}
                             placeholderTextColor={theme.secundaryText}
+                            keyboardType="numeric"
                             onChangeText={(text) => {
-                                setBirthDateText(text);
+                                // Remove todos os caracteres que não são números ou barras
+                                const cleanedText = text.replace(/[^\d/]/g, '');
+                                setBirthDateText(cleanedText);
                                 
                                 // Parse da data manual quando completa
-                                const parts = text.split('/');
+                                const parts = cleanedText.split('/');
                                 if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
                                     const day = parseInt(parts[0]);
                                     const month = parseInt(parts[1]) - 1; // JavaScript months are 0-indexed

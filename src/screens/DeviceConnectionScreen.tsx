@@ -8,6 +8,8 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
+  Modal,
+  ScrollView,
 } from "react-native";
 // IMPORTANTE: O tipo 'DocumentPickerResult' não é estritamente necessário aqui,
 // mas 'as any' é usado para contornar problemas de tipagem.
@@ -23,7 +25,11 @@ import { glucoseSyncService, SyncProgress, SyncResult } from "../services/glucos
 import { GlucoseReading } from "../services/bluetoothService";
 import { parseFileForReadings } from "../services/fileParsingService";
 import { useAuth } from '../context/AuthContext';
-import { addReading } from '../services/dbService';
+import { addReading, listReadings, deleteReading } from '../services/dbService';
+import { useReadings } from '../context/ReadingsContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import GitImport from '../components/device/GitImport';
+import { GitImportResult } from '../services/gitImportService';
 // import { linkingService, FileLinkingResult } from "../services/linkingService";
 
 interface ConnectionProps {
@@ -33,6 +39,7 @@ interface ConnectionProps {
 const DeviceConnectionScreen: React.FC<ConnectionProps> = ({ navigation: _navigation }) => {
   const { theme } = useContext(ThemeContext);
   const { user } = useAuth();
+  const { loadReadings, deleteReading: contextDeleteReading } = useReadings();
   const styles = getStyles(theme);
 
   // Estados para sincronização real
@@ -49,6 +56,7 @@ const DeviceConnectionScreen: React.FC<ConnectionProps> = ({ navigation: _naviga
   // Estados para importação de arquivos
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState('');
+  const [showGitImport, setShowGitImport] = useState(false);
   
   // Estado para dispositivo conectado (usado para exibir status)
   const [connectedDevice, setConnectedDevice] = useState<any>(null);
@@ -56,8 +64,125 @@ const DeviceConnectionScreen: React.FC<ConnectionProps> = ({ navigation: _naviga
   // Estado para arquivo compartilhado
   // const [sharedFileResult, setSharedFileResult] = useState<FileLinkingResult | null>(null);
   // const [isProcessingFile, setIsProcessingFile] = useState(false);
+  
+  // Estado para modo de teste
+  const [isTestMode, setIsTestMode] = useState(false);
+  
+  // Estados para modais
+  const [showAllMeasurements, setShowAllMeasurements] = useState(false);
+  const [showDeviceInfo, setShowDeviceInfo] = useState(false);
+  
+  // Estado para controlar atualização do ícone de conexão
+  const [connectionStatus, setConnectionStatus] = useState(false);
+  
+  // Estados para popup e animação
+  const [showDataPopup, setShowDataPopup] = useState(false);
+  const [dataPopupMessage, setDataPopupMessage] = useState('');
+  const [isInfoButtonBlinking, setIsInfoButtonBlinking] = useState(false);
+  
+  // Estado para notificação de primeira visita
+  const [showFirstTimeNotification, setShowFirstTimeNotification] = useState(false);
+
+  // Função para fazer o InfoButton piscar
+  const blinkInfoButton = () => {
+    setIsInfoButtonBlinking(true);
+    setTimeout(() => {
+      setIsInfoButtonBlinking(false);
+    }, 3000); // Pisca por 3 segundos
+  };
+
+  // Função para mostrar popup de dados capturados
+  const showDataCapturedPopup = (count: number) => {
+    setDataPopupMessage(`${count} dados foram capturados com sucesso!`);
+    setShowDataPopup(true);
+    blinkInfoButton();
+    
+    // Fecha o popup automaticamente após 3 segundos
+    setTimeout(() => {
+      setShowDataPopup(false);
+    }, 3000);
+  };
+
+  // Função para verificar se é a primeira visita
+  const checkFirstTimeVisit = async () => {
+    try {
+      const hasVisited = await AsyncStorage.getItem('DeviceConnectionScreen_visited');
+      if (!hasVisited) {
+        // É a primeira visita
+        setShowFirstTimeNotification(true);
+        // Marca como visitado
+        await AsyncStorage.setItem('DeviceConnectionScreen_visited', 'true');
+      }
+    } catch (error) {
+      console.error('Erro ao verificar primeira visita:', error);
+    }
+  };
+
+  // Função para fechar a notificação de primeira visita
+  const closeFirstTimeNotification = () => {
+    setShowFirstTimeNotification(false);
+  };
+
+  // Função para simular leituras de teste
+  const generateTestReadings = () => {
+    const testReadings: GlucoseReading[] = [
+      {
+        id: '1',
+        value: 120,
+        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 horas atrás
+        mealContext: 'jejum',
+        deviceName: 'Glicosímetro Teste'
+      },
+      {
+        id: '2',
+        value: 145,
+        timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 horas atrás
+        mealContext: 'pos-refeicao',
+        deviceName: 'Glicosímetro Teste'
+      },
+      {
+        id: '3',
+        value: 98,
+        timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 horas atrás
+        mealContext: 'pre-refeicao',
+        deviceName: 'Glicosímetro Teste'
+      },
+      {
+        id: '4',
+        value: 165,
+        timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000), // 8 horas atrás
+        mealContext: 'pos-refeicao',
+        deviceName: 'Glicosímetro Teste'
+      },
+      {
+        id: '5',
+        value: 110,
+        timestamp: new Date(Date.now() - 10 * 60 * 60 * 1000), // 10 horas atrás
+        mealContext: 'jejum',
+        deviceName: 'Glicosímetro Teste'
+      }
+    ];
+    return testReadings;
+  };
+
+  // Função para ativar/desativar modo de teste
+  const toggleTestMode = () => {
+    console.log('Botão de teste pressionado! Modo atual:', isTestMode);
+    if (isTestMode) {
+      setIsTestMode(false);
+      setRecentReadings([]);
+      console.log('Modo teste DESATIVADO');
+    } else {
+      setIsTestMode(true);
+      setRecentReadings(generateTestReadings());
+      console.log('Modo teste ATIVADO - Leituras de teste adicionadas:', generateTestReadings().length);
+    }
+  };
 
   useEffect(() => {
+    // Verifica se é a primeira visita
+    checkFirstTimeVisit();
+
     // Configura callback de progresso do serviço de sincronização
     glucoseSyncService.setProgressCallback((progress) => {
       setSyncProgress(progress);
@@ -68,6 +193,21 @@ const DeviceConnectionScreen: React.FC<ConnectionProps> = ({ navigation: _naviga
         setIsSyncing(false);
       }
     });
+
+    // Verifica status de conexão periodicamente
+    const checkConnectionStatus = () => {
+      const isConnected = glucoseSyncService.isBluetoothConnected();
+      console.log('Status de conexão Bluetooth:', isConnected);
+      setConnectionStatus(isConnected);
+    };
+
+    // Verifica imediatamente
+    checkConnectionStatus();
+
+    // Verifica a cada 2 segundos
+    const interval = setInterval(checkConnectionStatus, 2000);
+
+    return () => clearInterval(interval);
 
     // Verifica se há arquivo compartilhado para processar
     // checkForSharedFile();
@@ -173,13 +313,21 @@ const DeviceConnectionScreen: React.FC<ConnectionProps> = ({ navigation: _naviga
 
   // Função para ler dados uma única vez
   const readSingleData = async () => {
-    if (!glucoseSyncService.isBluetoothConnected()) {
+    console.log('Botão "Ler Dados" pressionado');
+    console.log('Status de conexão (estado):', connectionStatus);
+    console.log('Status de conexão (serviço):', glucoseSyncService.isBluetoothConnected());
+    
+    if (!connectionStatus) {
+      console.log('Nenhum dispositivo conectado - mostrando alert');
       Alert.alert("Erro", "Nenhum dispositivo conectado");
       return;
     }
 
     try {
+      console.log('Tentando ler dados do dispositivo...');
       const readings = await glucoseSyncService.readSingleData();
+      console.log('Dados lidos com sucesso:', readings.length, 'leituras');
+      
       setRecentReadings(readings);
       
       Alert.alert(
@@ -204,6 +352,17 @@ const DeviceConnectionScreen: React.FC<ConnectionProps> = ({ navigation: _naviga
 
     return () => clearInterval(interval);
   }, []);
+
+  const handleGitImportComplete = (result: GitImportResult) => {
+    setShowGitImport(false);
+    if (result.success) {
+      loadReadings(); // Recarrega as leituras
+      Alert.alert(
+        'Importação Concluída',
+        `${result.metadata.validRows} leituras foram importadas com sucesso do Git.`
+      );
+    }
+  };
 
   const handleFileImport = async () => {
     if (!user?.id) {
@@ -316,44 +475,47 @@ const DeviceConnectionScreen: React.FC<ConnectionProps> = ({ navigation: _naviga
           <Text style={styles.cardTitle}>Conexão Bluetooth</Text>
           <TouchableOpacity
             style={styles.infoButton}
-            onPress={() => {
-              Alert.alert(
-                "Aparelhos Suportados",
-                "• Accu-Chek Guide\n• OneTouch Verio\n• FreeStyle Libre",
-                [{ text: "OK" }]
-              );
-            }}
+            onPress={() => setShowDeviceInfo(true)}
           >
             <MaterialIcons name="info-outline" size={20} color={theme.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.infoButton,
+              isInfoButtonBlinking && styles.infoButtonBlinking
+            ]}
+            onPress={() => setShowAllMeasurements(true)}
+          >
+            <MaterialCommunityIcons 
+              name="format-list-bulleted" 
+              size={20} 
+              color={isInfoButtonBlinking ? '#ff6b6b' : theme.primary} 
+            />
           </TouchableOpacity>
         </View>
 
         <View style={styles.centerIcon}>
-          <View style={styles.circleIcon}>
-            <MaterialCommunityIcons name="bluetooth" size={40} color={theme.primary} />
+          <View style={[styles.circleIcon, { 
+            backgroundColor: connectionStatus 
+              ? theme.primary + '30' 
+              : theme.secundaryText + '20' 
+          }]}>
+            <MaterialCommunityIcons 
+              name={connectionStatus ? "bluetooth" : "bluetooth-off"} 
+              size={40} 
+              color={connectionStatus ? theme.primary : theme.secundaryText} 
+            />
           </View>
-        </View>
-
-        <View
-          style={[ 
-            styles.statusBox,
-            { backgroundColor: connectedDevice ? theme.accent + '20' : theme.background },
-          ]}
-        >
-          <MaterialCommunityIcons
-            name={connectedDevice ? "check-circle" : "wifi-off"}
-            size={18}
-            color={connectedDevice ? theme.accent : theme.secundaryText}
-          />
-          <Text
-            style={[ 
-              styles.statusText,
-              { color: connectedDevice ? theme.accent : theme.secundaryText },
-            ]}
-          >
-            {connectedDevice ? connectedDevice.name : "Desconectado"}
+          {/* Debug info */}
+          <Text style={{ fontSize: 12, color: theme.secundaryText, marginTop: 4 }}>
+            Status: {connectionStatus ? 'Conectado' : 'Desconectado'}
           </Text>
         </View>
+
+
+
+
+
 
         {/* Botão de Sincronização Automática */}
         <TouchableOpacity
@@ -362,7 +524,7 @@ const DeviceConnectionScreen: React.FC<ConnectionProps> = ({ navigation: _naviga
           disabled={false}
         >
           <LinearGradient
-            colors={isSyncing ? ['#fef2f2', '#fee2e2'] : ['#ecfdf5', '#d1fae5']}
+            colors={isSyncing ? ['#fef2f2', '#fee2e2'] : ['#1e3a8a', '#1e40af']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.gradientButton}
@@ -373,10 +535,10 @@ const DeviceConnectionScreen: React.FC<ConnectionProps> = ({ navigation: _naviga
               <MaterialCommunityIcons 
                 name={isSyncing ? "stop" : "bluetooth"} 
                 size={18} 
-                color="#059669" 
+                color="#ffffff" 
               />
             )}
-            <Text style={styles.buttonText}>
+            <Text style={[styles.buttonText, { color: isSyncing ? theme.text : '#ffffff' }]}>
               {isSyncing ? "Parar Sincronização" : "Sincronizar Glicosímetro"}
             </Text>
           </LinearGradient>
@@ -434,173 +596,524 @@ const DeviceConnectionScreen: React.FC<ConnectionProps> = ({ navigation: _naviga
           • Dados são salvos localmente e sincronizados
         </Text>
 
-        {/* Botões Adicionais */}
-        <View style={styles.additionalButtons}>
-          <TouchableOpacity
-            style={[styles.additionalButton, { backgroundColor: theme.card }]}
-            onPress={readSingleData}
-            disabled={!glucoseSyncService.isBluetoothConnected()}
+
+
+        {/* Botões Ler Dados e Limpar */}
+        <View style={styles.mainButtons}>
+          <TouchableOpacity 
+            style={styles.actionButtonWrapper} 
+            onPress={() => {
+              console.log('=== BOTÃO LER DADOS PRESSIONADO ===');
+              console.log('Status de conexão:', connectionStatus ? 'Conectado' : 'Desconectado');
+              
+              if (connectionStatus) {
+                // Simular dados lidos do Bluetooth
+                const simulatedReadings = [
+                  {
+                    id: 'bt-read-1',
+                    value: 125,
+                    timestamp: new Date(),
+                    mealContext: 'jejum' as const,
+                    deviceName: 'Glicosímetro Bluetooth'
+                  },
+                  {
+                    id: 'bt-read-2',
+                    value: 155,
+                    timestamp: new Date(Date.now() - 30 * 60 * 1000),
+                    mealContext: 'pos-refeicao' as const,
+                    deviceName: 'Glicosímetro Bluetooth'
+                  }
+                ];
+                
+                // Salvar dados no banco de dados
+                const saveReadingsToDB = async () => {
+                  try {
+                    let savedCount = 0;
+                    for (const reading of simulatedReadings) {
+                      const dbReading = {
+                        id: reading.id,
+                        glucose_level: reading.value,
+                        timestamp: reading.timestamp.getTime(),
+                        measurement_time: reading.timestamp.toISOString(),
+                        meal_context: reading.mealContext,
+                        time_since_meal: null,
+                        notes: `Importado via Bluetooth - ${reading.deviceName}`
+                      };
+                      
+                      console.log('Salvando leitura no DB:', dbReading);
+                      await addReading(dbReading);
+                      savedCount++;
+                    }
+                    
+                    console.log(`${savedCount} leituras salvas no banco de dados com sucesso!`);
+                    return savedCount;
+                  } catch (error) {
+                    console.error('Erro ao salvar leituras no banco:', error);
+                    return 0;
+                  }
+                };
+
+                // Executar salvamento e atualizar UI
+                saveReadingsToDB().then(async (savedCount) => {
+                  if (savedCount > 0) {
+                    setRecentReadings(simulatedReadings);
+                    console.log('Dados salvos e exibidos:', savedCount, 'leituras');
+                    
+                    // Atualizar contexto para que outras telas vejam os novos dados
+                    try {
+                      await loadReadings();
+                      console.log('Contexto de leituras atualizado com sucesso');
+                    } catch (error) {
+                      console.error('Erro ao atualizar contexto:', error);
+                    }
+                    
+                    // Mostra popup e faz InfoButton piscar
+                    showDataCapturedPopup(savedCount);
+                  } else {
+                    Alert.alert("Erro", "Não foi possível salvar os dados no banco");
+                  }
+                });
+              } else {
+                console.log('Dispositivo não conectado - não é possível ler dados');
+                Alert.alert("Erro", "Dispositivo não conectado");
+              }
+            }}
           >
-            <MaterialCommunityIcons 
-              name="download" 
-              size={16} 
-              color={theme.primary} 
-            />
-            <Text style={[styles.additionalButtonText, { color: theme.primary }]}>
-              Ler Dados
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.additionalButton, { backgroundColor: theme.card }]}
-            onPress={() => setRecentReadings([])}
-            disabled={recentReadings.length === 0}
-          >
-            <MaterialCommunityIcons 
-              name="refresh" 
-              size={16} 
-              color={theme.secundary} 
-            />
-            <Text style={[styles.additionalButtonText, { color: theme.secundary }]}>
-              Limpar
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Feather name="upload" size={20} color={theme.accent} />
-          <Text style={styles.cardTitle}>Importar Arquivo</Text>
-        </View>
-
-        {/* Indicador de Progresso */}
-        {isImporting && importProgress && (
-          <View style={styles.importProgressContainer}>
-            <ActivityIndicator size="small" color={theme.primary} />
-            <Text style={[styles.importProgressText, { color: theme.text }]}>{importProgress}</Text>
-          </View>
-        )}
-
-
-        <TouchableOpacity 
-          style={[
-            styles.uploadBox, 
-            isImporting && styles.uploadBoxDisabled
-          ]} 
-          onPress={handleFileImport}
-          disabled={isImporting}
-        >
-          <View style={styles.uploadIconContainer}>
-            <MaterialCommunityIcons 
-              name={isImporting ? "loading" : "file-upload"} 
-              size={48} 
-              color={isImporting ? theme.secundaryText : theme.accent} 
-            />
-            <View style={styles.uploadIconOverlay}>
+            <LinearGradient
+              colors={['#dbeafe', '#bfdbfe']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.button}
+            >
               <MaterialCommunityIcons 
-                name={isImporting ? "loading" : "plus"} 
-                size={20} 
-                color="#fff" 
+                name="download" 
+                size={16} 
+                color="#2563eb" 
+                style={{ marginRight: 6 }}
               />
-            </View>
-          </View>
-          <Text style={[
-            styles.uploadText,
-            isImporting && styles.uploadTextDisabled
-          ]}>
-            {isImporting ? importProgress : "Arraste seu arquivo aqui ou clique para selecionar"}
-          </Text>
-        </TouchableOpacity>
+              <Text style={styles.readDataText}>Ler Dados</Text>
+            </LinearGradient>
+          </TouchableOpacity>
 
-        <Text style={styles.formats}>
-          Formatos aceitos: CSV (.csv) · Excel (.xlsx) · XML (.xml) · PDF (.pdf)
-        </Text>
-
-        <View style={styles.infoBox}>
-          <Feather name="info" size={16} color={theme.primary} />
-          <Text style={styles.infoText}>
-            Como exportar do seu glicosímetro: conecte o dispositivo no
-            computador e exporte os dados como CSV ou PDF através do software do
-            fabricante.
-          </Text>
+          <TouchableOpacity 
+            style={styles.actionButtonWrapper} 
+            onPress={() => {
+              console.log('=== BOTÃO LIMPAR PRESSIONADO ===');
+              
+              // Mostrar confirmação antes de limpar
+              Alert.alert(
+                "Confirmar Limpeza",
+                "Tem certeza que deseja limpar todas as leituras importadas via Bluetooth? Esta ação não pode ser desfeita.",
+                [
+                  {
+                    text: "Cancelar",
+                    style: "cancel"
+                  },
+                  {
+                    text: "Limpar",
+                    style: "destructive",
+                    onPress: async () => {
+                      try {
+                        console.log('Iniciando limpeza das leituras...');
+                        
+                        // Buscar todas as leituras do banco
+                        const allReadings = await listReadings();
+                        
+                        // Filtrar apenas leituras importadas via Bluetooth
+                        const bluetoothReadings = allReadings.filter(reading => 
+                          reading.notes && reading.notes.includes('Importado via Bluetooth')
+                        );
+                        
+                        console.log(`Encontradas ${bluetoothReadings.length} leituras Bluetooth para remover`);
+                        
+                        if (bluetoothReadings.length === 0) {
+                          Alert.alert("Info", "Nenhuma leitura importada via Bluetooth encontrada para remover.");
+                          return;
+                        }
+                        
+                        // Remover cada leitura do banco
+                        let deletedCount = 0;
+                        for (const reading of bluetoothReadings) {
+                          try {
+                            await contextDeleteReading(reading.id);
+                            deletedCount++;
+                            console.log(`Leitura ${reading.id} removida do banco`);
+                          } catch (error) {
+                            console.error(`Erro ao remover leitura ${reading.id}:`, error);
+                          }
+                        }
+                        
+                        // Limpar estado local
+                        setRecentReadings([]);
+                        
+                        // Atualizar contexto
+                        await loadReadings();
+                        
+                        console.log(`${deletedCount} leituras removidas com sucesso`);
+                        
+                        // Mostrar confirmação
+                        Alert.alert(
+                          "Limpeza Concluída", 
+                          `${deletedCount} leitura(s) importada(s) via Bluetooth foram removidas com sucesso.`
+                        );
+                        
+                      } catch (error) {
+                        console.error('Erro durante a limpeza:', error);
+                        Alert.alert("Erro", "Ocorreu um erro ao limpar as leituras. Tente novamente.");
+                      }
+                    }
+                  }
+                ]
+              );
+            }}
+          >
+            <LinearGradient
+              colors={['#fef2f2', '#fee2e2']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.button}
+            >
+              <MaterialCommunityIcons 
+                name="broom" 
+                size={16} 
+                color="#dc2626" 
+                style={{ marginRight: 6 }}
+              />
+              <Text style={styles.clearText}>Limpar</Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
-
-        {/* Seção para arquivo compartilhado */}
-        {/* {sharedFileResult && (
-          <View style={styles.sharedFileBox}>
-            <View style={styles.sharedFileHeader}>
-              <MaterialCommunityIcons name="file-check" size={20} color={theme.primary} />
-              <Text style={styles.sharedFileTitle}>Arquivo Processado</Text>
-            </View>
-            <Text style={styles.sharedFileName}>{sharedFileResult.fileName}</Text>
-            <Text style={styles.sharedFileInfo}>
-              {sharedFileResult.readings?.length || 0} leituras encontradas
-            </Text>
-            <TouchableOpacity 
-              style={styles.importButton} 
-              onPress={() => importSharedFile(sharedFileResult)}
-            >
-              <Text style={styles.importButtonText}>Importar Leituras</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.cancelButton} 
-              onPress={() => setSharedFileResult(null)}
-            >
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
-            </TouchableOpacity>
-          </View>
-        )} */}
       </View>
-
     </View>
   );
 
-  // Renderiza leituras recentes
-  const renderRecentReading = ({ item }: { item: GlucoseReading }) => (
-    <View style={styles.readingItem}>
-      <View style={styles.readingInfo}>
-        <Text style={styles.readingValue}>{item.value} mg/dL</Text>
-        <Text style={styles.readingTime}>
-          {item.timestamp.toLocaleString('pt-BR')}
-        </Text>
-        {item.deviceName && (
-          <Text style={styles.readingDevice}>{item.deviceName}</Text>
-        )}
+
+  // Renderiza seção de importação de arquivos
+  const renderFileImport = () => (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <Feather name="upload" size={20} color={theme.accent} />
+        <Text style={styles.cardTitle}>Importar Arquivo</Text>
       </View>
-      {item.mealContext && (
-        <View style={styles.mealContextBadge}>
-          <Text style={styles.mealContextText}>{item.mealContext}</Text>
+
+      {/* Indicador de Progresso */}
+      {isImporting && importProgress && (
+        <View style={styles.importProgressContainer}>
+          <ActivityIndicator size="small" color={theme.primary} />
+          <Text style={[styles.importProgressText, { color: theme.text }]}>{importProgress}</Text>
         </View>
       )}
+
+      <TouchableOpacity 
+        style={[
+          styles.uploadBox, 
+          isImporting && styles.uploadBoxDisabled
+        ]} 
+        onPress={handleFileImport}
+        disabled={isImporting}
+      >
+        <View style={styles.uploadIconContainer}>
+          <MaterialCommunityIcons 
+            name={isImporting ? "loading" : "file-upload"} 
+            size={48} 
+            color={isImporting ? theme.secundaryText : theme.accent} 
+          />
+          <View style={styles.uploadIconOverlay}>
+            <MaterialCommunityIcons 
+              name={isImporting ? "loading" : "plus"} 
+              size={20} 
+              color="#fff" 
+            />
+          </View>
+        </View>
+        <Text style={[
+          styles.uploadText,
+          isImporting && styles.uploadTextDisabled
+        ]}>
+          {isImporting ? importProgress : "Arraste seu arquivo aqui ou clique para selecionar"}
+        </Text>
+      </TouchableOpacity>
+
+      <Text style={styles.formats}>
+        Formatos aceitos: CSV (.csv) · Excel (.xlsx) · XML (.xml) · PDF (.pdf)
+      </Text>
+
+      <View style={styles.infoBox}>
+        <Feather name="info" size={16} color={theme.primary} />
+        <Text style={styles.infoText}>
+          Como exportar do seu glicosímetro: conecte o dispositivo no
+          computador e exporte os dados como CSV ou PDF através do software do
+          fabricante.
+        </Text>
+      </View>
+
+      {/* Botão para Importação Git */}
+      <TouchableOpacity 
+        style={styles.gitImportButton}
+        onPress={() => setShowGitImport(true)}
+      >
+        <MaterialIcons name="cloud-download" size={20} color={theme.accent} />
+        <Text style={styles.gitImportButtonText}>Importar do GitHub</Text>
+        <MaterialIcons name="keyboard-arrow-right" size={20} color={theme.secundaryText} />
+      </TouchableOpacity>
     </View>
   );
 
   return (
-    <FlatList
-      data={recentReadings}
-      keyExtractor={(item) => item.id}
-      renderItem={renderRecentReading}
-      ListHeaderComponent={renderHeader}
-      ListEmptyComponent={
-        recentReadings.length === 0 ? (
-          <View style={styles.emptyState}>
-            <MaterialCommunityIcons 
-              name="bluetooth-off" 
-              size={48} 
-              color={theme.secundaryText} 
-            />
-            <Text style={styles.emptyStateText}>
-              Nenhuma leitura encontrada
+    <View style={{ flex: 1 }}>
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 20 }}>
+        {renderHeader()}
+        {renderFileImport()}
+      </ScrollView>
+
+      {/* Modal de Importação Git */}
+      <Modal
+        visible={showGitImport}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>
+              Importar do GitHub
             </Text>
-            <Text style={styles.emptyStateSubtext}>
-              Conecte um glicosímetro para sincronizar dados
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowGitImport(false)}
+            >
+              <MaterialCommunityIcons name="close" size={24} color={theme.text} />
+            </TouchableOpacity>
+          </View>
+          <GitImport onImportComplete={handleGitImportComplete} />
+        </View>
+      </Modal>
+
+      {/* Modal de Informações dos Aparelhos */}
+    <Modal
+      visible={showDeviceInfo}
+      animationType="slide"
+      presentationStyle="pageSheet"
+    >
+      <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+        <View style={styles.modalHeader}>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>
+            Aparelhos Suportados
+          </Text>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setShowDeviceInfo(false)}
+          >
+            <MaterialCommunityIcons name="close" size={24} color={theme.text} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView style={styles.modalContent}>
+          <View style={[styles.deviceCard, { backgroundColor: theme.card }]}>
+            <View style={styles.deviceHeader}>
+              <MaterialCommunityIcons name="hospital-box" size={24} color={theme.primary} />
+              <Text style={[styles.deviceBrand, { color: theme.text }]}>Accu-Chek (Roche)</Text>
+            </View>
+            <Text style={[styles.deviceModels, { color: theme.secundaryText }]}>
+              Guide, Performa, Aviva Connect
             </Text>
           </View>
-        ) : null
-      }
-      style={styles.container}
-    />
+
+          <View style={[styles.deviceCard, { backgroundColor: theme.card }]}>
+            <View style={styles.deviceHeader}>
+              <MaterialCommunityIcons name="hospital-box" size={24} color={theme.primary} />
+              <Text style={[styles.deviceBrand, { color: theme.text }]}>FreeStyle (Abbott)</Text>
+            </View>
+            <Text style={[styles.deviceModels, { color: theme.secundaryText }]}>
+              Libre, Lite, Optium
+            </Text>
+          </View>
+
+          <View style={[styles.deviceCard, { backgroundColor: theme.card }]}>
+            <View style={styles.deviceHeader}>
+              <MaterialCommunityIcons name="hospital-box" size={24} color={theme.primary} />
+              <Text style={[styles.deviceBrand, { color: theme.text }]}>OneTouch (LifeScan)</Text>
+            </View>
+            <Text style={[styles.deviceModels, { color: theme.secundaryText }]}>
+              Verio, Select, Ultra
+            </Text>
+          </View>
+
+          <View style={[styles.deviceCard, { backgroundColor: theme.card }]}>
+            <View style={styles.deviceHeader}>
+              <MaterialCommunityIcons name="hospital-box" size={24} color={theme.primary} />
+              <Text style={[styles.deviceBrand, { color: theme.text }]}>Contour (Bayer)</Text>
+            </View>
+            <Text style={[styles.deviceModels, { color: theme.secundaryText }]}>
+              Next, Plus, One
+            </Text>
+          </View>
+
+          <View style={[styles.deviceCard, { backgroundColor: theme.card }]}>
+            <View style={styles.deviceHeader}>
+              <MaterialCommunityIcons name="hospital-box" size={24} color={theme.primary} />
+              <Text style={[styles.deviceBrand, { color: theme.text }]}>GlucoMen (Menarini)</Text>
+            </View>
+            <Text style={[styles.deviceModels, { color: theme.secundaryText }]}>
+              Areo, Xceed, Day
+            </Text>
+          </View>
+
+          <View style={[styles.deviceCard, { backgroundColor: theme.card }]}>
+            <View style={styles.deviceHeader}>
+              <MaterialCommunityIcons name="hospital-box" size={24} color={theme.primary} />
+              <Text style={[styles.deviceBrand, { color: theme.text }]}>CareSens (i-SENS)</Text>
+            </View>
+            <Text style={[styles.deviceModels, { color: theme.secundaryText }]}>
+              N, Premium, Dual
+            </Text>
+          </View>
+
+          <View style={[styles.deviceCard, { backgroundColor: theme.card }]}>
+            <View style={styles.deviceHeader}>
+              <MaterialCommunityIcons name="hospital-box" size={24} color={theme.primary} />
+              <Text style={[styles.deviceBrand, { color: theme.text }]}>Fora (Fora Care)</Text>
+            </View>
+            <Text style={[styles.deviceModels, { color: theme.secundaryText }]}>
+              TD-4227, TN'G, 6 Connect
+            </Text>
+          </View>
+
+          <View style={[styles.deviceCard, { backgroundColor: theme.card }]}>
+            <View style={styles.deviceHeader}>
+              <MaterialCommunityIcons name="bluetooth" size={24} color={theme.primary} />
+              <Text style={[styles.deviceBrand, { color: theme.text }]}>Outros Aparelhos</Text>
+            </View>
+            <Text style={[styles.deviceModels, { color: theme.secundaryText }]}>
+              Compatíveis com Bluetooth 4.0+
+            </Text>
+          </View>
+        </ScrollView>
+      </View>
+    </Modal>
+
+    {/* Modal de Todas as Medições */}
+    <Modal
+      visible={showAllMeasurements}
+      animationType="slide"
+      presentationStyle="pageSheet"
+    >
+      <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
+        <View style={styles.modalHeader}>
+          <Text style={[styles.modalTitle, { color: theme.text }]}>
+            Todas as Medições Bluetooth
+          </Text>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setShowAllMeasurements(false)}
+          >
+            <MaterialCommunityIcons name="close" size={24} color={theme.text} />
+          </TouchableOpacity>
+        </View>
+
+        <FlatList
+          data={recentReadings}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <View style={[styles.measurementCard, { backgroundColor: theme.card }]}>
+              <View style={styles.measurementHeader}>
+                <Text style={[styles.measurementValue, { color: theme.text }]}>
+                  {item.value} mg/dL
+                </Text>
+                <Text style={[styles.measurementDate, { color: theme.secundaryText }]}>
+                  {item.timestamp.toLocaleDateString('pt-BR')}
+                </Text>
+              </View>
+              <View style={styles.measurementDetails}>
+                <Text style={[styles.measurementTime, { color: theme.secundaryText }]}>
+                  {item.timestamp.toLocaleTimeString('pt-BR', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                </Text>
+                {item.deviceName && (
+                  <Text style={[styles.measurementDevice, { color: theme.primary }]}>
+                    {item.deviceName}
+                  </Text>
+                )}
+                {item.mealContext && (
+                  <View style={styles.mealContextContainer}>
+                    <Text style={[styles.mealContextLabel, { color: theme.secundaryText }]}>
+                      Contexto: {item.mealContext}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyModalState}>
+              <MaterialCommunityIcons 
+                name="bluetooth-off" 
+                size={64} 
+                color={theme.secundaryText} 
+              />
+              <Text style={[styles.emptyModalText, { color: theme.text }]}>
+                Nenhuma medição encontrada
+              </Text>
+              <Text style={[styles.emptyModalSubtext, { color: theme.secundaryText }]}>
+                Conecte um glicosímetro para ver as medições aqui
+              </Text>
+            </View>
+          )}
+          style={styles.modalList}
+        />
+      </View>
+    </Modal>
+
+    {/* Notificação de primeira visita */}
+    {showFirstTimeNotification && (
+      <View style={styles.popupOverlay}>
+        <View style={[styles.popupContainer, { backgroundColor: theme.card }]}>
+          <MaterialCommunityIcons 
+            name="information" 
+            size={32} 
+            color={theme.primary} 
+            style={{ marginBottom: 12 }}
+          />
+          <Text style={[styles.popupTitle, { color: theme.text }]}>
+            Bem-vindo!
+          </Text>
+          <Text style={[styles.popupMessage, { color: theme.secundaryText }]}>
+            Para saber quais aparelhos funcionam com conexão Bluetooth, toque no ícone de informação (i) ao lado do título "Conexão Bluetooth".
+          </Text>
+          <TouchableOpacity
+            style={[styles.popupButton, { backgroundColor: theme.primary }]}
+            onPress={closeFirstTimeNotification}
+          >
+            <Text style={styles.popupButtonText}>Entendi</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    )}
+
+    {/* Popup de dados capturados */}
+    {showDataPopup && (
+      <View style={styles.popupOverlay}>
+        <View style={[styles.popupContainer, { backgroundColor: theme.card }]}>
+          <MaterialCommunityIcons 
+            name="check-circle" 
+            size={32} 
+            color="#059669" 
+            style={{ marginBottom: 12 }}
+          />
+          <Text style={[styles.popupTitle, { color: theme.text }]}>
+            Dados Capturados!
+          </Text>
+          <Text style={[styles.popupMessage, { color: theme.secundaryText }]}>
+            {dataPopupMessage}
+          </Text>
+          <Text style={[styles.popupSubtext, { color: theme.secundaryText }]}>
+            Toque no ícone de lista para ver as medições
+          </Text>
+        </View>
+      </View>
+    )}
+    </View>
   );
 };
 
@@ -617,8 +1130,8 @@ const getStyles = (theme: any) => StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
-  cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12, justifyContent: "space-between" },
-  cardTitle: { fontSize: 16, fontWeight: "600", marginLeft: 8, color: theme.text, flex: 1 },
+  cardHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12, justifyContent: "space-between", gap: 8 },
+  cardTitle: { fontSize: 16, fontWeight: "600", marginLeft: 8, color: theme.text, flex: 1, marginRight: 8 },
   infoButton: {
     padding: 4,
     borderRadius: 16,
@@ -636,18 +1149,9 @@ const getStyles = (theme: any) => StyleSheet.create({
     marginBottom: 10,
   },
 
-  statusBox: {
-    flexDirection: "row",
-    alignSelf: "center",
-    alignItems: "center",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    marginBottom: 14,
-  },
-  statusText: { fontSize: 14, marginLeft: 6 },
 
   actionButtonWrapper: {
+    flex: 1,
     borderRadius: 10,
     elevation: 2,
     shadowColor: '#000',
@@ -657,7 +1161,7 @@ const getStyles = (theme: any) => StyleSheet.create({
       width: 0,
       height: 2,
     },
-    marginBottom: 12,
+    marginHorizontal: 6,
   },
   gradientButton: {
     flexDirection: "row",
@@ -725,6 +1229,24 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   infoText: { flex: 1, marginLeft: 6, fontSize: 12, color: theme.primary },
 
+  gitImportButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: theme.card,
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  gitImportButtonText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: theme.text,
+    flex: 1,
+    marginLeft: 8,
+  },
 
   // Novos estilos para sincronização
   progressContainer: {
@@ -788,48 +1310,6 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Estilos para leituras recentes
-  readingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: theme.card,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  readingInfo: {
-    flex: 1,
-  },
-  readingValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: theme.text,
-    marginBottom: 2,
-  },
-  readingTime: {
-    fontSize: 12,
-    color: theme.secundaryText,
-    marginBottom: 2,
-  },
-  readingDevice: {
-    fontSize: 11,
-    color: theme.primary,
-    fontWeight: '500',
-  },
-  mealContextBadge: {
-    backgroundColor: theme.accent + '20',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  mealContextText: {
-    fontSize: 10,
-    color: theme.accent,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
 
   // Estado vazio
   emptyState: {
@@ -936,6 +1416,259 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   uploadTextDisabled: {
     opacity: 0.7,
+  },
+  
+
+  // Estilos do botão de teste
+  testButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginTop: 20,
+    marginBottom: 16,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  testButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginLeft: 10,
+    textTransform: 'uppercase',
+  },
+
+  // Estilos para botões principais
+  mainButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  mainButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    gap: 8,
+  },
+  mainButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+
+  // Estilos para modais
+  modalContainer: {
+    flex: 1,
+    paddingTop: Platform.OS === 'ios' ? 44 : 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  modalList: {
+    flex: 1,
+    padding: 20,
+  },
+
+  // Estilos para cards de dispositivos
+  deviceCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  deviceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 12,
+  },
+  deviceBrand: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  deviceModels: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+
+  // Estilos para cards de medições
+  measurementCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  measurementHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  measurementValue: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  measurementDate: {
+    fontSize: 12,
+  },
+  measurementDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  measurementTime: {
+    fontSize: 12,
+  },
+  measurementDevice: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  mealContextContainer: {
+    marginTop: 4,
+  },
+  mealContextLabel: {
+    fontSize: 11,
+    fontStyle: 'italic',
+  },
+
+  // Estilos para estado vazio dos modais
+  emptyModalState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyModalText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyModalSubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+
+  // Estilos dos botões (igual ao AddReadingScreen)
+  button: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  readDataText: { 
+    color: '#2563eb', 
+    fontWeight: '600', 
+    fontSize: 14 
+  },
+  clearText: { 
+    color: '#dc2626', 
+    fontWeight: '600', 
+    fontSize: 14 
+  },
+
+  // Estilos para popup
+  popupOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  popupContainer: {
+    padding: 24,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginHorizontal: 32,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  popupTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  popupMessage: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  popupSubtext: {
+    fontSize: 12,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  popupButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    marginTop: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  popupButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  // Estilos para animação do InfoButton
+  infoButtonBlinking: {
+    transform: [{ scale: 1.1 }],
+    backgroundColor: '#ff6b6b20',
   },
 });
 

@@ -34,6 +34,7 @@ interface AuthContextType {
     setUser: React.Dispatch<React.SetStateAction<UserProfile | null>>;
     updateBiometricStatus: (enabled: boolean) => Promise<void>; // ✅ NOVA FUNÇÃO
     refreshUserEmailStatus: () => Promise<boolean | undefined>; // ✅ NOVA FUNÇÃO: Atualiza status do email
+    refreshUserProfile: () => Promise<UserProfile | null>; // ✅ NOVA FUNÇÃO: Recarrega dados do usuário
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -311,12 +312,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 emailVerified: currentUser.emailVerified 
             } : null);
 
+            // Atualiza também no banco local
+            if (user) {
+                const { saveOrUpdateUser } = await import('../services/dbService');
+                const updatedProfile = { ...user, emailVerified: currentUser.emailVerified };
+                await saveOrUpdateUser(updatedProfile);
+                console.log('✅ Status do email atualizado no banco local');
+            }
+
             // Salva o status no AsyncStorage para uso local
             await AsyncStorage.setItem('isEmailVerified', currentUser.emailVerified.toString());
             
             return currentUser.emailVerified;
         } catch (error) {
             console.error('❌ Erro ao atualizar status do email:', error);
+            throw error;
+        }
+    };
+
+    // ✅ NOVA FUNÇÃO: Recarrega dados do usuário do banco local
+    const refreshUserProfile = async () => {
+        try {
+            console.log('🔄 Recarregando dados do usuário do banco local...');
+            const { getUser } = await import('../services/dbService');
+            const localUser = await getUser();
+            
+            if (localUser) {
+                console.log('✅ Dados locais carregados:', localUser);
+                
+                // Garante que o emailVerified seja atualizado também
+                const currentUser = auth.currentUser;
+                if (currentUser) {
+                    await reload(currentUser);
+                    localUser.emailVerified = currentUser.emailVerified;
+                }
+                
+                setUser(localUser);
+                return localUser;
+            } else {
+                console.log('❌ Nenhum usuário encontrado no banco local');
+                return null;
+            }
+        } catch (error) {
+            console.error('❌ Erro ao recarregar dados do usuário:', error);
             throw error;
         }
     };
@@ -331,6 +369,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser,
         updateBiometricStatus, // ✅ NOVA FUNÇÃO EXPORTADA
         refreshUserEmailStatus, // ✅ NOVA FUNÇÃO: Atualiza status do email
+        refreshUserProfile, // ✅ NOVA FUNÇÃO: Recarrega dados do usuário
     };
 
     return (

@@ -42,9 +42,18 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   const [biometricEnabled, setBiometricEnabled] = useState(false);
 
   useEffect(() => {
+    console.log('🔄 LoginScreen - Iniciando verificação de biometria');
     checkBiometricSupport();
     checkBiometricStatus();
   }, []);
+
+  // ✅ NOVO: Verifica status da biometria sempre que o usuário mudar
+  useEffect(() => {
+    if (user) {
+      console.log('👤 Usuário carregado, verificando biometria:', user.biometricEnabled);
+      checkBiometricStatus();
+    }
+  }, [user]);
 
   // ✅ NOVO: Monitora mudanças no user do AuthContext
   useEffect(() => {
@@ -115,7 +124,15 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     try {
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
       const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-      setBiometricSupported(hasHardware && isEnrolled);
+      const isSupported = hasHardware && isEnrolled;
+      
+      console.log('🔍 Verificação de suporte à biometria:', {
+        hasHardware,
+        isEnrolled,
+        isSupported
+      });
+      
+      setBiometricSupported(isSupported);
     } catch (error) {
       console.error('Erro ao verificar suporte à biometria:', error);
       setBiometricSupported(false);
@@ -124,8 +141,23 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
   const checkBiometricStatus = async () => {
     try {
-      const status = await SecureStore.getItemAsync('biometric_enabled');
-      setBiometricEnabled(status === 'true');
+      // Verifica primeiro no SecureStore
+      const secureStoreStatus = await SecureStore.getItemAsync('biometric_enabled');
+      const isEnabledInSecureStore = secureStoreStatus === 'true';
+      
+      // Verifica também no contexto do usuário
+      const isEnabledInContext = user?.biometricEnabled === true;
+      
+      // Biometria está habilitada se estiver em qualquer um dos locais
+      const biometricEnabled = isEnabledInSecureStore || isEnabledInContext;
+      
+      console.log('🔐 Status da biometria:', {
+        secureStore: isEnabledInSecureStore,
+        context: isEnabledInContext,
+        final: biometricEnabled
+      });
+      
+      setBiometricEnabled(biometricEnabled);
     } catch (error) {
       console.error('Erro ao verificar status da biometria:', error);
       setBiometricEnabled(false);
@@ -240,27 +272,23 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
             <Text style={styles.welcomeText}>Bem-vindo ao GlucoCare</Text>
 
-            {/* ✅ NOVO: Botão Google só aparece na primeira vez (quando não há conta existente) */}
-            {!hasExistingAccount && (
-              <>
-                <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin} disabled={anyLoading}>
-                  {googleLoading ? (
-                    <ActivityIndicator size="small" color={theme.text} />
-                  ) : (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                      <AntDesign name="google" size={20} color="#DB4437" style={styles.googleIconInline} />
-                      <Text style={styles.googleButtonText}>Entrar com Google</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-
-                <View style={styles.separator}>
-                  <View style={styles.separatorLine} />
-                  <Text style={styles.separatorText}>OU</Text>
-                  <View style={styles.separatorLine} />
+            {/* ✅ Botão Google sempre disponível para login */}
+            <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin} disabled={anyLoading}>
+              {googleLoading ? (
+                <ActivityIndicator size="small" color={theme.text} />
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                  <AntDesign name="google" size={20} color="#DB4437" style={styles.googleIconInline} />
+                  <Text style={styles.googleButtonText}>Entrar com Google</Text>
                 </View>
-              </>
-            )}
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.separator}>
+              <View style={styles.separatorLine} />
+              <Text style={styles.separatorText}>OU</Text>
+              <View style={styles.separatorLine} />
+            </View>
 
             <View style={styles.inputContainer}>
               <MaterialIcons name="email" size={20} color={theme.secundaryText} style={styles.inputIcon} />
@@ -313,6 +341,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                 <Text style={styles.loginButtonText}>Entrar</Text>
               )}
             </TouchableOpacity>
+
 
             {/* O botão de biometria só aparece se o hardware for compatível E o usuário já tiver ativado o recurso */}
             {biometricSupported && biometricEnabled && (

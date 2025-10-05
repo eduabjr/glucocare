@@ -89,16 +89,52 @@ export async function initDB(): Promise<void> {
                 id TEXT PRIMARY KEY NOT NULL, full_name TEXT, email TEXT, google_id TEXT,
                 onboarding_completed INTEGER DEFAULT 0, biometric_enabled INTEGER DEFAULT 0,
                 weight REAL, height REAL, birth_date TEXT, diabetes_condition TEXT,
-                restriction TEXT, updated_at TEXT, pending_sync INTEGER DEFAULT 0 
+                restriction TEXT, updated_at TEXT, pending_sync INTEGER DEFAULT 0,
+                email_verified INTEGER DEFAULT 0
             );`
         );
         await executeTransaction(
             `CREATE TABLE IF NOT EXISTS readings (
-                id TEXT PRIMARY KEY NOT NULL, measurement_time TEXT, glucose_level REAL,
+                id TEXT PRIMARY KEY NOT NULL, user_id TEXT NOT NULL, measurement_time TEXT, glucose_level REAL,
                 meal_context TEXT, time_since_meal TEXT, notes TEXT, 
-                updated_at TEXT, deleted INTEGER DEFAULT 0, pending_sync INTEGER DEFAULT 0
+                updated_at TEXT, deleted INTEGER DEFAULT 0, pending_sync INTEGER DEFAULT 0,
+                FOREIGN KEY (user_id) REFERENCES users (id)
             );`
         );
+        
+        // Migração: Adicionar coluna email_verified se não existir
+        try {
+            await executeTransaction(`ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0;`);
+            console.log('✅ Coluna email_verified adicionada à tabela users');
+        } catch (migrationError) {
+            // Coluna já existe, não é erro
+            console.log('ℹ️ Coluna email_verified já existe na tabela users');
+        }
+
+        // Migração: Adicionar coluna user_id se não existir
+        try {
+            await executeTransaction(`ALTER TABLE readings ADD COLUMN user_id TEXT;`);
+            console.log('✅ Coluna user_id adicionada à tabela readings');
+            
+            // Para leituras existentes, vincular ao usuário atual se houver
+            try {
+                const { getUser } = await import('./dbService');
+                const currentUser = await getUser();
+                if (currentUser) {
+                    await executeTransaction(
+                        `UPDATE readings SET user_id = ? WHERE user_id IS NULL`,
+                        [currentUser.id]
+                    );
+                    console.log('✅ Leituras existentes vinculadas ao usuário atual');
+                }
+            } catch (userError) {
+                console.log('ℹ️ Nenhum usuário encontrado para vincular leituras existentes');
+            }
+        } catch (migrationError) {
+            // Coluna já existe, não é erro
+            console.log('ℹ️ Coluna user_id já existe na tabela readings');
+        }
+        
         console.log('Banco inicializado com sucesso ✅');
     } catch (error) {
         console.error('initDB - erro:', error);
@@ -124,6 +160,7 @@ function normalizeUserRow(row: any): UserProfile {
         restriction: String(row.restriction ?? ''),
         updated_at: row.updated_at,
         pending_sync: !!row.pending_sync,
+        emailVerified: !!row.email_verified,
     };
 }
 
@@ -131,6 +168,7 @@ function normalizeReadingRow(row: any): Reading {
     const timestamp = row.measurement_time ? new Date(row.measurement_time).getTime() : Date.now();
     return {
         id: row.id,
+        user_id: String(row.user_id ?? ''),
         measurement_time: String(row.measurement_time),
         timestamp: timestamp, 
         glucose_level: row.glucose_level,
@@ -155,7 +193,7 @@ function normalizeReadingRow(row: any): Reading {
  * Salva ou atualiza usuário no SQLite e chama a sincronização.
  */
 export async function saveOrUpdateUser(profile: UserProfile): Promise<UserProfile> {
-    const sql = `INSERT OR REPLACE INTO users (id, full_name, email, google_id, onboarding_completed, biometric_enabled, weight, height, birth_date, diabetes_condition, restriction, updated_at, pending_sync) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
+    const sql = `INSERT OR REPLACE INTO users (id, full_name, email, google_id, onboarding_completed, biometric_enabled, weight, height, birth_date, diabetes_condition, restriction, updated_at, pending_sync, email_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
     const updated_at = new Date().toISOString();
     const params = [ 
         profile.id, 
@@ -170,7 +208,8 @@ export async function saveOrUpdateUser(profile: UserProfile): Promise<UserProfil
         profile.condition, 
         profile.restriction,
         updated_at,
-        1 // pending_sync = true
+        1, // pending_sync = true
+        profile.emailVerified ? 1 : 0 // email_verified
     ];
 
     await executeTransaction(sql, params);
@@ -186,9 +225,9 @@ export async function saveOrUpdateUser(profile: UserProfile): Promise<UserProfil
  * Inserir leitura no SQLite e chama a sincronização.
  */
 export async function addReading(reading: Reading): Promise<boolean> {
-    const sql = `INSERT INTO readings (id, measurement_time, glucose_level, meal_context, time_since_meal, notes, updated_at, pending_sync) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    const sql = `INSERT INTO readings (id, user_id, measurement_time, glucose_level, meal_context, time_since_meal, notes, updated_at, pending_sync) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     const updated_at = new Date().toISOString();
-    const params = [ reading.id, new Date(reading.timestamp).toISOString(), reading.glucose_level, reading.meal_context, reading.time_since_meal, reading.notes, updated_at, 1 ];
+    const params = [ reading.id, reading.user_id, new Date(reading.timestamp).toISOString(), reading.glucose_level, reading.meal_context, reading.time_since_meal, reading.notes, updated_at, 1 ];
 
     await executeTransaction(sql, params);
 
@@ -213,8 +252,18 @@ export async function getUser(): Promise<UserProfile | null> {
  * ✅ REATORADO
  * Listar todas as leituras do SQLite.
  */
-export async function listReadings(): Promise<Reading[]> {
-    const result = await executeTransaction('SELECT * FROM readings WHERE deleted = 0 ORDER BY datetime(measurement_time) DESC;');
+export async function listReadings(userId?: string): Promise<Reading[]> {
+    let sql = 'SELECT * FROM readings WHERE deleted = 0';
+    let params: any[] = [];
+    
+    if (userId) {
+        sql += ' AND user_id = ?';
+        params.push(userId);
+    }
+    
+    sql += ' ORDER BY datetime(measurement_time) DESC;';
+    
+    const result = await executeTransaction(sql, params);
     return result.rows._array.map(normalizeReadingRow);
 }
 

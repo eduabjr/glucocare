@@ -63,6 +63,7 @@ export default function CustomDrawer({ navigation, ...rest }: CustomDrawerProps)
 
           return (
             <DrawerItem
+              key={item.screen}
               label={item.label}
               labelStyle={[styles.label, isLocked && { color: theme.secundaryText }]} // Cor cinza se travado
               icon={({ color, size }) => {

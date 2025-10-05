@@ -1,11 +1,7 @@
-// Em src/navigation/DrawerRoutes.tsx
-
-// Importações necessárias
-import { Platform, StatusBar } from "react-native";
+import { Platform, StatusBar, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { createDrawerNavigator } from "@react-navigation/drawer"; // ✅ Adicione a importação
-
 
 // Telas
 import DashboardScreen from "../screens/DashboardScreen";
@@ -15,7 +11,6 @@ import ChartsScreen from "../screens/ChartsScreen";
 import NutritionScreen from "../screens/NutritionScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import ProfileSetupScreen from "../screens/ProfileSetupScreen";
-import ReportScreen from '../screens/ReportScreen'; // ✅ Importação da nova tela
 
 // Drawer customizado
 import CustomDrawer from "./CustomDrawer";
@@ -30,7 +25,6 @@ export type DrawerParamList = {
     Nutrition: undefined;
     Settings: undefined;
     ProfileSetup: undefined;
-    Report: undefined; // ✅ Adiciona a nova tela
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -43,38 +37,70 @@ type IconName =
     | "show-chart"
     | "restaurant-menu"
     | "settings"
-    | "person"
-    | "description"; // ✅ Adiciona o ícone "description" para a nova tela
+    | "person";
 
 const drawerIcon = (name: IconName) => ({ color, size }: { color: string; size: number }) => (
     <MaterialIcons name={name} color={color} size={size} />
 );
 
 // Função do DrawerNavigator
-function DrawerRoutes() { 
+function DrawerRoutes() {
     const insets = useSafeAreaInsets();
 
     return (
-        <Drawer.Navigator
-            drawerContent={(props) => <CustomDrawer {...props} />} // ✅ Tipagem corrigida
+        <>
+            {/* Retângulo para empurrar o header */}
+            {Platform.OS === 'android' && (StatusBar.currentHeight || 0) > 0 && (
+                <View 
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: StatusBar.currentHeight || 0,
+                        backgroundColor: '#f0f6ff', // Cor do fundo da tela
+                        zIndex: 999,
+                    }}
+                />
+            )}
+            
+            <Drawer.Navigator
+            drawerContent={(props) => <CustomDrawer {...props} />}
             screenOptions={{
+                headerShown: true, // Header agora visível
                 headerStyle: {
-                    backgroundColor: "#2563eb",
-                    elevation: 4,
-                    shadowOpacity: 0.2,
+                    backgroundColor: "#2563eb", // Cor de fundo do cabeçalho
+                    elevation: 0, // Remover a sombra para ficar mais clean
+                    shadowOpacity: 0, // Remover a sombra
+                    height: 100, // Altura ainda maior para mostrar o conteúdo
+                    justifyContent: "center", // Alinha o conteúdo no centro
+                    paddingHorizontal: 16, // Espaçamento para o conteúdo no cabeçalho
+                    marginTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0, // Empurra o header para baixo
                 },
+                headerStatusBarHeight: 0, // Remove offset automático
                 headerTintColor: "#fff",
-                headerTitleStyle: { fontWeight: "700", fontSize: 18 },
-                headerLeft: () => <MenuButton />,
+                headerTitleStyle: { 
+                    fontWeight: "600", 
+                    fontSize: 18, // Reduzido para 18
+                    position: 'absolute', // Posicionamento absoluto
+                    bottom: 14, // Mesma altura que o menu lateral
+                    left: 50, // Mais próximo do menu lateral
+                },
+                headerLeft: () => <MenuButton />, // Ícone de menu
                 drawerActiveBackgroundColor: "#2563eb",
                 drawerActiveTintColor: "#fff",
                 drawerInactiveTintColor: "#333",
-                drawerStyle: { width: 280 },
-                sceneContainerStyle: { 
-                    backgroundColor: "#f0f6ff",
-                    paddingTop: insets.top // Garante que o conteúdo respeite a safe area
+                drawerStyle: { 
+                    width: 280,
+                    backgroundColor: "#f5f7fa",
+                    marginTop: 0,
+                    height: '100%',
                 },
-                headerStatusBarHeight: insets.top, // Configura a altura da status bar
+                sceneContainerStyle: { 
+                    backgroundColor: "#f0f6ff"
+                },
+                drawerType: 'back',
+                overlayColor: 'rgba(0,0,0,0.5)',
             }}
         >
             <Drawer.Screen
@@ -133,16 +159,8 @@ function DrawerRoutes() {
                     drawerIcon: drawerIcon("person"),
                 }}
             />
-            {/* ✅ Adiciona a nova tela */}
-            <Drawer.Screen
-                name="Report"
-                component={ReportScreen}
-                options={{
-                    title: "Relatório de Glicemia",
-                    drawerIcon: drawerIcon("description"), // Use o ícone apropriado
-                }}
-            />
         </Drawer.Navigator>
+        </>
     );
 }
 

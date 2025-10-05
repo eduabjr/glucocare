@@ -10,12 +10,10 @@ export function getReadingStatus(value: number | string): string {
         numericValue = value;
     }
 
-    // Intervalos de valores (mg/dL)
-    if (numericValue < 54) return 'Perigosamente Baixo';
-    if (numericValue >= 54 && numericValue < 70) return 'Baixo';
+    // Intervalos de valores (mg/dL) - Faixa normal: 70-140
+    if (numericValue < 70) return 'Baixo';
     if (numericValue >= 70 && numericValue <= 140) return 'Normal';
-    if (numericValue > 140 && numericValue <= 180) return 'Elevado';
-    if (numericValue > 180) return 'Perigosamente Alto';
+    if (numericValue > 140) return 'Alto';
 
     return 'Indefinido';
 }

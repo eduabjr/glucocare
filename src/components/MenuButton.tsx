@@ -27,7 +27,7 @@ export default function MenuButton() {
         <TouchableOpacity onPress={handlePress} style={styles.touchable}>
             <MaterialIcons 
                 name="menu" 
-                size={28} // Aumentei um pouco para melhor toque
+                size={26}
                 color="#fff" 
             />
         </TouchableOpacity>
@@ -36,7 +36,14 @@ export default function MenuButton() {
 
 const styles = StyleSheet.create({
     touchable: {
-        marginLeft: 16, // Espaçamento padrão para itens de cabeçalho à esquerda
-        padding: 4,     // Área de toque um pouco maior
+        marginLeft: 20,
+        padding: 8,
+        borderRadius: 6,
+        alignItems: 'center',
+        justifyContent: 'center', // Centraliza o ícone
+        width: 40,
+        height: 40,
+        position: 'absolute', // Posicionamento absoluto
+        bottom: 8, // Posiciona na parte inferior do header
     },
 });

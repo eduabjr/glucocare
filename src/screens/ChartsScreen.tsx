@@ -25,6 +25,11 @@ const ChartsScreen: React.FC = () => {
   const [selectedMeasurement, setSelectedMeasurement] = useState<Reading | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
 
+  // Constantes do gráfico para consistência
+  const CHART_HEIGHT = 320;
+  const CHART_MARGIN_LEFT = 50;
+  const CHART_MARGIN_RIGHT = 20;
+
       // Função para obter a faixa ideal baseada na condição do usuário (baseada em diretrizes médicas)
       const getIdealGlucoseRange = (condition?: string) => {
         switch (condition?.toLowerCase()) {
@@ -47,7 +52,7 @@ const ChartsScreen: React.FC = () => {
       };
 
       // Função para calcular a posição correta no gráfico
-      const calculateChartPosition = (value: number, minValue: number, maxValue: number, chartHeight: number = 320, chartTop: number = 0) => {
+      const calculateChartPosition = (value: number, minValue: number, maxValue: number, chartHeight: number = CHART_HEIGHT, chartTop: number = 0) => {
         const range = maxValue - minValue;
         if (range === 0) return chartTop;
         
@@ -228,7 +233,7 @@ const ChartsScreen: React.FC = () => {
               >
         <LineChart
           data={chartData}
-                  height={320}
+                  height={CHART_HEIGHT}
                   width={Math.max(350, chartData.length * 80)} // Largura dinâmica baseada no número de pontos (atualizado)
           // Estilização do gráfico para combinar com o tema
           color1="#2563eb" // Azul primário
@@ -268,7 +273,7 @@ const ChartsScreen: React.FC = () => {
                     // Calcula posição aproximada baseada no índice do ponto
                     const pointIndex = filteredReadings.findIndex(r => r.id === item.measurementData?.id);
                     const chartWidth = Math.max(350, filteredReadings.length * 80); // Largura dinâmica
-                    const chartHeight = 320; // Altura do gráfico
+                    const chartHeight = CHART_HEIGHT; // Altura do gráfico
                     const spacing = 80; // Espaçamento entre pontos (atualizado)
                     const initialSpacing = 30;
                     
@@ -288,7 +293,7 @@ const ChartsScreen: React.FC = () => {
           
           {/* Indicadores visuais sobrepostos */}
           {showAverageLine && (() => {
-            const averagePosition = calculateChartPosition(glucoseStats.average, glucoseStats.minValue, glucoseStats.maxValue, 320, 0);
+            const averagePosition = calculateChartPosition(glucoseStats.average, glucoseStats.minValue, glucoseStats.maxValue, CHART_HEIGHT, 0);
             console.log('📊 Debug Média:', {
               average: glucoseStats.average,
               minValue: glucoseStats.minValue,
@@ -303,14 +308,14 @@ const ChartsScreen: React.FC = () => {
                   {
                     // Cálculo baseado na escala real do gráfico
                     top: averagePosition,
-                    left: 50, // Dentro do gráfico, alinhado com eixo Y
-                    right: 20, // Deixa espaço para não sair do gráfico
+                    left: CHART_MARGIN_LEFT, // Dentro do gráfico, alinhado com eixo Y
+                    right: CHART_MARGIN_RIGHT, // Deixa espaço para não sair do gráfico
                     backgroundColor: '#4CAF50',
                   }
                 ]} />
                 <Text style={[styles.averageLabel, { 
                   top: averagePosition - 15,
-                  left: 55, // Dentro do gráfico, alinhado com eixo Y
+                  left: CHART_MARGIN_LEFT + 5, // Dentro do gráfico, alinhado com eixo Y
                   color: '#4CAF50' 
                 }]}>
                   Média: {glucoseStats.average} mg/dL
@@ -320,8 +325,8 @@ const ChartsScreen: React.FC = () => {
           })()}
           
           {showIdealRange && (() => {
-            const maxPosition = calculateChartPosition(glucoseStats.idealRange.max, glucoseStats.minValue, glucoseStats.maxValue, 320, 0);
-            const minPosition = calculateChartPosition(glucoseStats.idealRange.min, glucoseStats.minValue, glucoseStats.maxValue, 320, 0);
+            const maxPosition = calculateChartPosition(glucoseStats.idealRange.max, glucoseStats.minValue, glucoseStats.maxValue, CHART_HEIGHT, 0);
+            const minPosition = calculateChartPosition(glucoseStats.idealRange.min, glucoseStats.minValue, glucoseStats.maxValue, CHART_HEIGHT, 0);
             console.log('📊 Debug Faixa Ideal:', {
               idealMin: glucoseStats.idealRange.min,
               idealMax: glucoseStats.idealRange.max,
@@ -339,8 +344,8 @@ const ChartsScreen: React.FC = () => {
                   {
                     // Usa a função de cálculo para posicionamento correto
                     top: maxPosition,
-                    left: 50, // Dentro do gráfico, alinhado com eixo Y
-                    right: 20, // Deixa espaço para não sair do gráfico
+                    left: CHART_MARGIN_LEFT, // Dentro do gráfico, alinhado com eixo Y
+                    right: CHART_MARGIN_RIGHT, // Deixa espaço para não sair do gráfico
                     height: Math.abs(minPosition - maxPosition),
                     backgroundColor: 'rgba(255, 152, 0, 0.4)',
                     borderRadius: 4,
@@ -351,8 +356,8 @@ const ChartsScreen: React.FC = () => {
                   {
                     // Linha superior da faixa ideal
                     top: maxPosition,
-                    left: 50, // Dentro do gráfico, alinhado com eixo Y
-                    right: 20, // Deixa espaço para não sair do gráfico
+                    left: CHART_MARGIN_LEFT, // Dentro do gráfico, alinhado com eixo Y
+                    right: CHART_MARGIN_RIGHT, // Deixa espaço para não sair do gráfico
                     height: 2,
                     backgroundColor: '#FF9800',
                   }
@@ -362,15 +367,15 @@ const ChartsScreen: React.FC = () => {
                   {
                     // Linha inferior da faixa ideal
                     top: minPosition,
-                    left: 50, // Dentro do gráfico, alinhado com eixo Y
-                    right: 20, // Deixa espaço para não sair do gráfico
+                    left: CHART_MARGIN_LEFT, // Dentro do gráfico, alinhado com eixo Y
+                    right: CHART_MARGIN_RIGHT, // Deixa espaço para não sair do gráfico
                     height: 2,
                     backgroundColor: '#FF9800',
                   }
                 ]} />
                 <Text style={[styles.rangeLabel, { 
                   top: maxPosition - 20,
-                  left: 55, // Dentro do gráfico, alinhado com eixo Y
+                  left: CHART_MARGIN_LEFT + 5, // Dentro do gráfico, alinhado com eixo Y
                   color: '#FF9800',
                   fontSize: 10,
                   fontWeight: 'bold'
@@ -379,7 +384,7 @@ const ChartsScreen: React.FC = () => {
                 </Text>
                 <Text style={[styles.rangeLabel, { 
                   top: minPosition + 5,
-                  left: 55, // Dentro do gráfico, alinhado com eixo Y
+                  left: CHART_MARGIN_LEFT + 5, // Dentro do gráfico, alinhado com eixo Y
                   color: '#FF9800',
                   fontSize: 10,
                   fontWeight: 'bold'
