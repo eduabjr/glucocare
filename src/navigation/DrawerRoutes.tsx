@@ -10,7 +10,8 @@ import DeviceConnectionScreen from "../screens/DeviceConnectionScreen";
 import ChartsScreen from "../screens/ChartsScreen";
 import NutritionScreen from "../screens/NutritionScreen";
 import SettingsScreen from "../screens/SettingsScreen";
-import ProfileSetupScreen from "../screens/ProfileSetupScreen";
+import ProfileEditScreen from "../screens/ProfileEditScreen";
+import ReportScreen from "../screens/ReportScreen";
 
 // Drawer customizado
 import CustomDrawer from "./CustomDrawer";
@@ -24,7 +25,8 @@ export type DrawerParamList = {
     Charts: undefined;
     Nutrition: undefined;
     Settings: undefined;
-    ProfileSetup: undefined;
+    ProfileEdit: undefined;
+    Report: undefined;
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -37,6 +39,7 @@ type IconName =
     | "show-chart"
     | "restaurant-menu"
     | "settings"
+    | "description"
     | "person";
 
 const drawerIcon = (name: IconName) => ({ color, size }: { color: string; size: number }) => (
@@ -152,10 +155,18 @@ function DrawerRoutes() {
                 }}
             />
             <Drawer.Screen
-                name="ProfileSetup"
-                component={ProfileSetupScreen}
+                name="Report"
+                component={ReportScreen}
                 options={{
-                    title: "Perfil", 
+                    title: "Relatório de Glicemia", 
+                    drawerIcon: drawerIcon("description"),
+                }}
+            />
+            <Drawer.Screen
+                name="ProfileEdit"
+                component={ProfileEditScreen}
+                options={{
+                    title: "Editar Perfil", 
                     drawerIcon: drawerIcon("person"),
                 }}
             />

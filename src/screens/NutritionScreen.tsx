@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { MaterialIcons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { ThemeContext } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { aiService, AISuggestions, ExtendedAISuggestions } from "../services/aiService";
@@ -116,25 +116,39 @@ const RecipeTipsCard = ({ tips, theme }: any) => {
 
 const ProfileCard = ({ profile, loading, onUpdate, theme }: any) => {
     const styles = getStyles(theme);
+    const navigation = useNavigation();
+    
     if (!profile) return null;
+
+    const handleEditProfile = () => {
+        navigation.navigate('ProfileEdit');
+    };
 
     return (
         <View style={styles.card}>
             <View style={styles.cardHeaderRow}>
                 <MaterialIcons name="person" size={22} color={theme.primary} />
                 <Text style={styles.cardTitle}>Meu Perfil</Text>
-                <TouchableOpacity style={styles.actionButtonWrapper} onPress={onUpdate} disabled={loading}>
-                    <LinearGradient colors={['#f0f9ff', '#e0f2fe']} style={styles.updateButton}>
-                        {loading ? (
-                            <ActivityIndicator color="#0369a1" size="small" />
-                        ) : (
-                            <>
-                                <Feather name="refresh-cw" size={16} color="#0369a1" />
-                                <Text style={styles.updateText}>Atualizar</Text>
-                            </>
-                        )}
-                    </LinearGradient>
-                </TouchableOpacity>
+                <View style={styles.buttonContainer}>
+                    <TouchableOpacity style={styles.editButtonWrapper} onPress={handleEditProfile}>
+                        <LinearGradient colors={['#fef3c7', '#fde68a']} style={styles.editButton}>
+                            <MaterialIcons name="edit" size={16} color="#92400e" />
+                            <Text style={styles.editText}>Editar</Text>
+                        </LinearGradient>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.actionButtonWrapper} onPress={onUpdate} disabled={loading}>
+                        <LinearGradient colors={['#f0f9ff', '#e0f2fe']} style={styles.updateButton}>
+                            {loading ? (
+                                <ActivityIndicator color="#0369a1" size="small" />
+                            ) : (
+                                <>
+                                    <Feather name="refresh-cw" size={16} color="#0369a1" />
+                                    <Text style={styles.updateText}>Atualizar</Text>
+                                </>
+                            )}
+                        </LinearGradient>
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <View style={styles.profileInfoRow}>
@@ -528,6 +542,10 @@ const getStyles = (theme: any) => StyleSheet.create({
         marginBottom: 16 
     },
     cardTitle: { fontSize: 18, fontWeight: "600", color: theme.text, flex: 1, marginLeft: 12 },
+    buttonContainer: {
+        flexDirection: 'row',
+        gap: 8,
+    },
     actionButtonWrapper: {
         borderRadius: 10,
         shadowColor: '#000',
@@ -535,6 +553,22 @@ const getStyles = (theme: any) => StyleSheet.create({
         shadowRadius: 4,
         elevation: 2,
     },
+    editButtonWrapper: {
+        borderRadius: 10,
+        shadowColor: '#000',
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    editButton: {
+        flexDirection: "row",
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 10,
+        alignItems: "center",
+        gap: 6,
+    },
+    editText: { color: "#92400e", fontWeight: "600", fontSize: 14 },
     updateButton: {
         flexDirection: "row",
         paddingVertical: 8,

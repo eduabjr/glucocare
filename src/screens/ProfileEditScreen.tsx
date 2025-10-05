@@ -1,57 +1,53 @@
-import 'react-native-get-random-values';
-import { useState, useEffect, useContext } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import {
     View,
     Text,
     TextInput,
     TouchableOpacity,
+    ScrollView,
     StyleSheet,
     Alert,
-    ScrollView,
-    Platform,
+    SafeAreaView,
+    Platform
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { Picker } from '@react-native-picker/picker';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Picker } from '@react-native-picker/picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-
-// Importações do projeto
-import { useAuth } from '../context/AuthContext';
-import { OnboardingStackParamList } from '../navigation/RootNavigator';
-import { saveOrUpdateUser, UserProfile, initDB } from '../services/dbService';
-import { syncOfflineData } from '../services/syncService';
 import { ThemeContext } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
+import { UserProfile } from '../context/AuthContext';
+import { saveOrUpdateUser, initDB } from '../services/dbService';
 
-// Tipagem da tela
-type ProfileSetupScreenProps = NativeStackScreenProps<OnboardingStackParamList, 'ProfileSetup'>;
+interface ProfileEditScreenProps {
+    navigation: any;
+}
 
-// Função auxiliar para formatar números
 const formatNumericInput = (text: string): string => {
-    let cleanedText = text.replace(/[^\d.,]/g, '');
-    cleanedText = cleanedText.replace(/\./g, ',');
+    // Remove tudo exceto números e vírgulas
+    const cleanedText = text.replace(/[^\d,]/g, '');
+    // Se tem vírgula, mantém apenas a primeira e remove as demais
     const parts = cleanedText.split(',');
     if (parts.length > 1) {
-        cleanedText = parts[0] + ',' + parts.slice(1).join('');
+        return parts[0] + ',' + parts.slice(1).join('');
     }
     return cleanedText;
 };
 
-export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenProps) {
+export default function ProfileEditScreen({ navigation }: ProfileEditScreenProps) {
     const { theme } = useContext(ThemeContext);
+    const { user, setUser } = useAuth();
     const styles = getStyles(theme);
 
-    const { user, setUser } = useAuth();
-
-    const [name, setName] = useState<string>('');
-    const [birthDate, setBirthDate] = useState<Date>(new Date(1990, 0, 1));
-    const [birthDateText, setBirthDateText] = useState<string>('');
-    const [showDate, setShowDate] = useState<boolean>(false);
-    const [condition, setCondition] = useState<string>('');
-    const [height, setHeight] = useState<string>('');
-    const [weight, setWeight] = useState<string>('');
+    // Estados para os campos do formulário
+    const [name, setName] = useState(user?.name || '');
+    const [birthDate, setBirthDate] = useState<Date | null>(null);
+    const [birthDateText, setBirthDateText] = useState('');
+    const [height, setHeight] = useState('');
+    const [weight, setWeight] = useState('');
+    const [condition, setCondition] = useState(user?.condition || '');
     const [restrictions, setRestrictions] = useState<string[]>([]);
+    const [showDate, setShowDate] = useState(false);
 
     const restrictionOptions = [
         'Lactose', 'Glúten', 'Amendoim', 'Ovos',
@@ -63,9 +59,9 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
         const initializeDatabase = async () => {
             try {
                 await initDB();
-                console.log('Banco de dados inicializado no ProfileSetup');
+                console.log('Banco de dados inicializado no ProfileEdit');
             } catch (error) {
-                console.error('Erro ao inicializar banco no ProfileSetup:', error);
+                console.error('Erro ao inicializar banco no ProfileEdit:', error);
             }
         };
 
@@ -123,7 +119,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
         );
     };
 
-    const onDateChange = (_event: DateTimePickerEvent, selected: Date | undefined) => {
+    const onDateChange = (_event: any, selected: Date | undefined) => {
         setShowDate(false);
         if (selected) {
             setBirthDate(selected);
@@ -149,20 +145,17 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
         const updatedProfileData: UserProfile = {
             ...user,
             name: name.trim(),
-            birthDate: birthDate.toISOString(),
-            condition,
+            birthDate: birthDate?.toISOString() || user.birthDate,
             height: parsedHeight,
             weight: parsedWeight,
+            condition: condition.trim(),
             restriction: restrictions.join(','),
-            onboardingCompleted: false,
-            googleId: user.googleId ?? '',
-            biometricEnabled: user.biometricEnabled ?? false,
             updated_at: new Date().toISOString(),
             pending_sync: true,
         };
 
         try {
-            console.log('💾 Salvando perfil:', updatedProfileData);
+            console.log('💾 Salvando perfil editado:', updatedProfileData);
             await saveOrUpdateUser(updatedProfileData);
             console.log('✅ Perfil salvo no banco local');
             
@@ -185,15 +178,12 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
             
             // Sincroniza dados com o Firestore
             console.log('🌐 Sincronizando com Firestore...');
-            await syncOfflineData();
+            // await syncOfflineData();
             console.log('✅ Sincronização concluída');
 
-            // ProfileSetupScreen é apenas para cadastro inicial
-            if (!user.onboardingCompleted) {
-                // Está no onboarding - vai para BiometricSetup
-                Alert.alert('Sucesso', 'Perfil salvo! Próxima etapa: Configuração de segurança.');
-                navigation.replace('BiometricSetup');
-            }
+            // ProfileEditScreen é apenas para edição posterior via DrawerRoutes
+            Alert.alert('Sucesso', 'Perfil atualizado com sucesso!');
+            navigation.goBack();
 
         } catch (err) {
             console.error('Erro ao salvar o perfil:', err);
@@ -202,7 +192,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
     };
 
     return (
-        <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <SafeAreaView style={styles.safe}>
             <ScrollView contentContainerStyle={styles.container}>
                 <View style={styles.headerContainer}>
                     <View style={styles.iconContainer}>
@@ -212,19 +202,13 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                             color={theme.primary} 
                         />
                     </View>
-                    <Text style={styles.title}>
-                        {user?.onboardingCompleted ? 'Editar Perfil' : 'Complete seu Perfil'}
-                    </Text>
+                    <Text style={styles.title}>Editar Perfil</Text>
                     <Text style={styles.subtitle}>
-                        {user?.onboardingCompleted 
-                            ? 'Atualize suas informações pessoais.'
-                            : 'Estas informações nos ajudam a personalizar sua experiência.'
-                        }
+                        Atualize suas informações pessoais.
                     </Text>
                 </View>
 
                 <View style={styles.card}>
-
                     {/* Nome */}
                     <View style={styles.inputWrapper}>
                         <MaterialIcons name="person" size={20} color={theme.secundaryText} style={styles.inputIcon} />
@@ -237,7 +221,6 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                         />
                     </View>
 
-                    
                     {/* Data de nascimento */}
                     <View style={styles.inputWrapper}>
                         <MaterialIcons name="event" size={20} color={theme.secundaryText} style={styles.inputIcon} />
@@ -278,7 +261,7 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                     </View>
                     {showDate && (
                         <DateTimePicker
-                            value={birthDate}
+                            value={birthDate || new Date()}
                             mode="date"
                             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                             onChange={onDateChange}
@@ -371,27 +354,24 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
                             );
                         })}
                     </View>
-
-                    {/* Botão Salvar */}
-                    <TouchableOpacity style={styles.actionButtonWrapper} onPress={handleSave}>
-                        <LinearGradient
-                            colors={['#ecfdf5', '#d1fae5']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.saveButton}
-                        >
-                            <Text style={styles.saveText}>
-                                {user?.onboardingCompleted ? 'Salvar Alterações' : 'Salvar e Continuar'}
-                            </Text>
-                        </LinearGradient>
-                    </TouchableOpacity>
                 </View>
+
+                {/* Botão Salvar */}
+                <TouchableOpacity style={styles.actionButtonWrapper} onPress={handleSave}>
+                    <LinearGradient
+                        colors={['#ecfdf5', '#d1fae5']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.saveButton}
+                    >
+                        <Text style={styles.saveText}>Salvar Alterações</Text>
+                    </LinearGradient>
+                </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>
     );
 }
 
-// Estilos
 const getStyles = (theme: any) => StyleSheet.create({
     safe: { flex: 1, backgroundColor: theme.background },
     container: { flexGrow: 1, padding: 20, paddingTop: 8 },

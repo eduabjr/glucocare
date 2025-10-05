@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Switch, TextInput, Modal, Appearance } from 'react-native';
-import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { updateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
@@ -81,6 +81,34 @@ const SettingsScreen: React.FC = () => {
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    // Interface para regras de senha
+    interface PasswordRules {
+        length: boolean;
+        uppercase: boolean;
+        lowercase: boolean;
+        number: boolean;
+        specialChar: boolean;
+    }
+
+    // Hook para validação de senha
+    const usePasswordValidation = (password: string) => {
+        const rules: PasswordRules = {
+            length: password.length >= 8,
+            uppercase: /[A-Z]/.test(password),
+            lowercase: /[a-z]/.test(password),
+            number: /\d/.test(password),
+            specialChar: /[^A-Za-z0-9\s]/.test(password),
+        };
+
+        const isPasswordValid = Object.values(rules).every(Boolean);
+        return { rules, isPasswordValid };
+    };
+
+    const { rules: passwordRules, isPasswordValid } = usePasswordValidation(newPassword);
 
     useEffect(() => {
         checkBiometricSupport();
@@ -251,8 +279,8 @@ const SettingsScreen: React.FC = () => {
             return;
         }
 
-        if (!newPassword.trim() || newPassword.length < 6) {
-            Alert.alert('Erro', 'A nova senha deve ter pelo menos 6 caracteres.');
+        if (!newPassword.trim() || !isPasswordValid) {
+            Alert.alert('Erro', 'A nova senha deve atender a todos os requisitos de segurança.');
             return;
         }
 
@@ -482,7 +510,7 @@ const SettingsScreen: React.FC = () => {
                 transparent={true}
             >
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
+                    <View style={styles.changeEmailModalContent}>
                         <Text style={styles.modalTitle}>Mudar E-mail</Text>
                         
                         <TextInput
@@ -494,13 +522,25 @@ const SettingsScreen: React.FC = () => {
                             autoCapitalize="none"
                         />
                         
-                        <TextInput
-                            style={styles.modalInput}
-                            placeholder="Senha atual"
-                            value={currentPassword}
-                            onChangeText={setCurrentPassword}
-                            secureTextEntry
-                        />
+                        <View style={styles.passwordInputContainer}>
+                            <TextInput
+                                style={styles.modalInputNoBorder}
+                                placeholder="Senha atual"
+                                value={currentPassword}
+                                onChangeText={setCurrentPassword}
+                                secureTextEntry={!showCurrentPassword}
+                            />
+                            <TouchableOpacity
+                                style={styles.eyeIcon}
+                                onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                            >
+                                <Ionicons
+                                    name={showCurrentPassword ? 'eye' : 'eye-off'}
+                                    size={22}
+                                    color={theme.secundaryText}
+                                />
+                            </TouchableOpacity>
+                        </View>
                         
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
@@ -509,6 +549,7 @@ const SettingsScreen: React.FC = () => {
                                     setShowChangeEmailModal(false);
                                     setNewEmail('');
                                     setCurrentPassword('');
+                                    setShowCurrentPassword(false);
                                 }}
                             >
                                 <Text style={styles.cancelButtonText}>Cancelar</Text>
@@ -532,32 +573,97 @@ const SettingsScreen: React.FC = () => {
                 transparent={true}
             >
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
+                    <View style={styles.changePasswordModalContent}>
                         <Text style={styles.modalTitle}>Mudar Senha</Text>
                         
-                        <TextInput
-                            style={styles.modalInput}
-                            placeholder="Senha atual"
-                            value={currentPassword}
-                            onChangeText={setCurrentPassword}
-                            secureTextEntry
-                        />
+                        <View style={styles.passwordInputContainer}>
+                            <TextInput
+                                style={styles.modalInputNoBorder}
+                                placeholder="Senha atual"
+                                value={currentPassword}
+                                onChangeText={setCurrentPassword}
+                                secureTextEntry={!showCurrentPassword}
+                            />
+                            <TouchableOpacity
+                                style={styles.eyeIcon}
+                                onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                            >
+                                <Ionicons
+                                    name={showCurrentPassword ? 'eye' : 'eye-off'}
+                                    size={22}
+                                    color={theme.secundaryText}
+                                />
+                            </TouchableOpacity>
+                        </View>
                         
-                        <TextInput
-                            style={styles.modalInput}
-                            placeholder="Nova senha"
-                            value={newPassword}
-                            onChangeText={setNewPassword}
-                            secureTextEntry
-                        />
+                        <View style={styles.passwordInputContainer}>
+                            <TextInput
+                                style={styles.modalInput}
+                                placeholder="Nova senha"
+                                value={newPassword}
+                                onChangeText={setNewPassword}
+                                secureTextEntry={!showNewPassword}
+                            />
+                            <TouchableOpacity
+                                style={styles.eyeIcon}
+                                onPress={() => setShowNewPassword(!showNewPassword)}
+                            >
+                                <Ionicons
+                                    name={showNewPassword ? 'eye' : 'eye-off'}
+                                    size={22}
+                                    color={theme.secundaryText}
+                                />
+                            </TouchableOpacity>
+                        </View>
                         
-                        <TextInput
-                            style={styles.modalInput}
-                            placeholder="Confirmar nova senha"
-                            value={confirmPassword}
-                            onChangeText={setConfirmPassword}
-                            secureTextEntry
-                        />
+                        {/* Regras de senha */}
+                        {newPassword.length > 0 && (
+                            <View style={styles.passwordRulesContainer}>
+                                <Text style={styles.passwordRulesTitle}>Certifique-se de que sua nova senha contém:</Text>
+                                <Text style={[styles.passwordRule, passwordRules.length ? styles.passwordRuleValid : styles.passwordRuleInvalid]}>
+                                    {passwordRules.length ? '✓' : '✗'} No mínimo 8 dígitos
+                                </Text>
+                                <Text style={[styles.passwordRule, passwordRules.uppercase ? styles.passwordRuleValid : styles.passwordRuleInvalid]}>
+                                    {passwordRules.uppercase ? '✓' : '✗'} Pelo menos 1 letra maiúscula (A–Z)
+                                </Text>
+                                <Text style={[styles.passwordRule, passwordRules.lowercase ? styles.passwordRuleValid : styles.passwordRuleInvalid]}>
+                                    {passwordRules.lowercase ? '✓' : '✗'} Pelo menos 1 letra minúscula (a–z)
+                                </Text>
+                                <Text style={[styles.passwordRule, passwordRules.number ? styles.passwordRuleValid : styles.passwordRuleInvalid]}>
+                                    {passwordRules.number ? '✓' : '✗'} Pelo menos 1 número (0–9)
+                                </Text>
+                                <Text style={[styles.passwordRule, passwordRules.specialChar ? styles.passwordRuleValid : styles.passwordRuleInvalid]}>
+                                    {passwordRules.specialChar ? '✓' : '✗'} Pelo menos 1 caractere especial (ex.: !@#$%^&*)
+                                </Text>
+                            </View>
+                        )}
+                        
+                        <View style={styles.passwordInputContainer}>
+                            <TextInput
+                                style={styles.modalInput}
+                                placeholder="Confirmar nova senha"
+                                value={confirmPassword}
+                                onChangeText={setConfirmPassword}
+                                secureTextEntry={!showConfirmPassword}
+                            />
+                            <TouchableOpacity
+                                style={styles.eyeIcon}
+                                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                            >
+                                <Ionicons
+                                    name={showConfirmPassword ? 'eye' : 'eye-off'}
+                                    size={22}
+                                    color={theme.secundaryText}
+                                />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        {/* Validação de confirmação */}
+                        {confirmPassword.length > 0 && (
+                            <Text style={[styles.passwordValidationText, newPassword === confirmPassword ? styles.passwordValidationValid : styles.passwordValidationInvalid]}>
+                                {newPassword === confirmPassword ? '✓ Senhas coincidem' : '✗ Senhas não coincidem'}
+                            </Text>
+                        )}
                         
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
@@ -567,6 +673,9 @@ const SettingsScreen: React.FC = () => {
                                     setCurrentPassword('');
                                     setNewPassword('');
                                     setConfirmPassword('');
+                                    setShowCurrentPassword(false);
+                                    setShowNewPassword(false);
+                                    setShowConfirmPassword(false);
                                 }}
                             >
                                 <Text style={styles.cancelButtonText}>Cancelar</Text>
@@ -700,6 +809,23 @@ const getStyles = (theme: any) => StyleSheet.create({
         width: '90%',
         maxWidth: 400,
     },
+    changeEmailModalContent: {
+        backgroundColor: theme.card,
+        borderRadius: 16,
+        padding: 24,
+        width: '100%',
+        maxWidth: '100%',
+        marginHorizontal: 5,
+        minWidth: 300,
+        minHeight: 250,
+    },
+    changePasswordModalContent: {
+        backgroundColor: theme.card,
+        borderRadius: 16,
+        padding: 24,
+        width: '95%',
+        maxWidth: 500,
+    },
     modalTitle: {
         fontSize: 20,
         fontWeight: '700',
@@ -716,6 +842,69 @@ const getStyles = (theme: any) => StyleSheet.create({
         fontSize: 16,
         backgroundColor: theme.background,
         color: theme.text,
+        flex: 1,
+        minWidth: 0,
+    },
+    passwordInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+        borderRadius: 8,
+        marginBottom: 16,
+        backgroundColor: theme.background,
+    },
+    modalInputNoBorder: {
+        borderWidth: 0,
+        borderRadius: 0,
+        padding: 12,
+        marginBottom: 0,
+        fontSize: 16,
+        backgroundColor: 'transparent',
+        color: theme.text,
+        flex: 1,
+    },
+    eyeIcon: {
+        position: 'absolute',
+        right: 12,
+        padding: 4,
+    },
+    passwordRulesContainer: {
+        backgroundColor: theme.background,
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+    },
+    passwordRulesTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: theme.text,
+        marginBottom: 8,
+    },
+    passwordRule: {
+        fontSize: 12,
+        marginBottom: 4,
+        lineHeight: 16,
+    },
+    passwordRuleValid: {
+        color: '#059669',
+    },
+    passwordRuleInvalid: {
+        color: theme.error,
+    },
+    passwordValidationText: {
+        fontSize: 12,
+        marginBottom: 16,
+        textAlign: 'center',
+        fontWeight: '500',
+    },
+    passwordValidationValid: {
+        color: '#059669',
+    },
+    passwordValidationInvalid: {
+        color: theme.error,
     },
     modalButtons: {
         flexDirection: 'row',

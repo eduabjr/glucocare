@@ -30,7 +30,7 @@ export type AppDrawerParamList = {
   Charts: undefined;
   Nutrition: undefined;
   Settings: undefined;
-  ProfileSetup: undefined; // Para visualizar/editar o perfil já logado
+  ProfileEdit: undefined; // Para editar o perfil já logado
   Report: undefined;
 };
 
