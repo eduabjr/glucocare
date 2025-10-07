@@ -11,6 +11,7 @@ import RegisterScreen from "../screens/RegisterScreen";
 import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
 import ResetPasswordScreen from "../screens/ResetPasswordScreen";
 import ProfileSetupScreen from "../screens/ProfileSetupScreen";
+import GlycemicGoalScreen from "../screens/GlycemicGoalScreen";
 import BiometricSetupScreen from "../screens/BiometricSetupScreen";
 import LoadingScreen from "../screens/LoadingScreen";
 import DrawerRoutes from "./DrawerRoutes"; // Importando o navegador do Drawer já existente
@@ -25,6 +26,7 @@ export type AuthStackParamList = {
 
 export type OnboardingStackParamList = {
     ProfileSetup: undefined;
+    GlycemicGoal: undefined;
     BiometricSetup: undefined;
 };
 
@@ -64,6 +66,11 @@ function OnboardingNavigator() {
                 name="ProfileSetup" 
                 component={ProfileSetupScreen} 
                 options={{ headerShown: true, title: "Complete seu Perfil" }}
+            />
+            <OnboardingStack.Screen 
+                name="GlycemicGoal" 
+                component={GlycemicGoalScreen} 
+                options={{ headerShown: false }}
             />
             <OnboardingStack.Screen 
                 name="BiometricSetup" 

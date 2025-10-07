@@ -28,8 +28,6 @@ import { useAuth } from '../context/AuthContext';
 import { addReading, listReadings, deleteReading } from '../services/dbService';
 import { useReadings } from '../context/ReadingsContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import GitImport from '../components/device/GitImport';
-import { GitImportResult } from '../services/gitImportService';
 // import { linkingService, FileLinkingResult } from "../services/linkingService";
 
 interface ConnectionProps {
@@ -56,7 +54,6 @@ const DeviceConnectionScreen: React.FC<ConnectionProps> = ({ navigation: _naviga
   // Estados para importação de arquivos
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState('');
-  const [showGitImport, setShowGitImport] = useState(false);
   
   // Estado para dispositivo conectado (usado para exibir status)
   const [connectedDevice, setConnectedDevice] = useState<any>(null);
@@ -353,16 +350,6 @@ const DeviceConnectionScreen: React.FC<ConnectionProps> = ({ navigation: _naviga
     return () => clearInterval(interval);
   }, []);
 
-  const handleGitImportComplete = (result: GitImportResult) => {
-    setShowGitImport(false);
-    if (result.success) {
-      loadReadings(); // Recarrega as leituras
-      Alert.alert(
-        'Importação Concluída',
-        `${result.metadata.validRows} leituras foram importadas com sucesso do Git.`
-      );
-    }
-  };
 
   const handleFileImport = async () => {
     if (!user?.id) {
@@ -847,15 +834,6 @@ const DeviceConnectionScreen: React.FC<ConnectionProps> = ({ navigation: _naviga
         </Text>
       </View>
 
-      {/* Botão para Importação Git */}
-      <TouchableOpacity 
-        style={styles.gitImportButton}
-        onPress={() => setShowGitImport(true)}
-      >
-        <MaterialIcons name="cloud-download" size={20} color={theme.accent} />
-        <Text style={styles.gitImportButtonText}>Importar do GitHub</Text>
-        <MaterialIcons name="keyboard-arrow-right" size={20} color={theme.secundaryText} />
-      </TouchableOpacity>
     </View>
   );
 
@@ -866,27 +844,6 @@ const DeviceConnectionScreen: React.FC<ConnectionProps> = ({ navigation: _naviga
         {renderFileImport()}
       </ScrollView>
 
-      {/* Modal de Importação Git */}
-      <Modal
-        visible={showGitImport}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <View style={[styles.modalContainer, { backgroundColor: theme.background }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: theme.text }]}>
-              Importar do GitHub
-            </Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowGitImport(false)}
-            >
-              <MaterialCommunityIcons name="close" size={24} color={theme.text} />
-            </TouchableOpacity>
-          </View>
-          <GitImport onImportComplete={handleGitImportComplete} />
-        </View>
-      </Modal>
 
       {/* Modal de Informações dos Aparelhos */}
     <Modal
@@ -1229,24 +1186,6 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   infoText: { flex: 1, marginLeft: 6, fontSize: 12, color: theme.primary },
 
-  gitImportButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: theme.card,
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  gitImportButtonText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: theme.text,
-    flex: 1,
-    marginLeft: 8,
-  },
 
   // Novos estilos para sincronização
   progressContainer: {

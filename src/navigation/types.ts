@@ -32,6 +32,10 @@ export type AppDrawerParamList = {
   Settings: undefined;
   ProfileEdit: undefined; // Para editar o perfil já logado
   Report: undefined;
+  ViewReport: {
+    reportType: 'monthly' | 'full';
+    title: string;
+  };
 };
 
 /**

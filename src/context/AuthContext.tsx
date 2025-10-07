@@ -18,6 +18,8 @@ export interface UserProfile {
     birthDate?: string;
     condition?: string;
     restriction?: string;
+    glycemicGoals?: string; // JSON string dos objetivos glicêmicos
+    medicationReminders?: string; // JSON string dos alarmes de medicamento
     updated_at?: string;
     pending_sync?: boolean;
     emailVerified?: boolean; // ADICIONADO: emailVerified
@@ -105,9 +107,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                             
                             // ✅ NOVA LÓGICA CORRIGIDA: Para usuários existentes, assume onboarding completo
                             // a menos que explicitamente marcado como false
-                            const isOnboardingComplete = 
-                                explicitOnboardingFlag === true || 
-                                (explicitOnboardingFlag !== false && hasBasicInfo);
+                            // ✅ CORREÇÃO: Só considera onboarding completo se flag explícita for true
+                            const isOnboardingComplete = explicitOnboardingFlag === true;
                             
                             console.log('🔍 Debug do onboarding:', {
                                 explicitOnboardingFlag,
@@ -132,6 +133,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                                 birthDate: userData?.['birth_date'] || userData?.['birthDate'] || '',
                                 condition: userData?.['diabetes_condition'] || userData?.['condition'] || '',
                                 restriction: userData?.['restriction'] || '',
+                                glycemicGoals: userData?.['glycemic_goals'] || '',
                             };
                             
                             console.log('📋 Status do onboarding:', {
@@ -144,29 +146,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                                 userData: userData
                             });
                             
-                            // ✅ NOVA VERIFICAÇÃO: Se o usuário tem informações básicas, assume onboarding completo
-                            if (!isOnboardingComplete && hasBasicInfo) {
-                                console.log('⚠️ Usuário tem informações básicas mas onboarding_completed não está true. Corrigindo...');
-                                // Força o onboarding como completo se tem informações básicas
-                                const correctedProfile = {
-                                    ...userProfile,
-                                    onboardingCompleted: true
-                                };
-                                
-                                // Atualiza no Firestore
-                                try {
-                                    await setDoc(userRef, { 
-                                        onboarding_completed: true,
-                                        updated_at: new Date().toISOString()
-                                    }, { merge: true });
-                                    console.log('✅ Onboarding corrigido no Firestore');
-                                } catch (error) {
-                                    console.error('❌ Erro ao corrigir onboarding no Firestore:', error);
-                                }
-                                
-                                setUser(correctedProfile);
-                                return;
-                            }
+                            // ✅ CORREÇÃO: Não força onboarding completo automaticamente
+                            // Deixa o usuário decidir quando completar o onboarding
+                            console.log('📋 Status do onboarding:', {
+                                hasBasicInfo,
+                                hasMedicalInfo,
+                                hasPhysicalInfo,
+                                explicitOnboardingFlag,
+                                isOnboardingComplete,
+                                userDataKeys: Object.keys(userData || {}),
+                                userData: userData
+                            });
                             
                             console.log('🔐 Status da biometria:', userProfile.biometricEnabled);
                             setUser(userProfile);
@@ -269,7 +259,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const logout = async () => {
         setIsLoading(true);
-        await signOut(auth);
+        try {
+            // ✅ NOVO: Limpa credenciais biométricas quando faz logout
+            await SecureStore.deleteItemAsync('registered_email');
+            await SecureStore.deleteItemAsync('saved_password');
+            await SecureStore.deleteItemAsync('google_login_available');
+            await SecureStore.deleteItemAsync('biometric_enabled');
+            await SecureStore.setItemAsync('hasExistingAccount', 'false'); // Marca que não há conta existente
+            console.log('🧹 Credenciais biométricas limpas no logout');
+            
+            // ✅ NOVO: Limpa dados do SQLite
+            try {
+                const { clearLocalData } = await import('../services/dbService');
+                await clearLocalData();
+                console.log('🗄️ Dados do SQLite limpos no logout');
+            } catch (dbError) {
+                console.error('❌ Erro ao limpar SQLite:', dbError);
+                // Continua mesmo se houver erro na limpeza do banco
+            }
+            
+            // Atualiza estado local
+            setHasExistingAccount(false);
+            setUser(null); // ✅ NOVO: Limpa estado do usuário
+            
+            await signOut(auth);
+            console.log('✅ Logout realizado com sucesso');
+        } catch (error) {
+            console.error('❌ Erro durante logout:', error);
+            // Continua com logout mesmo se houver erro na limpeza
+            await signOut(auth);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     // ✅ NOVA FUNÇÃO: Atualizar biometria no Firestore

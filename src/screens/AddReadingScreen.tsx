@@ -16,12 +16,102 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { Picker } from '@react-native-picker/picker';
 import { v4 as uuidv4 } from 'uuid';
 
-import { addReading, updateReading } from '../services/dbService';
+import { addReading, updateReading, getUser } from '../services/dbService';
 import { ThemeContext } from '../context/ThemeContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '../context/AuthContext';
+import { generateGlucoseRecommendation } from '../services/glucoseRecommendationService';
+import { getUserGlycemicGoals } from '../utils/glycemicGoals';
+import { notificationService } from '../services/notificationService';
 
 type MealContext = '' | 'jejum' | 'pre-refeicao' | 'pos-refeicao' | 'antes-dormir' | 'madrugada';
+
+// Componente para mostrar status da glicemia em tempo real
+const GlucoseStatusIndicator = ({ 
+  glucoseValue, 
+  mealContext, 
+  user, 
+  theme 
+}: { 
+  glucoseValue: number; 
+  mealContext: string; 
+  user: any; 
+  theme: any; 
+}) => {
+  const { getUserGlycemicGoals, classifyGlucoseReading } = require('../utils/glycemicGoals');
+  
+  // Mapeia contexto da refeição para período glicêmico
+  const mapMealContextToPeriod = (context: string): 'preMeal' | 'postMeal' | 'night' => {
+    switch (context) {
+      case 'jejum':
+      case 'pre-refeicao':
+        return 'preMeal';
+      case 'pos-refeicao':
+        return 'postMeal';
+      case 'antes-dormir':
+      case 'madrugada':
+        return 'night';
+      default:
+        return 'preMeal';
+    }
+  };
+
+  const period = mapMealContextToPeriod(mealContext);
+  const userGoals = user?.glycemicGoals ? 
+    getUserGlycemicGoals(user.glycemicGoals, user.condition) : 
+    null;
+  
+  let status = 'Normal';
+  let statusColor = '#16a34a';
+  let statusBg = '#d1fae5';
+  let statusIcon = '✅';
+  
+  if (userGoals) {
+    const classification = classifyGlucoseReading(glucoseValue, userGoals, period);
+    switch (classification) {
+      case 'Baixo':
+        status = 'Baixo';
+        statusColor = '#b45309';
+        statusBg = '#fef3c7';
+        statusIcon = '⬇️';
+        break;
+      case 'Alto':
+        status = 'Alto';
+        statusColor = '#b91c1c';
+        statusBg = '#fee2e2';
+        statusIcon = '⬆️';
+        break;
+      default:
+        status = 'Normal';
+        statusColor = '#16a34a';
+        statusBg = '#d1fae5';
+        statusIcon = '✅';
+    }
+  } else {
+    // Classificação básica sem objetivos personalizados
+    if (glucoseValue < 70) {
+      status = 'Baixo';
+      statusColor = '#b45309';
+      statusBg = '#fef3c7';
+      statusIcon = '⬇️';
+    } else if (glucoseValue > 180) {
+      status = 'Alto';
+      statusColor = '#b91c1c';
+      statusBg = '#fee2e2';
+      statusIcon = '⬆️';
+    }
+  }
+
+  return (
+    <View style={[styles.statusIndicator, { backgroundColor: statusBg }]}>
+      <Text style={[styles.statusIcon]}>{statusIcon}</Text>
+      <Text style={[styles.statusText, { color: statusColor }]}>
+        Status: {status} ({glucoseValue} mg/dL)
+      </Text>
+    </View>
+  );
+};
 
 type AddReadingScreenProps = {
   navigation: { 
@@ -37,6 +127,7 @@ type AddReadingScreenProps = {
 
 export default function AddReadingScreen({ navigation, route }: AddReadingScreenProps) {
   const { theme } = useContext(ThemeContext);
+  const { user } = useAuth();
   const styles = getStyles(theme);
 
   // ✅ NOVO: Detecta se está editando uma medição
@@ -65,6 +156,62 @@ export default function AddReadingScreen({ navigation, route }: AddReadingScreen
     setNotes('');
     setDate(new Date());
     Keyboard.dismiss();
+  };
+
+  // Função para gerar e exibir recomendações baseadas na medição
+  const handleGlucoseRecommendation = async (glucoseValue: number, mealContext: string) => {
+    try {
+      // Busca objetivos glicêmicos do usuário
+      const userGoals = user?.glycemicGoals ? 
+        getUserGlycemicGoals(user.glycemicGoals, user.condition) : 
+        undefined;
+
+      // Gera recomendação baseada na condição e medição
+      const recommendation = generateGlucoseRecommendation(
+        glucoseValue,
+        user?.condition || '',
+        mealContext,
+        userGoals
+      );
+
+      // Exibe recomendação em alerta
+      if (recommendation.severity !== 'normal') {
+        Alert.alert(
+          recommendation.title,
+          `${recommendation.message}\n\nAções recomendadas:\n${recommendation.actions.map(action => `• ${action}`).join('\n')}`,
+          [
+            {
+              text: 'Entendi',
+              style: 'default'
+            }
+          ]
+        );
+      }
+
+      // Envia notificação se necessário
+      if (recommendation.showNotification) {
+        try {
+          await notificationService.sendLocalNotification(
+            recommendation.title,
+            recommendation.message,
+            {
+              type: 'glucose_alert',
+              glucoseValue,
+              condition: user?.condition,
+              mealContext,
+              actions: recommendation.actions
+            }
+          );
+        } catch (notificationError) {
+          console.error('Erro ao enviar notificação:', notificationError);
+        }
+      }
+
+      return recommendation;
+    } catch (error) {
+      console.error('Erro ao gerar recomendação:', error);
+      return null;
+    }
   };
 
   const handleSave = async () => {
@@ -107,6 +254,10 @@ export default function AddReadingScreen({ navigation, route }: AddReadingScreen
         Alert.alert('Sucesso', 'Medição atualizada com sucesso!');
       } else {
         await addReading(reading as any);
+        
+        // Gera recomendações apenas para novas medições (não para edições)
+        await handleGlucoseRecommendation(n, mealContext);
+        
         Alert.alert('Sucesso', 'Medição salva com sucesso!');
       }
 
@@ -163,6 +314,16 @@ export default function AddReadingScreen({ navigation, route }: AddReadingScreen
           <Text style={styles.limitText}>
             ⚠️ Intervalo permitido: mínimo 30 — máximo 600 mg/dL
           </Text>
+
+          {/* Status da glicemia em tempo real */}
+          {glucose && !isNaN(Number(glucose)) && (
+            <GlucoseStatusIndicator 
+              glucoseValue={Number(glucose)} 
+              mealContext={mealContext}
+              user={user}
+              theme={theme}
+            />
+          )}
 
           <Text style={styles.label}>Data e Hora *</Text>
           <TouchableOpacity style={styles.input} onPress={() => setShowDate(true)}>
@@ -325,4 +486,24 @@ const getStyles = (theme: any) => StyleSheet.create({
 
   cancelText: { color: '#dc2626', fontWeight: '600', fontSize: 14 },
   saveText: { color: '#ffffff', fontWeight: '600', fontSize: 14 },
+
+  // Estilos para indicador de status da glicemia
+  statusIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  statusIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });

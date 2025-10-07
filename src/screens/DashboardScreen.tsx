@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context/AuthContext';
 import { ThemeContext } from '../context/ThemeContext';
 import { measurementRecommendationService, MeasurementPattern } from '../services/measurementRecommendationService';
+import { getUserGlycemicGoals, classifyGlucoseReading, getGlucoseStatusStyle } from '../utils/glycemicGoals';
 
 interface MessageOverlayProps {
   message: string | null;
@@ -85,8 +86,9 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
   const normais = readings.length > 0
     ? Math.round((readings.filter(r => {
         const level = Number(r.glucose_level) || 0;
-        // Faixa normal de glicemia: 70-140 mg/dL (em jejum: 70-100, pós-prandial: até 140)
-        return level >= 70 && level <= 140;
+        const userGoals = getUserGlycemicGoals(user?.glycemicGoals, user?.condition);
+        const status = classifyGlucoseReading(level, userGoals, 'preMeal');
+        return status === 'Normal';
       }).length / readings.length) * 100)
     : 0;
   const total = readings.length;
@@ -111,7 +113,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
 
     setAnalyzingPatterns(true);
     try {
-      const recommendations = await measurementRecommendationService.generateAndScheduleRecommendations();
+      const recommendations = await measurementRecommendationService.generateAndScheduleRecommendations(user?.glycemicGoals, user?.condition);
       
       if (recommendations) {
         setMeasurementRecommendations(recommendations);
@@ -140,7 +142,7 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
 
     setAnalyzing(true);
     try {
-      const analysis = await measurementRecommendationService.analyzeMeasurementPatterns();
+      const analysis = await measurementRecommendationService.analyzeMeasurementPatterns(user?.glycemicGoals, user?.condition);
       setPatternAnalysis(analysis);
       setShowRecommendations(true);
       showMessage('🤖 Recomendações personalizadas geradas com base nas suas medições!', 'success');
@@ -222,9 +224,10 @@ export default function DashboardScreen({ navigation }: DashboardScreenProps) {
 
   const getReadingStatus = (value: number) => {
     if (!value || isNaN(value)) return { label: 'Inválido', text: theme.secundaryText, bg: theme.background };
-    if (value < 70) return { label: 'Baixo', text: '#b45309', bg: '#fef3c7' };
-    if (value > 140) return { label: 'Alto', text: '#b91c1c', bg: '#fee2e2' }; // Ajustado de 180 para 140
-    return { label: 'Normal', text: '#047857', bg: '#d1fae5' }; // Faixa 70-140
+    
+    const userGoals = getUserGlycemicGoals(user?.glycemicGoals, user?.condition);
+    const status = classifyGlucoseReading(value, userGoals, 'preMeal');
+    return getGlucoseStatusStyle(status);
   };
 
   const renderItem = ({ item }: { item: any }) => {

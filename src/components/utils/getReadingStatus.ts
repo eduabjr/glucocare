@@ -1,6 +1,7 @@
 // src/utils/getReadingStatus.ts
+import { getUserGlycemicGoals, classifyGlucoseReading } from '../../utils/glycemicGoals';
 
-export function getReadingStatus(value: number | string): string {
+export function getReadingStatus(value: number | string, userGlycemicGoals?: string, userCondition?: string): string {
     let numericValue: number;
 
     if (typeof value !== 'number') {
@@ -10,10 +11,9 @@ export function getReadingStatus(value: number | string): string {
         numericValue = value;
     }
 
-    // Intervalos de valores (mg/dL) - Faixa normal: 70-140
-    if (numericValue < 70) return 'Baixo';
-    if (numericValue >= 70 && numericValue <= 140) return 'Normal';
-    if (numericValue > 140) return 'Alto';
-
-    return 'Indefinido';
+    // Usa os objetivos glicêmicos personalizados do usuário se disponíveis
+    const userGoals = getUserGlycemicGoals(userGlycemicGoals, userCondition);
+    const status = classifyGlucoseReading(numericValue, userGoals, 'preMeal');
+    
+    return status;
 }

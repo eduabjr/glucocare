@@ -68,9 +68,18 @@ export default function ProfileEditScreen({ navigation }: ProfileEditScreenProps
         initializeDatabase();
 
         // Carrega os dados do usuário quando disponível
-        const loadUserData = () => {
+        const loadUserData = async () => {
             if (user) {
-                console.log('Carregando dados do usuário:', user);
+                console.log('📊 ProfileEditScreen - Carregando dados do usuário:', {
+                    name: user.name,
+                    condition: user.condition,
+                    birthDate: user.birthDate,
+                    height: user.height,
+                    weight: user.weight,
+                    restriction: user.restriction,
+                    onboardingCompleted: user.onboardingCompleted
+                });
+                
                 setName(user.name ?? '');
                 
                 // Data de nascimento
@@ -99,19 +108,37 @@ export default function ProfileEditScreen({ navigation }: ProfileEditScreenProps
                 const restrictions = user.restriction ? user.restriction.split(',').filter(Boolean) : [];
                 setRestrictions(restrictions);
                 
-                console.log('Dados carregados:', {
+                console.log('✅ ProfileEditScreen - Dados carregados com sucesso:', {
                     name: user.name,
                     condition: user.condition,
                     height: user.height,
                     weight: user.weight,
                     restriction: user.restriction,
-                    restrictions: restrictions
+                    restrictions: restrictions,
+                    onboardingCompleted: user.onboardingCompleted
                 });
+            } else {
+                console.log('❌ ProfileEditScreen - Usuário não encontrado no AuthContext');
+                // ✅ TENTATIVA DE RECUPERAÇÃO: Buscar dados do banco local
+                try {
+                    console.log('🔄 Tentando recuperar dados do banco local...');
+                    const { getUser } = await import('../services/dbService');
+                    const localUser = await getUser();
+                    if (localUser) {
+                        console.log('📊 Dados recuperados do banco local:', localUser);
+                        // Atualiza o AuthContext com os dados locais
+                        setUser(localUser);
+                    } else {
+                        console.log('❌ Nenhum usuário encontrado no banco local');
+                    }
+                } catch (error) {
+                    console.error('❌ Erro ao recuperar dados do banco local:', error);
+                }
             }
         };
 
         loadUserData();
-    }, [user]);
+    }, [user, setUser]);
 
     const toggleRestriction = (item: string) => {
         setRestrictions((prev) =>
@@ -178,12 +205,17 @@ export default function ProfileEditScreen({ navigation }: ProfileEditScreenProps
             
             // Sincroniza dados com o Firestore
             console.log('🌐 Sincronizando com Firestore...');
-            // await syncOfflineData();
-            console.log('✅ Sincronização concluída');
+            try {
+                const { syncOfflineData } = await import('../services/syncService');
+                await syncOfflineData();
+                console.log('✅ Sincronização concluída');
+            } catch (syncError) {
+                console.error('❌ Erro na sincronização:', syncError);
+            }
 
             // ProfileEditScreen é apenas para edição posterior via DrawerRoutes
             Alert.alert('Sucesso', 'Perfil atualizado com sucesso!');
-            navigation.goBack();
+            navigation.navigate('Dashboard');
 
         } catch (err) {
             console.error('Erro ao salvar o perfil:', err);

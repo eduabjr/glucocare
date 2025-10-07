@@ -9,6 +9,7 @@ import { useReadings } from '../context/ReadingsContext';
 import { ThemeContext } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { Reading } from '../services/dbService';
+import { getUserGlycemicGoals, getIdealGlucoseRange } from '../utils/glycemicGoals';
 
 // === CONSTANTES MOVIDAS PARA FORA DO COMPONENTE ===
 // Agora elas são acessíveis tanto pelo componente quanto pela função getStyles.
@@ -32,19 +33,33 @@ const ChartsScreen: React.FC = () => {
   const [showIdealRange, setShowIdealRange] = useState(true);
   const [focusedDataPoint, setFocusedDataPoint] = useState<Reading | null>(null);
 
-  const getIdealGlucoseRange = (condition?: string) => {
-    switch (condition?.toLowerCase()) {
-      case 'pré-diabético':
-      case 'pre-diabetic':
-        return { min: 100, max: 140 };
-      case 'tipo 1':
-      case 'type 1':
-      case 'tipo 2':
-      case 'type 2':
-        return { min: 80, max: 180 };
-      default:
-        return { min: 70, max: 110 };
-    }
+  const getIdealGlucoseRangeForChart = () => {
+    const userGoals = getUserGlycemicGoals(user?.glycemicGoals, user?.condition);
+    // Para o gráfico, usamos uma faixa que engloba todos os períodos
+    const allMins = [userGoals.preMeal.min, userGoals.postMeal.min, userGoals.night.min];
+    const allMaxs = [userGoals.preMeal.max, userGoals.postMeal.max, userGoals.night.max];
+    
+    return {
+      min: Math.min(...allMins),
+      max: Math.max(...allMaxs)
+    };
+  };
+
+  // Função para determinar o período baseado no horário da medição
+  const getPeriodFromTime = (dateTime: string): 'preMeal' | 'postMeal' | 'night' => {
+    const hour = new Date(dateTime).getHours();
+    
+    if (hour >= 6 && hour < 12) return 'preMeal';    // Manhã (6h-12h)
+    if (hour >= 12 && hour < 18) return 'postMeal';  // Tarde (12h-18h)
+    if (hour >= 18 && hour < 22) return 'postMeal';  // Noite (18h-22h)
+    return 'night';                                   // Madrugada (22h-6h)
+  };
+
+  // Função para obter a faixa ideal baseada no período da medição
+  const getIdealRangeForPeriod = (dateTime: string) => {
+    const userGoals = getUserGlycemicGoals(user?.glycemicGoals, user?.condition);
+    const period = getPeriodFromTime(dateTime);
+    return getIdealGlucoseRange(userGoals, period);
   };
 
   // Função de cálculo ajustada para maior precisão
@@ -66,29 +81,40 @@ const ChartsScreen: React.FC = () => {
   }, [readings]);
 
   const glucoseStats = useMemo(() => {
-    const idealRange = getIdealGlucoseRange(user?.condition);
+    const idealRange = getIdealGlucoseRangeForChart();
+    const userGoals = getUserGlycemicGoals(user?.glycemicGoals, user?.condition);
+    
     if (filteredReadings.length === 0) {
+      // Valores padrão baseados nos objetivos do usuário
+      const defaultMin = Math.max(30, idealRange.min - 30);
+      const defaultMax = Math.min(600, idealRange.max + 50);
       return {
         highest: null, lowest: null, average: 0, idealRange,
-        minValue: 50,
-        maxValue: 350
+        minValue: defaultMin,
+        maxValue: defaultMax
       };
     }
+    
     const glucoseLevels = filteredReadings.map(r => r.glucose_level);
     const highestReading = filteredReadings.reduce((prev, current) => (prev.glucose_level > current.glucose_level) ? prev : current);
     const lowestReading = filteredReadings.reduce((prev, current) => (prev.glucose_level < current.glucose_level) ? prev : current);
     const average = glucoseLevels.reduce((sum, level) => sum + level, 0) / glucoseLevels.length;
     const dataMin = Math.min(...glucoseLevels);
     const dataMax = Math.max(...glucoseLevels);
+    
+    // Calcula valores mínimos e máximos considerando os objetivos do usuário
+    const chartMin = Math.min(dataMin - 20, idealRange.min - 30);
+    const chartMax = Math.max(dataMax + 20, idealRange.max + 50);
+    
     return {
       highest: highestReading,
       lowest: lowestReading,
       average: Math.round(average),
       idealRange,
-      minValue: Math.floor(Math.min(50, dataMin - 20)),
-      maxValue: Math.ceil(Math.max(300, dataMax + 20))
+      minValue: Math.max(30, Math.floor(chartMin)), // Mínimo de 30 mg/dL
+      maxValue: Math.min(600, Math.ceil(chartMax))  // Máximo de 600 mg/dL
     };
-  }, [filteredReadings, user?.condition]);
+  }, [filteredReadings, user?.glycemicGoals, user?.condition]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -102,7 +128,7 @@ const ChartsScreen: React.FC = () => {
       if (!hasSeen) {
         Alert.alert(
           'Gráfico de Glicose',
-          'Os dados refletem as leituras dos últimos 30 dias. Arraste o dedo sobre o gráfico para ver detalhes de cada medição.',
+          'Os dados refletem as leituras dos últimos 30 dias. Os pontos verdes indicam medições dentro da faixa ideal para o período, e os vermelhos indicam medições fora da faixa. Arraste o dedo sobre o gráfico para ver detalhes de cada medição.',
           [{ text: 'Entendi', onPress: () => AsyncStorage.setItem('chartsScreenNotificationSeen', 'true') }]
         );
       }
@@ -111,16 +137,24 @@ const ChartsScreen: React.FC = () => {
   }, []);
 
   const chartData = useMemo(() => {
-    return filteredReadings.map((r: Reading) => ({
-      value: r.glucose_level,
-      label: new Date(r.measurement_time || r.timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
-      measurementData: r,
-      dataPointColor:
-        (showHighestGlucose && r.id === glucoseStats.highest?.id) ? '#FF6B6B' :
-        (showLowestGlucose && r.id === glucoseStats.lowest?.id) ? '#FFD93D' :
-        '#2563eb',
-      dataPointShape:
-        (showHighestGlucose && r.id === glucoseStats.highest?.id) ||
+    return filteredReadings.map((r: Reading) => {
+      const period = getPeriodFromTime(r.measurement_time || r.timestamp);
+      const idealRange = getIdealRangeForPeriod(r.measurement_time || r.timestamp);
+      const isInIdealRange = r.glucose_level >= idealRange.min && r.glucose_level <= idealRange.max;
+      
+      return {
+        value: r.glucose_level,
+        label: new Date(r.measurement_time || r.timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+        measurementData: r,
+        period: period,
+        idealRange: idealRange,
+        isInIdealRange: isInIdealRange,
+        dataPointColor:
+          (showHighestGlucose && r.id === glucoseStats.highest?.id) ? '#FF6B6B' :
+          (showLowestGlucose && r.id === glucoseStats.lowest?.id) ? '#FFD93D' :
+          isInIdealRange ? '#10B981' : '#EF4444', // Verde se dentro da faixa ideal, vermelho se fora
+        dataPointShape:
+          (showHighestGlucose && r.id === glucoseStats.highest?.id) ||
         (showLowestGlucose && r.id === glucoseStats.lowest?.id)
         ? 'diamond'
         : 'circular',
@@ -130,7 +164,7 @@ const ChartsScreen: React.FC = () => {
         ? 8
         : 5,
     }));
-  }, [filteredReadings, glucoseStats, showHighestGlucose, showLowestGlucose]);
+  }, [filteredReadings, glucoseStats, showHighestGlucose, showLowestGlucose, user?.glycemicGoals, user?.condition]);
 
   if (loading) {
     return (
@@ -167,16 +201,33 @@ const ChartsScreen: React.FC = () => {
       <View style={styles.content}>
         <Text style={styles.pageTitle}>Gráfico de Glicose</Text>
         <View style={styles.tooltipContainer}>
-          {focusedDataPoint ? (
-            <View style={styles.tooltipContent}>
-              <Text style={styles.tooltipValue}>{focusedDataPoint.glucose_level} mg/dL</Text>
-              <Text style={styles.tooltipTime}>
-                {new Date(focusedDataPoint.measurement_time || focusedDataPoint.timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                {' - '}
-                {new Date(focusedDataPoint.measurement_time || focusedDataPoint.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-              </Text>
-            </View>
-          ) : (
+          {focusedDataPoint ? (() => {
+            const period = getPeriodFromTime(focusedDataPoint.measurement_time || focusedDataPoint.timestamp);
+            const idealRange = getIdealRangeForPeriod(focusedDataPoint.measurement_time || focusedDataPoint.timestamp);
+            const isInIdealRange = focusedDataPoint.glucose_level >= idealRange.min && focusedDataPoint.glucose_level <= idealRange.max;
+            const periodNames = {
+              preMeal: 'Pré-refeição',
+              postMeal: 'Pós-refeição',
+              night: 'Noite/Madrugada'
+            };
+            
+            return (
+              <View style={styles.tooltipContent}>
+                <Text style={styles.tooltipValue}>{focusedDataPoint.glucose_level} mg/dL</Text>
+                <Text style={styles.tooltipTime}>
+                  {new Date(focusedDataPoint.measurement_time || focusedDataPoint.timestamp).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                  {' - '}
+                  {new Date(focusedDataPoint.measurement_time || focusedDataPoint.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+                <Text style={[styles.tooltipPeriod, { color: isInIdealRange ? '#10B981' : '#EF4444' }]}>
+                  {periodNames[period]} • Faixa ideal: {idealRange.min}-{idealRange.max} mg/dL
+                </Text>
+                <Text style={[styles.tooltipStatus, { color: isInIdealRange ? '#10B981' : '#EF4444' }]}>
+                  {isInIdealRange ? '✓ Dentro da faixa ideal' : '⚠ Fora da faixa ideal'}
+                </Text>
+              </View>
+            );
+          })() : (
             <Text style={styles.tooltipPlaceholder}>Arraste no gráfico para ver detalhes</Text>
           )}
         </View>
@@ -354,6 +405,16 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontSize: 12,
     color: theme.secundaryText,
     marginTop: 4,
+  },
+  tooltipPeriod: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  tooltipStatus: {
+    fontSize: 10,
+    fontWeight: '500',
+    marginTop: 1,
   },
    chartWrapper: {
      backgroundColor: theme.card,

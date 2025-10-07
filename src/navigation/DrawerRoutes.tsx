@@ -12,6 +12,7 @@ import NutritionScreen from "../screens/NutritionScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import ProfileEditScreen from "../screens/ProfileEditScreen";
 import ReportScreen from "../screens/ReportScreen";
+import ViewReportScreen from "../screens/ViewReportScreen";
 
 // Drawer customizado
 import CustomDrawer from "./CustomDrawer";
@@ -27,6 +28,10 @@ export type DrawerParamList = {
     Settings: undefined;
     ProfileEdit: undefined;
     Report: undefined;
+    ViewReport: {
+        reportType: 'monthly' | 'full';
+        title: string;
+    };
 };
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
@@ -40,7 +45,8 @@ type IconName =
     | "restaurant-menu"
     | "settings"
     | "description"
-    | "person";
+    | "person"
+    | "remove-red-eye";
 
 const drawerIcon = (name: IconName) => ({ color, size }: { color: string; size: number }) => (
     <MaterialIcons name={name} color={color} size={size} />
@@ -168,6 +174,14 @@ function DrawerRoutes() {
                 options={{
                     title: "Editar Perfil", 
                     drawerIcon: drawerIcon("person"),
+                }}
+            />
+            <Drawer.Screen
+                name="ViewReport"
+                component={ViewReportScreen}
+                options={{
+                    title: "Visualizar Relatório", 
+                    drawerIcon: drawerIcon("remove-red-eye"),
                 }}
             />
         </Drawer.Navigator>

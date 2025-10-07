@@ -1,4 +1,5 @@
-import { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -31,7 +32,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   const { theme } = useContext(ThemeContext);
   const styles = getStyles(theme);
 
-  const { loginWithEmail, user, hasExistingAccount } = useAuth();
+  const { loginWithEmail, user, hasExistingAccount: contextHasExistingAccount } = useAuth();
   const { promptAsync, loading: googleLoading, error: googleError } = useGoogleAuth();
 
   const [email, setEmail] = useState('');
@@ -40,12 +41,30 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [biometricSupported, setBiometricSupported] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [hasExistingAccount, setHasExistingAccount] = useState(true);
 
   useEffect(() => {
     console.log('🔄 LoginScreen - Iniciando verificação de biometria');
     checkBiometricSupport();
     checkBiometricStatus();
+    checkExistingAccount();
   }, []);
+
+  // ✅ NOVO: Verifica se existe conta cadastrada
+  useEffect(() => {
+    if (contextHasExistingAccount !== undefined) {
+      console.log('👤 Status de conta existente atualizado:', contextHasExistingAccount);
+      setHasExistingAccount(contextHasExistingAccount);
+    }
+  }, [contextHasExistingAccount]);
+
+  // ✅ NOVO: Revalida estado da conta quando a tela recebe foco
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('🔄 LoginScreen recebeu foco - revalidando estado da conta');
+      checkExistingAccount();
+    }, [])
+  );
 
   // ✅ NOVO: Verifica status da biometria sempre que o usuário mudar
   useEffect(() => {
@@ -77,13 +96,15 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       // 2. Biometria está habilitada
       // 3. Não há usuário logado
       // 4. Credenciais estão salvas
-      if (biometricSupported && biometricEnabled && !user) {
+      // 5. ✅ NOVO: Existe conta cadastrada (não foi deletada)
+      if (biometricSupported && biometricEnabled && !user && hasExistingAccount) {
         try {
           const savedEmail = await SecureStore.getItemAsync('registered_email');
           const savedPassword = await SecureStore.getItemAsync('saved_password');
           const googleLoginAvailable = await SecureStore.getItemAsync('google_login_available');
           
-          if (savedEmail) {
+          // ✅ NOVO: Só faz auto-login se realmente há credenciais salvas
+          if (savedEmail && (savedPassword || googleLoginAvailable === 'true')) {
             console.log('🔄 Tentando auto-login com biometria...');
             
             const result = await LocalAuthentication.authenticateAsync({
@@ -118,7 +139,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     // Aguarda um pouco para carregar os estados antes de tentar auto-login
     const timer = setTimeout(autoBiometricLogin, 1000);
     return () => clearTimeout(timer);
-  }, [biometricSupported, biometricEnabled, user, loginWithEmail]);
+  }, [biometricSupported, biometricEnabled, user, loginWithEmail, hasExistingAccount]);
 
   const checkBiometricSupport = async () => {
     try {
@@ -161,6 +182,41 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     } catch (error) {
       console.error('Erro ao verificar status da biometria:', error);
       setBiometricEnabled(false);
+    }
+  };
+
+  // ✅ NOVO: Verifica se existe conta cadastrada
+  const checkExistingAccount = async () => {
+    try {
+      // Verifica no SecureStore
+      const savedAccountStatus = await SecureStore.getItemAsync('hasExistingAccount');
+      const secureStoreExists = savedAccountStatus === 'true';
+      
+      // ✅ NOVO: Verifica também no SQLite se há usuário
+      let sqliteExists = false;
+      try {
+        const { getUser } = await import('../services/dbService');
+        const localUser = await getUser();
+        sqliteExists = !!localUser;
+        console.log('🗄️ Usuário encontrado no SQLite:', !!localUser);
+      } catch (dbError) {
+        console.error('❌ Erro ao verificar SQLite:', dbError);
+        sqliteExists = false;
+      }
+      
+      // Conta existe se estiver em qualquer um dos locais
+      const accountExists = secureStoreExists && sqliteExists;
+      
+      console.log('👤 Status de conta existente:', {
+        secureStore: secureStoreExists,
+        sqlite: sqliteExists,
+        final: accountExists
+      });
+      
+      setHasExistingAccount(accountExists);
+    } catch (error) {
+      console.error('Erro ao verificar status da conta:', error);
+      setHasExistingAccount(false); // ✅ CORREÇÃO: Assume que NÃO existe por padrão
     }
   };
 
@@ -215,6 +271,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     console.log('📱 Biometria suportada:', biometricSupported);
     console.log('✅ Biometria habilitada:', biometricEnabled);
     console.log('👤 User do AuthContext:', user?.biometricEnabled);
+    console.log('👤 Conta existente:', hasExistingAccount);
     
     if (!biometricSupported) {
       Alert.alert('Biometria não suportada', 'Este dispositivo não possui suporte à biometria.');
@@ -223,6 +280,12 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     
     if (!biometricEnabled && !user?.biometricEnabled) {
       Alert.alert('Biometria não configurada', 'Configure a biometria nas configurações do app primeiro.');
+      return;
+    }
+    
+    // ✅ NOVO: Verifica se há conta cadastrada
+    if (!hasExistingAccount) {
+      Alert.alert('Conta não encontrada', 'Não há conta cadastrada. Crie uma conta primeiro.');
       return;
     }
     
@@ -343,8 +406,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             </TouchableOpacity>
 
 
-            {/* O botão de biometria só aparece se o hardware for compatível E o usuário já tiver ativado o recurso */}
-            {biometricSupported && biometricEnabled && (
+            {/* O botão de biometria só aparece se o hardware for compatível E o usuário já tiver ativado o recurso E existir conta cadastrada */}
+            {biometricSupported && biometricEnabled && hasExistingAccount && (
               <TouchableOpacity
                 style={[styles.biometricButton, anyLoading && styles.buttonDisabled]}
                 onPress={handleBiometricLogin}

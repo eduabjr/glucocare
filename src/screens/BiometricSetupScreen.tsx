@@ -87,6 +87,7 @@ export default function BiometricSetupScreen({ navigation: _navigation }: Biomet
                     birth_date: completedProfile.birthDate,
                     diabetes_condition: completedProfile.condition,
                     restriction: completedProfile.restriction,
+                    glycemic_goals: completedProfile.glycemicGoals,
                     updated_at: completedProfile.updated_at,
                     provider: 'manual'
                 };

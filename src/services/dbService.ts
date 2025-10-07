@@ -23,6 +23,8 @@ export interface UserProfile {
     birthDate?: string;
     condition?: string;
     restriction?: string;
+    glycemicGoals?: string; // JSON string dos objetivos glicêmicos
+    medicationReminders?: string; // JSON string dos alarmes de medicamento
     updated_at?: string;
     pending_sync?: boolean;
     emailVerified?: boolean;
@@ -89,7 +91,7 @@ export async function initDB(): Promise<void> {
                 id TEXT PRIMARY KEY NOT NULL, full_name TEXT, email TEXT, google_id TEXT,
                 onboarding_completed INTEGER DEFAULT 0, biometric_enabled INTEGER DEFAULT 0,
                 weight REAL, height REAL, birth_date TEXT, diabetes_condition TEXT,
-                restriction TEXT, updated_at TEXT, pending_sync INTEGER DEFAULT 0,
+                restriction TEXT, glycemic_goals TEXT, medication_reminders TEXT, updated_at TEXT, pending_sync INTEGER DEFAULT 0,
                 email_verified INTEGER DEFAULT 0
             );`
         );
@@ -109,6 +111,24 @@ export async function initDB(): Promise<void> {
         } catch (migrationError) {
             // Coluna já existe, não é erro
             console.log('ℹ️ Coluna email_verified já existe na tabela users');
+        }
+
+        // Migração: Adicionar coluna glycemic_goals se não existir
+        try {
+            await executeTransaction(`ALTER TABLE users ADD COLUMN glycemic_goals TEXT;`);
+            console.log('✅ Coluna glycemic_goals adicionada à tabela users');
+        } catch (migrationError) {
+            // Coluna já existe, não é erro
+            console.log('ℹ️ Coluna glycemic_goals já existe na tabela users');
+        }
+
+        // Migração: Adicionar coluna medication_reminders se não existir
+        try {
+            await executeTransaction(`ALTER TABLE users ADD COLUMN medication_reminders TEXT;`);
+            console.log('✅ Coluna medication_reminders adicionada à tabela users');
+        } catch (migrationError) {
+            // Coluna já existe, não é erro
+            console.log('ℹ️ Coluna medication_reminders já existe na tabela users');
         }
 
         // Migração: Adicionar coluna user_id se não existir
@@ -158,6 +178,8 @@ function normalizeUserRow(row: any): UserProfile {
         birthDate: String(row.birth_date ?? ''), 
         condition: String(row.diabetes_condition ?? ''), 
         restriction: String(row.restriction ?? ''),
+        glycemicGoals: String(row.glycemic_goals ?? ''),
+        medicationReminders: String(row.medication_reminders ?? ''),
         updated_at: row.updated_at,
         pending_sync: !!row.pending_sync,
         emailVerified: !!row.email_verified,
@@ -193,7 +215,7 @@ function normalizeReadingRow(row: any): Reading {
  * Salva ou atualiza usuário no SQLite e chama a sincronização.
  */
 export async function saveOrUpdateUser(profile: UserProfile): Promise<UserProfile> {
-    const sql = `INSERT OR REPLACE INTO users (id, full_name, email, google_id, onboarding_completed, biometric_enabled, weight, height, birth_date, diabetes_condition, restriction, updated_at, pending_sync, email_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
+    const sql = `INSERT OR REPLACE INTO users (id, full_name, email, google_id, onboarding_completed, biometric_enabled, weight, height, birth_date, diabetes_condition, restriction, glycemic_goals, medication_reminders, updated_at, pending_sync, email_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
     const updated_at = new Date().toISOString();
     const params = [ 
         profile.id, 
@@ -207,6 +229,8 @@ export async function saveOrUpdateUser(profile: UserProfile): Promise<UserProfil
         profile.birthDate, 
         profile.condition, 
         profile.restriction,
+        profile.glycemicGoals || null,
+        profile.medicationReminders || null,
         updated_at,
         1, // pending_sync = true
         profile.emailVerified ? 1 : 0 // email_verified

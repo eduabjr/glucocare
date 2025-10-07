@@ -271,8 +271,13 @@ export default function NutritionScreen() {
                 birthDate: user.birthDate,
                 height: user.height,
                 weight: user.weight,
-                restriction: user.restriction
+                restriction: user.restriction,
+                onboardingCompleted: user.onboardingCompleted
             });
+
+            // ✅ CORREÇÃO: Verifica se o usuário tem dados básicos
+            const hasBasicProfile = user.name && user.condition;
+            console.log('👤 Verificação de perfil básico:', { hasBasicProfile, user });
 
             let age: number | undefined = undefined;
             if (user.birthDate) {

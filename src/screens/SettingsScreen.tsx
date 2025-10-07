@@ -8,6 +8,7 @@ import { auth } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { saveOrUpdateUser } from '../services/dbService';
 import { ThemeContext } from '../context/ThemeContext';
+import { GlycemicGoals, getUserGlycemicGoals } from '../utils/glycemicGoals';
 
 // Tipos para os ícones
 type MaterialIconName = React.ComponentProps<typeof MaterialIcons>['name'];
@@ -84,6 +85,8 @@ const SettingsScreen: React.FC = () => {
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [showGlycemicGoalsModal, setShowGlycemicGoalsModal] = useState(false);
+    const [glycemicGoals, setGlycemicGoals] = useState<GlycemicGoals>(() => getUserGlycemicGoals(user?.glycemicGoals, user?.condition));
 
     // Interface para regras de senha
     interface PasswordRules {
@@ -322,6 +325,43 @@ const SettingsScreen: React.FC = () => {
         }
     };
 
+    const handleSaveGlycemicGoals = async () => {
+        try {
+            if (!user) {
+                Alert.alert('Erro', 'Usuário não encontrado.');
+                return;
+            }
+
+            const updatedUser = {
+                ...user,
+                glycemicGoals: JSON.stringify(glycemicGoals),
+                updated_at: new Date().toISOString(),
+                pending_sync: true
+            };
+
+            await saveOrUpdateUser(updatedUser as any);
+            setUser(updatedUser);
+
+            Alert.alert('Sucesso', 'Objetivos glicêmicos atualizados com sucesso!');
+            setShowGlycemicGoalsModal(false);
+        } catch (error) {
+            console.error('Erro ao salvar objetivos glicêmicos:', error);
+            Alert.alert('Erro', 'Não foi possível salvar os objetivos glicêmicos.');
+        }
+    };
+
+    const handleInputChange = (period: keyof GlycemicGoals, field: 'min' | 'ideal' | 'max', value: string) => {
+        const numericValue = parseInt(value) || 0;
+        
+        setGlycemicGoals(prev => ({
+            ...prev,
+            [period]: {
+                ...prev[period],
+                [field]: numericValue
+            }
+        }));
+    };
+
     return (
         <ScrollView style={styles.container}>
             
@@ -418,6 +458,17 @@ const SettingsScreen: React.FC = () => {
                         <MaterialIcons name="chevron-right" size={24} color={theme.secundaryText} />
                     )}
                 </TouchableOpacity>
+            </View>
+
+            {/* Health Settings */}
+            <Text style={styles.sectionTitle}>SAÚDE</Text>
+            <View style={styles.cardGroup}>
+                <SettingsCard
+                    title="Objetivo Glicêmico"
+                    description="Configure suas metas de glicemia personalizadas."
+                    iconName="favorite"
+                    onPress={() => setShowGlycemicGoalsModal(true)}
+                />
             </View>
 
             {/* Security Settings */}
@@ -692,6 +743,160 @@ const SettingsScreen: React.FC = () => {
                 </View>
             </Modal>
 
+            {/* Modal de Objetivos Glicêmicos */}
+            <Modal
+                visible={showGlycemicGoalsModal}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setShowGlycemicGoalsModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Objetivo Glicêmico</Text>
+                            <TouchableOpacity
+                                style={styles.closeButton}
+                                onPress={() => setShowGlycemicGoalsModal(false)}
+                            >
+                                <MaterialIcons name="close" size={24} color={theme.text} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+                            <Text style={styles.modalDescription}>
+                                Configure suas metas de glicemia para diferentes períodos do dia.
+                            </Text>
+
+                            {/* Pré-refeição */}
+                            <View style={styles.goalsSection}>
+                                <Text style={styles.periodTitle}>Pré-refeição:</Text>
+                                <View style={styles.inputRow}>
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.inputLabel}>Min</Text>
+                                        <TextInput
+                                            style={styles.goalInput}
+                                            value={glycemicGoals.preMeal.min.toString()}
+                                            onChangeText={(value) => handleInputChange('preMeal', 'min', value)}
+                                            keyboardType="numeric"
+                                            maxLength={3}
+                                        />
+                                    </View>
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.inputLabel}>Ideal</Text>
+                                        <TextInput
+                                            style={styles.goalInput}
+                                            value={glycemicGoals.preMeal.ideal.toString()}
+                                            onChangeText={(value) => handleInputChange('preMeal', 'ideal', value)}
+                                            keyboardType="numeric"
+                                            maxLength={3}
+                                        />
+                                    </View>
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.inputLabel}>Max</Text>
+                                        <TextInput
+                                            style={styles.goalInput}
+                                            value={glycemicGoals.preMeal.max.toString()}
+                                            onChangeText={(value) => handleInputChange('preMeal', 'max', value)}
+                                            keyboardType="numeric"
+                                            maxLength={3}
+                                        />
+                                    </View>
+                                </View>
+                            </View>
+
+                            {/* Pós-refeição */}
+                            <View style={styles.goalsSection}>
+                                <Text style={styles.periodTitle}>Pós-refeição:</Text>
+                                <View style={styles.inputRow}>
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.inputLabel}>Min</Text>
+                                        <TextInput
+                                            style={styles.goalInput}
+                                            value={glycemicGoals.postMeal.min.toString()}
+                                            onChangeText={(value) => handleInputChange('postMeal', 'min', value)}
+                                            keyboardType="numeric"
+                                            maxLength={3}
+                                        />
+                                    </View>
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.inputLabel}>Ideal</Text>
+                                        <TextInput
+                                            style={styles.goalInput}
+                                            value={glycemicGoals.postMeal.ideal.toString()}
+                                            onChangeText={(value) => handleInputChange('postMeal', 'ideal', value)}
+                                            keyboardType="numeric"
+                                            maxLength={3}
+                                        />
+                                    </View>
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.inputLabel}>Max</Text>
+                                        <TextInput
+                                            style={styles.goalInput}
+                                            value={glycemicGoals.postMeal.max.toString()}
+                                            onChangeText={(value) => handleInputChange('postMeal', 'max', value)}
+                                            keyboardType="numeric"
+                                            maxLength={3}
+                                        />
+                                    </View>
+                                </View>
+                            </View>
+
+                            {/* Noite/Madrugada */}
+                            <View style={styles.goalsSection}>
+                                <Text style={styles.periodTitle}>Noite/Madrugada:</Text>
+                                <View style={styles.inputRow}>
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.inputLabel}>Min</Text>
+                                        <TextInput
+                                            style={styles.goalInput}
+                                            value={glycemicGoals.night.min.toString()}
+                                            onChangeText={(value) => handleInputChange('night', 'min', value)}
+                                            keyboardType="numeric"
+                                            maxLength={3}
+                                        />
+                                    </View>
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.inputLabel}>Ideal</Text>
+                                        <TextInput
+                                            style={styles.goalInput}
+                                            value={glycemicGoals.night.ideal.toString()}
+                                            onChangeText={(value) => handleInputChange('night', 'ideal', value)}
+                                            keyboardType="numeric"
+                                            maxLength={3}
+                                        />
+                                    </View>
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.inputLabel}>Max</Text>
+                                        <TextInput
+                                            style={styles.goalInput}
+                                            value={glycemicGoals.night.max.toString()}
+                                            onChangeText={(value) => handleInputChange('night', 'max', value)}
+                                            keyboardType="numeric"
+                                            maxLength={3}
+                                        />
+                                    </View>
+                                </View>
+                            </View>
+                        </ScrollView>
+
+                        <View style={styles.modalFooter}>
+                            <TouchableOpacity
+                                style={styles.cancelButton}
+                                onPress={() => setShowGlycemicGoalsModal(false)}
+                            >
+                                <Text style={styles.cancelButtonText}>Cancelar</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.confirmButton}
+                                onPress={handleSaveGlycemicGoals}
+                            >
+                                <Text style={styles.confirmButtonText}>Salvar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
             <View style={{ height: 50 }} />
         </ScrollView>
     );
@@ -947,6 +1152,66 @@ const getStyles = (theme: any) => StyleSheet.create({
     },
     lockedDescription: {
         color: theme.secundaryText,
+    },
+    // Estilos para o modal de objetivos glicêmicos
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    modalBody: {
+        maxHeight: 400,
+    },
+    modalDescription: {
+        fontSize: 14,
+        color: theme.secundaryText,
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    goalsSection: {
+        marginBottom: 24,
+    },
+    periodTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: theme.text,
+        marginBottom: 12,
+    },
+    inputRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    inputGroup: {
+        flex: 1,
+        alignItems: 'center',
+        marginHorizontal: 4,
+    },
+    inputLabel: {
+        fontSize: 14,
+        color: theme.secundaryText,
+        marginBottom: 8,
+        fontWeight: '500',
+    },
+    goalInput: {
+        borderWidth: 1,
+        borderColor: theme.border,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 12,
+        fontSize: 16,
+        color: theme.text,
+        backgroundColor: theme.background,
+        textAlign: 'center',
+        minWidth: 60,
+    },
+    modalFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 20,
+    },
+    closeButton: {
+        padding: 8,
     },
 });
 

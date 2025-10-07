@@ -190,9 +190,9 @@ export default function ProfileSetupScreen({ navigation }: ProfileSetupScreenPro
 
             // ProfileSetupScreen é apenas para cadastro inicial
             if (!user.onboardingCompleted) {
-                // Está no onboarding - vai para BiometricSetup
-                Alert.alert('Sucesso', 'Perfil salvo! Próxima etapa: Configuração de segurança.');
-                navigation.replace('BiometricSetup');
+                // Está no onboarding - vai para GlycemicGoal
+                Alert.alert('Sucesso', 'Perfil salvo! Próxima etapa: Definir objetivos glicêmicos.');
+                navigation.replace('GlycemicGoal');
             }
 
         } catch (err) {

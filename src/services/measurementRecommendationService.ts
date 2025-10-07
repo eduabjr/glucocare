@@ -1,5 +1,6 @@
 import { listReadings } from './dbService';
 import { notificationService } from './notificationService';
+import { getUserGlycemicGoals } from '../utils/glycemicGoals';
 
 export interface MeasurementPattern {
   averageGlucose: number;
@@ -14,7 +15,7 @@ export class MeasurementRecommendationService {
   /**
    * Analisa todas as medições do usuário e gera recomendações de horário
    */
-  async analyzeMeasurementPatterns(): Promise<MeasurementPattern | null> {
+  async analyzeMeasurementPatterns(userGlycemicGoals?: string, userCondition?: string): Promise<MeasurementPattern | null> {
     try {
       const readings = await listReadings();
       
@@ -33,7 +34,7 @@ export class MeasurementRecommendationService {
       const analysis = this.performPatternAnalysis(sortedReadings);
       
       // Gera recomendações
-      const recommendations = this.generateRecommendations(analysis);
+      const recommendations = this.generateRecommendations(analysis, userGlycemicGoals, userCondition);
       
       return recommendations;
       
@@ -83,14 +84,14 @@ export class MeasurementRecommendationService {
   /**
    * Gera recomendações baseadas na análise
    */
-  private generateRecommendations(analysis: any): MeasurementPattern {
+  private generateRecommendations(analysis: any, userGlycemicGoals?: string, userCondition?: string): MeasurementPattern {
     const { hourCounts, hourAverages, overallAverage, totalReadings } = analysis;
     
     // Encontra o melhor horário para medição
     const bestHour = this.findBestMeasurementTime(hourCounts, hourAverages);
     
     // Calcula frequência recomendada
-    const recommendedFrequency = this.calculateRecommendedFrequency(totalReadings, overallAverage);
+    const recommendedFrequency = this.calculateRecommendedFrequency(totalReadings, overallAverage, userGlycemicGoals, userCondition);
     
     // Gera insights
     const insights = this.generateInsights(analysis, bestHour);
@@ -123,6 +124,7 @@ export class MeasurementRecommendationService {
       const average = hourAverages[hour] || 0;
       
       // Score baseado em: menos medições = mais importante, valores normais = melhor
+      // Usa valores padrão para cálculo de estabilidade
       const stabilityScore = average >= 70 && average <= 140 ? 1 : 0.5;
       const frequencyScore = Math.max(0, 1 - (count / 10)); // Menos medições = maior score
       
@@ -140,11 +142,16 @@ export class MeasurementRecommendationService {
   /**
    * Calcula frequência recomendada de medições
    */
-  private calculateRecommendedFrequency(totalReadings: number, averageGlucose: number): number {
+  private calculateRecommendedFrequency(totalReadings: number, averageGlucose: number, userGlycemicGoals?: string, userCondition?: string): number {
+    // Usa os objetivos glicêmicos personalizados do usuário se disponíveis
+    const userGoals = getUserGlycemicGoals(userGlycemicGoals, userCondition);
+    const maxThreshold = userGoals.postMeal.max;
+    const minThreshold = userGoals.preMeal.min;
+    
     // Baseado na média de glicose, recomenda frequência
-    if (averageGlucose > 180) return 4; // 4x por dia se muito alto
-    if (averageGlucose > 140) return 3; // 3x por dia se alto
-    if (averageGlucose < 70) return 4; // 4x por dia se baixo
+    if (averageGlucose > maxThreshold) return 4; // 4x por dia se muito alto
+    if (averageGlucose > userGoals.preMeal.max) return 3; // 3x por dia se alto
+    if (averageGlucose < minThreshold) return 4; // 4x por dia se baixo
     return 2; // 2x por dia se normal
   }
 
@@ -223,8 +230,8 @@ export class MeasurementRecommendationService {
   /**
    * Gera e agenda recomendações automaticamente
    */
-  async generateAndScheduleRecommendations(): Promise<MeasurementPattern | null> {
-    const recommendations = await this.analyzeMeasurementPatterns();
+  async generateAndScheduleRecommendations(userGlycemicGoals?: string, userCondition?: string): Promise<MeasurementPattern | null> {
+    const recommendations = await this.analyzeMeasurementPatterns(userGlycemicGoals, userCondition);
     
     if (recommendations) {
       await this.scheduleRecommendationNotification(recommendations);

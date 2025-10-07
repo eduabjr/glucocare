@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -7,24 +7,28 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
+// import * as MediaLibrary from 'expo-media-library'; // Removido - não funciona no Expo Go
 
 import { listReadings, Reading } from '../services/dbService'; // Funções do seu banco
 import { getReadingStatus } from '../components/utils/getReadingStatus'; // Sua função de status
 import { useAuth } from '../context/AuthContext'; // Para verificar o e-mail
 import { ThemeContext } from '../context/ThemeContext';
-import { notificationService } from '../services/notificationService';
+import { useNavigation } from '@react-navigation/native';
 
 export default function ReportScreen() {
   const { theme } = useContext(ThemeContext);
   const styles = getStyles(theme);
+  const navigation = useNavigation();
 
   const { user, refreshUserEmailStatus } = useAuth();
   const [readings, setReadings] = useState<Reading[]>([]);
   const [reportData, setReportData] = useState<Reading[]>([]);
+  
+  // Debug: monitorar mudanças no reportData
+  useEffect(() => {
+    console.log("reportData atualizado:", reportData.length, "items");
+  }, [reportData]);
   const [loading, setLoading] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [showLocationModal, setShowLocationModal] = useState(false); // New state for file location modal
-  const [fileLocationData, setFileLocationData] = useState<{fileName: string, filePath: string} | null>(null);
   const [downloading, setDownloading] = useState<{
     range: boolean;
     monthly: boolean;
@@ -34,7 +38,6 @@ export default function ReportScreen() {
     monthly: false,
     full: false
   });
-  const [downloadProgress, setDownloadProgress] = useState('');
 
   // Estados para o seletor de data
   const [startDate, setStartDate] = useState(new Date());
@@ -46,42 +49,23 @@ export default function ReportScreen() {
     async function fetchAllData() {
       setLoading(true);
       const allReadings = await listReadings();
+      console.log("Medições carregadas no ReportScreen:", allReadings.length, "items");
       setReadings(allReadings);
       setLoading(false);
     }
     fetchAllData();
     
-    // Configurar listener para notificações
-    const removeListener = notificationService.setupNotificationListener();
     
-    // Configurar callback para quando notificação for tocada
-    notificationService.setNotificationTapCallback(showFileLocation);
-    
-    // Cleanup
-    return () => {
-      removeListener();
-    };
+    // Cleanup - removido removeListener
   }, []);
 
   // Função para verificar status do email
   const handleCheckEmailStatus = async () => {
     try {
       const isVerified = await refreshUserEmailStatus();
-      if (isVerified === true) {
-        Alert.alert(
-          '✅ E-mail Verificado!', 
-          'Seu e-mail foi verificado com sucesso. Agora você pode gerar relatórios.',
-          [{ text: 'OK' }]
-        );
-      } else {
-        Alert.alert(
-          '❌ E-mail Não Verificado', 
-          'Verifique sua caixa de entrada e clique no link de verificação enviado.',
-          [{ text: 'OK' }]
-        );
-      }
+      // Removido: Alert.alert para verificação de email
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível verificar o status do e-mail. Tente novamente.');
+      console.error('Erro ao verificar status do email:', error);
     }
   };
 
@@ -117,11 +101,18 @@ export default function ReportScreen() {
     }
 
     if (filteredData.length === 0) {
-      Alert.alert("Nenhum Dado", "Não há medições para o período selecionado.");
+      console.log("Nenhuma medição encontrada para o período selecionado");
       return;
     }
     
     setReportData(filteredData);
+  };
+
+  // Função para obter status com cores (similar ao DashboardScreen)
+  const getReadingStatusWithColors = (value: number) => {
+    if (value < 70) return { label: 'Baixo', text: '#b45309', bg: '#fef3c7' };
+    if (value > 140) return { label: 'Alto', text: '#b91c1c', bg: '#fee2e2' };
+    return { label: 'Normal', text: '#047857', bg: '#d1fae5' };
   };
 
   const generateHtmlForPdf = (data: Reading[]): string => {
@@ -131,6 +122,7 @@ export default function ReportScreen() {
         <td>${r.glucose_level} mg/dL</td>
         <td>${getReadingStatus(r.glucose_level)}</td>
         <td>${r.meal_context || 'N/A'}</td>
+        <td>${r.notes || ''}</td>
       </tr>
     `).join('');
 
@@ -156,6 +148,7 @@ export default function ReportScreen() {
                 <th>Glicemia</th>
                 <th>Status</th>
                 <th>Contexto</th>
+                <th>Observações</th>
               </tr>
             </thead>
             <tbody>
@@ -239,7 +232,7 @@ export default function ReportScreen() {
 
   const handleShareReport = async () => {
     if (reportData.length === 0) {
-      Alert.alert("Erro", "Gere um relatório primeiro antes de compartilhar.");
+      console.log("Nenhum relatório para compartilhar");
       return;
     }
 
@@ -265,10 +258,7 @@ export default function ReportScreen() {
       });
       
     } catch (error) {
-      Alert.alert(
-        "❌ Erro", 
-        "Não foi possível compartilhar o relatório. Tente novamente."
-      );
+      console.error("Erro ao compartilhar relatório:", error);
     }
   };
 
@@ -277,15 +267,17 @@ export default function ReportScreen() {
     console.log('🔍 Debug: reportData.length =', reportData.length);
     
     if (reportData.length === 0) {
-      Alert.alert("Erro", "Gere um relatório primeiro antes de baixar.");
+      console.log("Nenhum relatório para baixar");
       return;
     }
 
-    if (downloading.range) return; // Evita múltiplos downloads simultâneos
+    if (downloading.range) {
+      console.log('🔍 Debug: Download já em andamento, ignorando');
+      return; // Evita múltiplos downloads simultâneos
+    }
 
     try {
       setDownloading(prev => ({ ...prev, range: true }));
-      setDownloadProgress('📥 Iniciando download...');
       
       // Determina o tipo baseado nos dados
       const now = new Date();
@@ -300,79 +292,68 @@ export default function ReportScreen() {
       }
 
       console.log('🔍 Debug: Tipo determinado =', type);
-      setDownloadProgress('📄 Gerando PDF...');
       
       const { uri, fileName } = await generatePdfFile(reportData, type);
       console.log('🔍 Debug: PDF gerado - uri =', uri, 'fileName =', fileName);
       
-      // Salva o arquivo na pasta Downloads do usuário
-      const downloadsDir = FileSystem.documentDirectory + 'Downloads/';
-      console.log('🔍 Debug: downloadsDir =', downloadsDir);
+      // Salva o arquivo no diretório de documentos usando FileSystem
+      console.log('🔍 Debug: Salvando arquivo no dispositivo...');
       
-      setDownloadProgress('📁 Preparando pasta...');
+      // Caminho de destino no diretório de documentos
+      const downloadPath = `${FileSystem.documentDirectory}${fileName}.pdf`;
       
-      // Cria a pasta Downloads se não existir
-      const dirInfo = await FileSystem.getInfoAsync(downloadsDir);
-      console.log('🔍 Debug: dirInfo.exists =', dirInfo.exists);
-      if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(downloadsDir, { intermediates: true });
-        console.log('🔍 Debug: Pasta Downloads criada');
-      }
-      
-      const destinationUri = downloadsDir + fileName + '.pdf';
-      console.log('🔍 Debug: destinationUri =', destinationUri);
-      
-      setDownloadProgress('💾 Salvando arquivo...');
-      
+      // Copia o arquivo PDF para o diretório de documentos
       await FileSystem.copyAsync({
         from: uri,
-        to: destinationUri
+        to: downloadPath
       });
-      console.log('🔍 Debug: Arquivo copiado com sucesso');
       
-      setDownloadProgress('🔔 Enviando notificação...');
+      console.log('🔍 Debug: Arquivo salvo com sucesso em:', downloadPath);
+      
+      // Verifica se o arquivo existe
+      const fileExists = await FileSystem.getInfoAsync(downloadPath);
+      if (fileExists.exists) {
+        console.log('🔍 Debug: Arquivo confirmado no dispositivo');
+        
+        // Compartilha o arquivo usando Sharing
+        console.log('🔍 Debug: Compartilhando arquivo...');
+        await Sharing.shareAsync(downloadPath, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Salvar Relatório de Glicemia',
+          UTI: 'com.adobe.pdf'
+        });
+        console.log('🔍 Debug: Arquivo compartilhado com sucesso');
+      } else {
+        console.error('🔍 Debug: Arquivo não encontrado após cópia');
+        throw new Error('Falha ao salvar arquivo no dispositivo');
+      }
+      
       
       // Enviar notificação específica para relatório por período
-      await notificationService.notifyDownloadComplete(fileName + '.pdf', destinationUri, 'range');
-      console.log('🔍 Debug: Notificação enviada');
+      console.log('🔍 Debug: Download concluído com sucesso');
       
-      setDownloadProgress('');
       setDownloading(prev => ({ ...prev, range: false }));
-      
-      Alert.alert(
-        "✅ Download Concluído!", 
-        `${fileName}.pdf foi salvo com sucesso na pasta Downloads!`,
-        [{ text: 'OK' }]
-      );
       
     } catch (error) {
-      setDownloadProgress('');
       setDownloading(prev => ({ ...prev, range: false }));
-      Alert.alert(
-        "❌ Erro no Download", 
-        "Não foi possível baixar o relatório. Tente novamente."
-      );
+      console.error("Erro no download:", error);
     }
   };
 
   const handleViewReport = () => {
     if (reportData.length === 0) {
-      Alert.alert("Erro", "Gere um relatório primeiro antes de visualizar.");
+      console.log("Nenhum relatório para visualizar");
       return;
     }
-    setShowViewModal(true);
+    console.log("Visualização de relatório - removida");
   };
 
-  // Função para mostrar local do arquivo
-  const showFileLocation = (fileName: string, filePath: string) => {
-    setFileLocationData({ fileName, filePath });
-    setShowLocationModal(true);
-  };
+  // Função para mostrar local do arquivo - removida
 
   // Funções específicas para Relatório Mensal
   const handleMonthlyShare = async () => {
     if (!user?.emailVerified) {
-      Alert.alert("Acesso Negado", "Você precisa verificar seu e-mail para gerar relatórios.");
+      console.log("Email não verificado para compartilhar relatório mensal");
       return;
     }
 
@@ -384,7 +365,7 @@ export default function ReportScreen() {
         UTI: 'com.adobe.pdf'
       });
     } catch (error) {
-      Alert.alert("❌ Erro", "Não foi possível compartilhar o relatório mensal. Tente novamente.");
+      console.error("Erro ao compartilhar relatório mensal:", error);
     }
   };
 
@@ -392,85 +373,80 @@ export default function ReportScreen() {
     console.log('🔍 Debug: Iniciando download do relatório mensal');
     
     if (!user?.emailVerified) {
-      Alert.alert("Acesso Negado", "Você precisa verificar seu e-mail para gerar relatórios.");
+      console.log("Email não verificado para download do relatório mensal");
       return;
     }
 
-    if (downloading.monthly) return; // Evita múltiplos downloads simultâneos
+    if (downloading.monthly) {
+      console.log('🔍 Debug: Download mensal já em andamento, ignorando');
+      return; // Evita múltiplos downloads simultâneos
+    }
 
     try {
       setDownloading(prev => ({ ...prev, monthly: true }));
-      setDownloadProgress('📥 Iniciando download...');
       
-      setDownloadProgress('📄 Gerando PDF...');
       const { uri, fileName, data } = await generatePdfFile([], 'monthly');
       console.log('🔍 Debug: PDF mensal gerado - uri =', uri, 'fileName =', fileName);
       
-      // Salva o arquivo na pasta Downloads do usuário
-      const downloadsDir = FileSystem.documentDirectory + 'Downloads/';
+      // Salva o arquivo no diretório de documentos usando FileSystem
+      console.log('🔍 Debug: Salvando arquivo mensal no dispositivo...');
       
-      setDownloadProgress('📁 Preparando pasta...');
+      // Caminho de destino no diretório de documentos
+      const downloadPath = `${FileSystem.documentDirectory}${fileName}.pdf`;
       
-      // Cria a pasta Downloads se não existir
-      const dirInfo = await FileSystem.getInfoAsync(downloadsDir);
-      if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(downloadsDir, { intermediates: true });
-      }
-      
-      const destinationUri = downloadsDir + fileName + '.pdf';
-      
-      setDownloadProgress('💾 Salvando arquivo...');
-      
+      // Copia o arquivo PDF para o diretório de documentos
       await FileSystem.copyAsync({
         from: uri,
-        to: destinationUri
+        to: downloadPath
       });
       
-      setDownloadProgress('🔔 Enviando notificação...');
+      console.log('🔍 Debug: Arquivo mensal salvo com sucesso em:', downloadPath);
+      
+      // Verifica se o arquivo existe
+      const fileExists = await FileSystem.getInfoAsync(downloadPath);
+      if (fileExists.exists) {
+        console.log('🔍 Debug: Arquivo mensal confirmado no dispositivo');
+        
+        // Compartilha o arquivo usando Sharing
+        console.log('🔍 Debug: Compartilhando arquivo mensal...');
+        await Sharing.shareAsync(downloadPath, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Salvar Relatório Mensal de Glicemia',
+          UTI: 'com.adobe.pdf'
+        });
+        console.log('🔍 Debug: Arquivo mensal compartilhado com sucesso');
+      } else {
+        console.error('🔍 Debug: Arquivo mensal não encontrado após cópia');
+        throw new Error('Falha ao salvar arquivo mensal no dispositivo');
+      }
+      
       
       // Enviar notificação específica para relatório mensal
-      await notificationService.notifyDownloadComplete(fileName + '.pdf', destinationUri, 'monthly');
       
-      setDownloadProgress('');
       setDownloading(prev => ({ ...prev, monthly: false }));
-      
-      Alert.alert(
-        "✅ Download Concluído!", 
-        `${fileName}.pdf foi salvo com sucesso na pasta Downloads!`,
-        [{ text: 'OK' }]
-      );
+      console.log('Download mensal concluído com sucesso');
     } catch (error) {
-      setDownloadProgress('');
       setDownloading(prev => ({ ...prev, monthly: false }));
-      Alert.alert("❌ Erro no Download", "Não foi possível baixar o relatório mensal. Tente novamente.");
+      console.error("Erro no download mensal:", error);
     }
   };
 
   const handleMonthlyView = () => {
     if (!user?.emailVerified) {
-      Alert.alert("Acesso Negado", "Você precisa verificar seu e-mail para gerar relatórios.");
+      console.log("Email não verificado para visualizar relatório mensal");
       return;
     }
 
-    // Gerar dados do mês atual para visualização
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-    const monthlyData = readings.filter(r => r.timestamp >= firstDay.getTime() && r.timestamp <= lastDay.getTime());
-    
-    if (monthlyData.length === 0) {
-      Alert.alert("Nenhum Dado", "Não há medições para o mês atual.");
-      return;
-    }
-    
-    setReportData(monthlyData);
-    setShowViewModal(true);
+    (navigation as any).navigate('ViewReport', {
+      reportType: 'monthly',
+      title: 'Relatório Mensal'
+    });
   };
 
   // Funções específicas para Histórico Completo
   const handleFullShare = async () => {
     if (!user?.emailVerified) {
-      Alert.alert("Acesso Negado", "Você precisa verificar seu e-mail para gerar relatórios.");
+      console.log("Email não verificado para compartilhar histórico completo");
       return;
     }
 
@@ -482,7 +458,7 @@ export default function ReportScreen() {
         UTI: 'com.adobe.pdf'
       });
     } catch (error) {
-      Alert.alert("❌ Erro", "Não foi possível compartilhar o histórico completo. Tente novamente.");
+      console.error("Erro ao compartilhar histórico completo:", error);
     }
   };
 
@@ -490,77 +466,74 @@ export default function ReportScreen() {
     console.log('🔍 Debug: Iniciando download do histórico completo');
     
     if (!user?.emailVerified) {
-      Alert.alert("Acesso Negado", "Você precisa verificar seu e-mail para gerar relatórios.");
+      console.log("Email não verificado para download do histórico completo");
       return;
     }
 
-    if (downloading.full) return; // Evita múltiplos downloads simultâneos
+    if (downloading.full) {
+      console.log('🔍 Debug: Download completo já em andamento, ignorando');
+      return; // Evita múltiplos downloads simultâneos
+    }
 
     try {
       setDownloading(prev => ({ ...prev, full: true }));
-      setDownloadProgress('📥 Iniciando download...');
       
-      setDownloadProgress('📄 Gerando PDF...');
       const { uri, fileName, data } = await generatePdfFile([], 'full');
       console.log('🔍 Debug: PDF completo gerado - uri =', uri, 'fileName =', fileName);
       
-      // Salva o arquivo na pasta Downloads do usuário
-      const downloadsDir = FileSystem.documentDirectory + 'Downloads/';
+      // Salva o arquivo no diretório de documentos usando FileSystem
+      console.log('🔍 Debug: Salvando arquivo completo no dispositivo...');
       
-      setDownloadProgress('📁 Preparando pasta...');
+      // Caminho de destino no diretório de documentos
+      const downloadPath = `${FileSystem.documentDirectory}${fileName}.pdf`;
       
-      // Cria a pasta Downloads se não existir
-      const dirInfo = await FileSystem.getInfoAsync(downloadsDir);
-      if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(downloadsDir, { intermediates: true });
-      }
-      
-      const destinationUri = downloadsDir + fileName + '.pdf';
-      
-      setDownloadProgress('💾 Salvando arquivo...');
-      
+      // Copia o arquivo PDF para o diretório de documentos
       await FileSystem.copyAsync({
         from: uri,
-        to: destinationUri
+        to: downloadPath
       });
       
-      setDownloadProgress('🔔 Enviando notificação...');
+      console.log('🔍 Debug: Arquivo completo salvo com sucesso em:', downloadPath);
+      
+      // Verifica se o arquivo existe
+      const fileExists = await FileSystem.getInfoAsync(downloadPath);
+      if (fileExists.exists) {
+        console.log('🔍 Debug: Arquivo completo confirmado no dispositivo');
+        
+        // Compartilha o arquivo usando Sharing
+        console.log('🔍 Debug: Compartilhando arquivo completo...');
+        await Sharing.shareAsync(downloadPath, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Salvar Histórico Completo de Glicemia',
+          UTI: 'com.adobe.pdf'
+        });
+        console.log('🔍 Debug: Arquivo completo compartilhado com sucesso');
+      } else {
+        console.error('🔍 Debug: Arquivo completo não encontrado após cópia');
+        throw new Error('Falha ao salvar arquivo completo no dispositivo');
+      }
+      
       
       // Enviar notificação específica para histórico completo
-      await notificationService.notifyDownloadComplete(fileName + '.pdf', destinationUri, 'full');
       
-      setDownloadProgress('');
       setDownloading(prev => ({ ...prev, full: false }));
-      
-      Alert.alert(
-        "✅ Download Concluído!", 
-        `${fileName}.pdf foi salvo com sucesso na pasta Downloads!`,
-        [{ text: 'OK' }]
-      );
+      console.log('Download do histórico completo concluído com sucesso');
     } catch (error) {
-      setDownloadProgress('');
       setDownloading(prev => ({ ...prev, full: false }));
-      Alert.alert("❌ Erro no Download", "Não foi possível baixar o histórico completo. Tente novamente.");
+      console.error("Erro no download do histórico completo:", error);
     }
   };
 
   const handleFullView = () => {
     if (!user?.emailVerified) {
-      Alert.alert("Acesso Negado", "Você precisa verificar seu e-mail para gerar relatórios.");
+      console.log("Email não verificado para visualizar histórico completo");
       return;
     }
 
-    try {
-      if (readings.length === 0) {
-        Alert.alert("Nenhum Dado", "Não há medições registradas.");
-        return;
-      }
-      
-      setReportData(readings);
-      setShowViewModal(true);
-    } catch (error) {
-      Alert.alert("❌ Erro", "Não foi possível visualizar o histórico completo. Tente novamente.");
-    }
+    (navigation as any).navigate('ViewReport', {
+      reportType: 'full',
+      title: 'Histórico Completo'
+    });
   };
 
 
@@ -588,13 +561,6 @@ export default function ReportScreen() {
         <Text style={styles.title}>Relatório de Glicemia</Text>
         <Text style={styles.subtitle}>Gere e exporte seu histórico de medições</Text>
 
-            {/* Indicador de Progresso do Download */}
-            {(downloading.range || downloading.monthly || downloading.full) && downloadProgress && (
-              <View style={styles.downloadProgressContainer}>
-                <ActivityIndicator size="small" color={theme.primary} />
-                <Text style={styles.downloadProgressText}>{downloadProgress}</Text>
-              </View>
-            )}
         </View>
 
         {/* Card 1: Relatório por Período */}
@@ -629,16 +595,29 @@ export default function ReportScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-            <TouchableOpacity style={styles.actionButtonWrapper} onPress={() => handleGenerateReport('range')}>
-              <LinearGradient
-                colors={['#fff7ed', '#ffedd5']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.periodGenerateButton}
-              >
-                <Text style={styles.periodGenerateButtonText}>Gerar Relatório por Período</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+            <View style={styles.actionButtonsRow}>
+              <TouchableOpacity style={styles.actionButtonWrapper} onPress={() => handleGenerateReport('range')}>
+                <LinearGradient
+                  colors={['#fff7ed', '#ffedd5']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.periodGenerateButton}
+                >
+                  <Text style={styles.periodGenerateButtonText}>Gerar Relatório</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.actionButtonWrapper} onPress={() => setReportData([])}>
+                <LinearGradient
+                  colors={['#f3f4f6', '#e5e7eb']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.clearButton}
+                >
+                  <Text style={styles.clearButtonText}>Limpar</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {showPicker && (
@@ -654,60 +633,88 @@ export default function ReportScreen() {
         {/* --- Card de Resultados (movido para aqui) --- */}
         {loading && <ActivityIndicator size="large" color={theme.primary} />}
         {reportData.length > 0 && (
-          <View style={styles.resultsCard}>
-            <View style={styles.reportHeader}>
-                <Text style={styles.label}>Resultado</Text>
-                
-                {/* Botões de ação */}
-                <View style={styles.horizontalButtons}>
-                  <TouchableOpacity style={styles.actionButtonWrapper} onPress={handleShareReport}>
-                    <LinearGradient
-                      colors={['#f0f9ff', '#e0f2fe']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.actionButton}
-                    >
-                      <MaterialIcons name="share" size={16} color="#0369a1" />
-                      <Text style={styles.actionButtonText}>Compartilhar</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={styles.actionButtonWrapper} 
-                    onPress={handleDownloadReport}
-                    disabled={downloading.range}
-                  >
-                    <LinearGradient
-                      colors={downloading.range ? ['#f3f4f6', '#e5e7eb'] : ['#ecfdf5', '#d1fae5']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.actionButton}
-                    >
-                      {downloading.range ? (
-                        <ActivityIndicator size="small" color="#059669" />
-                      ) : (
-                        <MaterialIcons name="download" size={16} color="#059669" />
-                      )}
-                      <Text style={[styles.actionButtonText, downloading.range && { opacity: 0.7 }]}>
-                        {downloading.range ? 'Baixando...' : 'Download'}
-                      </Text>
-                    </LinearGradient>
-                </TouchableOpacity>
-                </View>
-            </View>
-            
-            {reportData.map(item => (
-              <View key={item.id} style={styles.readingItem}>
-                <View>
-                  <Text style={styles.readingDate}>{new Date(item.timestamp).toLocaleString('pt-BR')}</Text>
-                  <Text style={styles.readingContext}>{item.meal_context}</Text>
-                </View>
-                <View style={{alignItems: 'flex-end'}}>
-                  <Text style={styles.readingValue}>{item.glucose_level} mg/dL</Text>
-                  <Text style={styles.readingStatus}>{getReadingStatus(item.glucose_level)}</Text>
+          <View style={styles.reportCard}>
+            <View style={styles.cardContent}>
+              <View style={styles.cardTextContainer}>
+                <Text style={styles.cardTitle}>Resultado</Text>
+                <View style={styles.resultInfo}>
+                  <MaterialIcons name="info-outline" size={16} color={theme.secundaryText} />
+                  <Text style={styles.resultInfoText}>
+                    Dados filtrados para o 
+                    período selecionado.
+                  </Text>
                 </View>
               </View>
-            ))}
+              
+              {/* Botões de ação */}
+              <View style={styles.actionButtons}>
+                <TouchableOpacity style={styles.actionButtonWrapper} onPress={handleShareReport}>
+                  <LinearGradient
+                    colors={['#f0f9ff', '#e0f2fe']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionButton}
+                  >
+                    <MaterialIcons name="share" size={16} color="#0369a1" />
+                    <Text style={styles.actionButtonText}>Compartilhar</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.actionButtonWrapper} 
+                  onPress={handleDownloadReport}
+                  disabled={downloading.range}
+                  activeOpacity={downloading.range ? 1 : 0.7}
+                >
+                  <LinearGradient
+                    colors={downloading.range ? ['#f3f4f6', '#e5e7eb'] : ['#ecfdf5', '#d1fae5']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.actionButton}
+                  >
+                    {downloading.range ? (
+                      <ActivityIndicator size="small" color="#059669" />
+                    ) : (
+                      <MaterialIcons name="download" size={16} color="#059669" />
+                    )}
+                    <Text style={[styles.actionButtonText, downloading.range && { opacity: 0.7 }]}>
+                      {downloading.range ? 'Baixando...' : 'Download'}
+                    </Text>
+                  </LinearGradient>
+              </TouchableOpacity>
+              </View>
+            </View>
+            
+            {/* Seção de resultados com scroll */}
+            <View style={styles.resultsSection}>
+              <ScrollView 
+                style={styles.readingsScrollContainer} 
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+              >
+                {reportData.map((item, index) => {
+                  const glucoseLevel = Number(item.glucose_level) || 0;
+                  const status = getReadingStatusWithColors(glucoseLevel);
+                  
+                  return (
+                    <View key={item.id || index} style={styles.readingCard}>
+                      <View style={styles.readingRow}>
+                        <Text style={styles.readingValue}>{String(glucoseLevel)} mg/dL</Text>
+                        <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
+                          <Text style={[styles.readingStatus, { color: status.text }]}>{status.label}</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.readingDate}>
+                        {item.timestamp ? new Date(item.timestamp).toLocaleString('pt-BR') : 'Sem data'}
+                      </Text>
+                      {item.meal_context && (
+                        <Text style={styles.readingContext}>{item.meal_context}</Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </View>
           </View>
         )}
 
@@ -744,6 +751,7 @@ export default function ReportScreen() {
                     style={styles.actionButtonWrapper} 
                     onPress={() => handleMonthlyDownload()}
                     disabled={downloading.monthly}
+                    activeOpacity={downloading.monthly ? 1 : 0.7}
                   >
                     <LinearGradient
                       colors={downloading.monthly ? ['#f3f4f6', '#e5e7eb'] : ['#ecfdf5', '#d1fae5']}
@@ -810,6 +818,7 @@ export default function ReportScreen() {
                     style={styles.actionButtonWrapper} 
                     onPress={handleFullDownload}
                     disabled={downloading.full}
+                    activeOpacity={downloading.full ? 1 : 0.7}
                   >
                     <LinearGradient
                       colors={downloading.full ? ['#f3f4f6', '#e5e7eb'] : ['#ecfdf5', '#d1fae5']}
@@ -843,95 +852,7 @@ export default function ReportScreen() {
               </View>
         </View>
 
-        {/* Modal de Visualização */}
-        <Modal
-          visible={showViewModal}
-          animationType="slide"
-          presentationStyle="pageSheet"
-        >
-          <SafeAreaView style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Relatório de Glicemia</Text>
-              <TouchableOpacity onPress={() => setShowViewModal(false)}>
-                <MaterialIcons name="close" size={24} color={theme.text} />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView style={styles.modalContent}>
-              <Text style={styles.modalSubtitle}>
-                Gerado em: {new Date().toLocaleDateString('pt-BR')} - {reportData.length} medições
-              </Text>
-              
-              {reportData.map(item => (
-                <View key={item.id} style={styles.modalReadingItem}>
-                  <View style={styles.modalReadingLeft}>
-                    <Text style={styles.modalReadingDate}>{new Date(item.timestamp).toLocaleString('pt-BR')}</Text>
-                    <Text style={styles.modalReadingContext}>{item.meal_context}</Text>
-                  </View>
-                  <View style={styles.modalReadingRight}>
-                    <Text style={styles.modalReadingValue}>{item.glucose_level} mg/dL</Text>
-                    <Text style={styles.modalReadingStatus}>{getReadingStatus(item.glucose_level)}</Text>
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
-          </SafeAreaView>
-        </Modal>
 
-        {/* Modal de Local do Arquivo */}
-        <Modal
-          visible={showLocationModal}
-          animationType="slide"
-          presentationStyle="pageSheet"
-          onRequestClose={() => setShowLocationModal(false)}
-        >
-          <SafeAreaView style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <MaterialIcons name="folder-open" size={24} color={theme.primary} />
-              <Text style={styles.modalTitle}>Local do Arquivo</Text>
-              <TouchableOpacity onPress={() => setShowLocationModal(false)}>
-                <MaterialIcons name="close" size={24} color={theme.text} />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.modalContent}>
-              {fileLocationData && (
-                <>
-                  <View style={styles.locationCard}>
-                    <MaterialIcons name="description" size={48} color={theme.primary} />
-                    <Text style={styles.fileName}>{fileLocationData.fileName}</Text>
-                    <Text style={styles.locationLabel}>Arquivo salvo em:</Text>
-                    <Text style={styles.filePath}>{notificationService.formatFilePath(fileLocationData.filePath)}</Text>
-                  </View>
-                  
-                  <View style={styles.locationActions}>
-                    <TouchableOpacity 
-                      style={[styles.actionButton, styles.copyButton]} 
-                      onPress={() => {
-                        // Aqui você pode implementar copiar para área de transferência
-                        Alert.alert("Copiado!", "Caminho do arquivo copiado para a área de transferência.");
-                      }}
-                    >
-                      <MaterialIcons name="content-copy" size={20} color="#fff" />
-                      <Text style={styles.actionButtonText}>Copiar Caminho</Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                      style={[styles.actionButton, styles.openButton]} 
-                      onPress={() => {
-                        // Aqui você pode implementar abrir gerenciador de arquivos
-                        Alert.alert("Abrir Arquivo", "Funcionalidade de abrir arquivo será implementada em breve.");
-                      }}
-                    >
-                      <MaterialIcons name="open-in-new" size={20} color="#fff" />
-                      <Text style={styles.actionButtonText}>Abrir Arquivo</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              )}
-            </View>
-          </SafeAreaView>
-        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
@@ -956,27 +877,6 @@ const getStyles = (theme: any) => StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 16,
     paddingTop: 8,
-  },
-  downloadProgressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.card,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginTop: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  downloadProgressText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: theme.text,
-    fontWeight: '500',
   },
   headerIconContainer: {
     backgroundColor: theme.primary + '20',
@@ -1047,7 +947,18 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: theme.text,
-    marginBottom: 4,
+    marginBottom: 8,
+  },
+  resultInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  resultInfoText: {
+    fontSize: 12,
+    color: theme.secundaryText,
+    marginLeft: 6,
+    fontStyle: 'italic',
   },
   cardDescription: {
     fontSize: 14,
@@ -1098,7 +1009,13 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
   periodGenerateButton: {
+    flex: 1,
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -1106,6 +1023,17 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   periodGenerateButtonText: {
     color: '#ea580c',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  clearButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  clearButtonText: {
+    color: '#6b7280',
     fontWeight: 'bold',
     fontSize: 16,
   },
@@ -1174,25 +1102,6 @@ const getStyles = (theme: any) => StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: theme.secundaryText + '20',
-  },
-  readingDate: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: theme.text,
-  },
-  readingContext: {
-    fontSize: 12,
-    color: theme.secundaryText,
-    textTransform: 'capitalize',
-  },
-  readingValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: theme.text,
-  },
-  readingStatus: {
-    fontSize: 12,
-    color: theme.secundaryText,
   },
 
   // Estilos do modal
@@ -1307,5 +1216,60 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   openButton: {
     backgroundColor: '#4CAF50',
+  },
+
+  // Estilos para a seção de resultados
+  resultsSection: {
+    marginTop: 16,
+    paddingHorizontal: 0,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: theme.text,
+  },
+  readingsScrollContainer: {
+    height: 220, // Altura fixa para exibir exatamente 3 medições (60px + 8px + 60px + 8px + 60px + 4px padding)
+    paddingBottom: 8,
+  },
+  readingCard: {
+    backgroundColor: theme.background,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+    marginHorizontal: 0,
+    elevation: 1,
+    minHeight: 60, // Altura mínima para cada medição
+  },
+  readingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  readingValue: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    color: theme.text 
+  },
+  statusBadge: {
+    borderRadius: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  readingStatus: { 
+    fontSize: 14, 
+    fontWeight: '700' 
+  },
+  readingDate: { 
+    fontSize: 12, 
+    color: theme.secundaryText, 
+    marginTop: 2 
+  },
+  readingContext: {
+    fontSize: 12,
+    color: theme.secundaryText,
+    marginTop: 2,
+    fontStyle: 'italic',
   },
 });
