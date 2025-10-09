@@ -1,19 +1,71 @@
-# Pastas de dependências
+# Dependencies
 node_modules/
-
-# Logs e arquivos de cache
 npm-debug.log*
-yarn-error.log
-
-# Arquivos de IDE (VS Code)
-.vscode/
-
-# Builds e pacotes
-/android/build/
-/ios/build/
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
 
 # Expo
 .expo/
+dist/
+web-build/
 
-node_modules
-node_modules
+# Native
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# Build directories
+/android/build/
+/ios/build/
+/build/
+
+# Firebase
+firebase-debug.log
+.firebase/
+
+# EAS
+.easignore

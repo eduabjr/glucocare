@@ -196,6 +196,9 @@
       "eas": {
         "projectId": "bb849c02-0bbc-4d34-ac66-441748aa2550"
       },
+      "expo": {
+        "owner": "eduardofamilia01-hub"
+      },
       "//": "ID de Cliente para o build nativo iOS. Crie uma credencial 'iOS' se for buildar para iPhone/iPad.",
       "expoClientId": "360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com",
       "webClientId": "360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com",

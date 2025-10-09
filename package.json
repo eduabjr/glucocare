@@ -1,6 +1,11 @@
 {
   "name": "glucocare",
   "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eduardofamilia01-hub/glucocare.git"
+  },
+  "author": "eduardofamilia01-hub",
   "scripts": {
     "start": "expo start",
     "start:dev": "expo start --dev-client",
