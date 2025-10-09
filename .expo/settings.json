@@ -3,7 +3,7 @@
   "lanType": "ip",
   "dev": true,
   "minify": false,
-  "urlRandomness": null,
+  "urlRandomness": "VMRmGp8",
   "https": false,
   "scheme": "exp+glucocare",
   "devClient": false

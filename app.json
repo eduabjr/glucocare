@@ -17,7 +17,7 @@
     "scheme": "glucocare",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.eduabjr.glucocare",
+      "bundleIdentifier": "com.eduardofamilia01.glucocare",
       "infoPlist": {
         "NSFaceIDUsageDescription": "Allow $(PRODUCT_NAME) to use Face ID",
         "NSBluetoothAlwaysUsageDescription": "Allow $(PRODUCT_NAME) to connect to glucose meters via Bluetooth",
@@ -63,7 +63,7 @@
       }
     },
     "android": {
-      "package": "com.eduabjr.glucocare",
+      "package": "com.eduardofamilia01.glucocare",
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.USE_BIOMETRIC",
@@ -172,9 +172,10 @@
         "expo-build-properties",
         {
           "android": {
-            "compileSdkVersion": 34,
+            "compileSdkVersion": 35,
             "targetSdkVersion": 34,
-            "minSdkVersion": 24
+            "minSdkVersion": 24,
+            "buildToolsVersion": "35.0.0"
           },
           "ios": {
             "deploymentTarget": "15.1"
@@ -194,7 +195,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "bb849c02-0bbc-4d34-ac66-441748aa2550"
+        "projectId": "2d82c0cb-e0fd-40f3-bb50-abd697fa4e8d"
       },
       "expo": {
         "owner": "eduardofamilia01-hub"
