@@ -10,6 +10,8 @@ echo Fazendo commit e push...
 git add .
 for /f "tokens=1-6 delims=: " %%a in ("%time%") do set timestamp=%%a%%b%%c
 git commit -m "Update: %date% %time%"
+echo Fazendo pull antes do push...
+git pull origin main --no-edit
 git push origin main
 git push eduabjr main
 
