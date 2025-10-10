@@ -1,11 +1,12 @@
 import * as SQLite from 'expo-sqlite';
 // Importa as instâncias e funções do Firebase/Firestore
 
-
+// Tipos de compatibilidade para SQLite
+type SQLiteDatabase = any;
 
 // --- NOME DO BANCO ---
 const DB_NAME = 'glucocare.db';
-let dbInstance: SQLite.Database | null = null; 
+let dbInstance: SQLiteDatabase | null = null; 
 
 // ----------------------
 // TIPAGEM (Fonte Única da Verdade)
@@ -50,9 +51,10 @@ export interface Reading {
 // FUNÇÕES DE SERVIÇO BÁSICAS (SQLite)
 // ----------------------
 
-export function getDB(): SQLite.Database {
+export function getDB(): SQLiteDatabase {
     if (!dbInstance) {
-        dbInstance = SQLite.openDatabase(DB_NAME);
+        // Versões mais recentes do expo-sqlite usam openDatabaseSync
+        dbInstance = (SQLite as any).openDatabaseSync ? (SQLite as any).openDatabaseSync(DB_NAME) : (SQLite as any).openDatabase(DB_NAME);
     }
     return dbInstance;
 }
@@ -62,7 +64,7 @@ export function getDB(): SQLite.Database {
  * Centraliza a lógica de execução de transações SQL, retornando uma Promise.
  * Isso elimina a repetição de código em todas as outras funções.
  */
-export async function executeTransaction(sql: string, args: any[] = []): Promise<SQLite.SQLResultSet> {
+export async function executeTransaction(sql: string, args: any[] = []): Promise<any> {
     const database = getDB();
     return new Promise((resolve, reject) => {
         database.transaction(

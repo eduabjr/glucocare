@@ -1,12 +1,12 @@
 import * as Linking from 'expo-linking';
 import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
-import { GlucoseReading } from './bluetoothService';
+import { Reading } from './dbService';
 import { parseFileContent } from './fileParsingService';
 
 export interface FileLinkingResult {
   success: boolean;
-  readings?: GlucoseReading[];
+  readings?: Reading[];
   error?: string;
   fileName?: string;
 }
@@ -53,7 +53,9 @@ class LinkingService {
       if (url.startsWith('file://') || url.includes('.csv') || url.includes('.xlsx') || url.includes('.xml') || url.includes('.pdf')) {
         const filePath = this.extractFilePath(url);
         if (filePath) {
-          await this.processFileFromDeepLink(filePath);
+          // Nota: O userId deve ser fornecido pela tela que chama este serviço
+          console.log('📁 Arquivo detectado via deep link:', filePath);
+          // A tela que usa este serviço deve chamar processFileFromDeepLink com o userId
         }
       }
     } catch (error) {
@@ -73,7 +75,7 @@ class LinkingService {
     return filePath ? decodeURIComponent(filePath) : null;
   }
 
-  public async processFileFromDeepLink(filePath: string): Promise<FileLinkingResult> {
+  public async processFileFromDeepLink(filePath: string, userId: string): Promise<FileLinkingResult> {
     try {
       console.log('📁 Processando arquivo do deep link:', filePath);
 
@@ -88,14 +90,14 @@ class LinkingService {
 
       // Lê o conteúdo do arquivo
       const content = await FileSystem.readAsStringAsync(filePath, {
-        encoding: FileSystem.EncodingType.UTF8,
+        encoding: 'utf8' as any,
       });
 
       // Extrai o nome do arquivo
       const fileName = filePath.split('/').pop() || 'arquivo_importado';
 
       // Processa o conteúdo baseado na extensão
-      const readings = await parseFileContent(content, fileName);
+      const readings = await parseFileContent(content, fileName, userId);
 
       if (readings.length === 0) {
         return {
@@ -122,7 +124,7 @@ class LinkingService {
     }
   }
 
-  public async processSharedFile(): Promise<FileLinkingResult> {
+  public async processSharedFile(userId: string): Promise<FileLinkingResult> {
     try {
       // Usa o DocumentPicker para pegar o arquivo compartilhado
       const result = await DocumentPicker.getDocumentAsync({
@@ -139,10 +141,10 @@ class LinkingService {
 
       const file = result.assets[0];
       const content = await FileSystem.readAsStringAsync(file.uri, {
-        encoding: FileSystem.EncodingType.UTF8,
+        encoding: 'utf8' as any,
       });
 
-      const readings = await parseFileContent(content, file.name || 'arquivo_importado');
+      const readings = await parseFileContent(content, file.name || 'arquivo_importado', userId);
 
       if (readings.length === 0) {
         return {
@@ -168,8 +170,14 @@ class LinkingService {
   }
 
   public cleanup() {
-    Linking.removeAllListeners('url');
-    this.isInitialized = false;
+    // Remove listener se existir
+    try {
+      // Em versões mais recentes do expo-linking, não há mais removeAllListeners
+      // O cleanup é automático quando o componente desmonta
+      this.isInitialized = false;
+    } catch (error) {
+      console.error('Erro ao limpar linking service:', error);
+    }
   }
 }
 

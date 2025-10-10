@@ -153,7 +153,7 @@ export default function GitImport({ onImportComplete }: GitImportProps) {
 
   const renderResultModal = () => (
     <Modal
-      visible={showResult && importResult}
+      visible={showResult && !!importResult}
       animationType="slide"
       transparent={true}
       onRequestClose={() => setShowResult(false)}
@@ -293,7 +293,7 @@ export default function GitImport({ onImportComplete }: GitImportProps) {
               <Switch
                 value={useAuthentication}
                 onValueChange={setUseAuthentication}
-                trackColor={{ false: theme.border, true: theme.primary }}
+                trackColor={{ false: theme.secundaryText, true: theme.primary }}
                 thumbColor={useAuthentication ? theme.accent : theme.secundaryText}
               />
             </View>

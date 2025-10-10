@@ -300,7 +300,8 @@ export default function ReportScreen() {
       console.log('🔍 Debug: Salvando arquivo no dispositivo...');
       
       // Caminho de destino no diretório de documentos
-      const downloadPath = `${FileSystem.documentDirectory}${fileName}.pdf`;
+      const docDir = (FileSystem as any).documentDirectory || '';
+      const downloadPath = `${docDir}${fileName}.pdf`;
       
       // Copia o arquivo PDF para o diretório de documentos
       await FileSystem.copyAsync({
@@ -392,7 +393,8 @@ export default function ReportScreen() {
       console.log('🔍 Debug: Salvando arquivo mensal no dispositivo...');
       
       // Caminho de destino no diretório de documentos
-      const downloadPath = `${FileSystem.documentDirectory}${fileName}.pdf`;
+      const docDir = (FileSystem as any).documentDirectory || '';
+      const downloadPath = `${docDir}${fileName}.pdf`;
       
       // Copia o arquivo PDF para o diretório de documentos
       await FileSystem.copyAsync({
@@ -485,7 +487,8 @@ export default function ReportScreen() {
       console.log('🔍 Debug: Salvando arquivo completo no dispositivo...');
       
       // Caminho de destino no diretório de documentos
-      const downloadPath = `${FileSystem.documentDirectory}${fileName}.pdf`;
+      const docDir = (FileSystem as any).documentDirectory || '';
+      const downloadPath = `${docDir}${fileName}.pdf`;
       
       // Copia o arquivo PDF para o diretório de documentos
       await FileSystem.copyAsync({

@@ -18,6 +18,7 @@
     "push:quick": "commit-quick.bat"
   },
   "dependencies": {
+    "@babel/runtime": "^7.28.4",
     "@expo/metro-runtime": "~6.1.2",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -54,8 +55,8 @@
     "firebase": "^10.7.1",
     "papaparse": "^5.4.1",
     "process": "^0.11.10",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
     "react-native": "0.81.4",
     "react-native-ble-plx": "^3.5.0",
     "react-native-crypto": "^2.2.1",

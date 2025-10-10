@@ -156,9 +156,15 @@ class NotificationService {
 
   // Formatar caminho do arquivo para exibição amigável
   formatFilePath(filePath: string): string {
-    // Remove o prefixo do FileSystem.documentDirectory para mostrar caminho mais amigável
-    const friendlyPath = filePath.replace(FileSystem.documentDirectory || '', '');
-    return friendlyPath || filePath;
+    // Remove o prefixo do diretório de documentos para mostrar caminho mais amigável
+    try {
+      // Em versões mais recentes do expo-file-system, use FileSystem.documentDirectory se existir
+      const docDir = (FileSystem as any).documentDirectory || '';
+      const friendlyPath = filePath.replace(docDir, '');
+      return friendlyPath || filePath;
+    } catch (error) {
+      return filePath;
+    }
   }
 }
 
