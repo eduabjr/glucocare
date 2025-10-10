@@ -15,7 +15,7 @@
     "lint": "eslint . --fix",
     "format": "prettier --write .",
     "test": "jest",
-    "push:quick": "commit-quick.bat"
+    "push:quick": "commit.bat"
   },
   "dependencies": {
     "@babel/runtime": "^7.28.4",
