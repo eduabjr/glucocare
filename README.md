@@ -105,13 +105,17 @@ Desenvolver uma aplicação móvel completa para monitoramento de glicemia que o
 O GlucoCare é uma aplicação React Native que utiliza Expo para desenvolvimento multiplataforma. A aplicação integra Firebase para autenticação e armazenamento em nuvem, SQLite para armazenamento local, e oferece funcionalidades avançadas de monitoramento de glicemia.
 
 ### Funcionalidades Principais
-- 📱 **Dashboard Intuitivo**: Visão geral das leituras recentes
-- 📊 **Gráficos e Análises**: Visualização de tendências glicêmicas
-- 🔔 **Sistema de Alertas**: Notificações personalizáveis
-- 📱 **Integração Bluetooth**: Conectividade com dispositivos
-- 📄 **Relatórios Detalhados**: Geração de relatórios em PDF
-- ☁️ **Sincronização em Nuvem**: Backup automático dos dados
-- 🔐 **Autenticação Segura**: Login com Google OAuth
+- 📱 **Dashboard Intuitivo**: Visão geral das leituras recentes com estatísticas em tempo real
+- 📊 **Gráficos e Análises**: Visualização de tendências glicêmicas com múltiplos tipos de gráficos
+- 🔔 **Sistema de Alertas**: Notificações personalizáveis e lembretes de medicação
+- 📱 **Integração Bluetooth**: Conectividade com dispositivos de medição
+- 📄 **Relatórios Detalhados**: Geração de relatórios em PDF com proteção biométrica
+- ☁️ **Sincronização em Nuvem**: Backup automático dos dados com Firebase
+- 🔐 **Autenticação Segura**: Login com Google OAuth e biometria
+- 🤖 **IA para Nutrição**: Sugestões alimentares personalizadas com múltiplos provedores de IA
+- 🔒 **Segurança Avançada**: Autorização biométrica para relatórios e dados sensíveis
+- 📱 **Funcionamento Offline**: Acesso completo aos dados mesmo sem internet
+- 🔄 **Sincronização Inteligente**: Atualização automática entre dispositivos
 
 ## Tecnologias Empregadas
 
@@ -137,6 +141,14 @@ O GlucoCare é uma aplicação React Native que utiliza Expo para desenvolviment
 - **Expo Print**: Geração de PDFs
 - **Expo Notifications**: Sistema de notificações
 - **Expo Secure Store**: Armazenamento seguro de dados
+
+### 🤖 **Integração com Inteligência Artificial**
+- **Google Gemini API**: Provedor principal de IA (gratuito e generoso)
+- **OpenAI GPT**: Provedor alternativo (premium)
+- **Hugging Face**: Provedor de fallback
+- **Sistema de Fallback**: Sugestões pré-definidas se APIs falharem
+- **Personalização Completa**: Baseado em perfil médico do usuário
+- **Múltiplas Sugestões**: Cardápio, receitas, alimentos recomendados/evitados
 
 ## Modelagem do Banco de Dados
 
@@ -415,102 +427,335 @@ service cloud.firestore {
 
 ## Instrução de Uso
 
-### Funcionalidades Disponíveis
+### 📱 **TELAS DO APLICATIVO - GUIA COMPLETO**
 
-#### 1. Dashboard
-**O que faz**: Tela principal que mostra uma visão geral das leituras recentes e estatísticas importantes.
+O GlucoCare possui **18 telas principais** organizadas em diferentes fluxos de navegação. Cada tela possui funcionalidades específicas para oferecer uma experiência completa de monitoramento de glicemia.
 
-**Como usar**:
-1. Abra o aplicativo
-2. Faça login com sua conta Google
-3. Visualize as leituras recentes no topo
-4. Veja estatísticas como média, máximo e mínimo
-5. Acesse funcionalidades rápidas pelos botões
+---
 
-**Elementos da tela**:
-- **Leituras Recentes**: Lista das últimas 5 leituras
-- **Estatísticas**: Cards com médias e tendências
-- **Botões de Ação**: Adicionar leitura, ver gráficos, configurações
+## 🔐 **TELAS DE AUTENTICAÇÃO**
 
-#### 2. Adicionar Leitura
-**O que faz**: Permite registrar uma nova leitura de glicemia manualmente.
+### 1. **LoginScreen** 
+**Arquivo**: `src/screens/LoginScreen.tsx`
+**Função**: Tela principal de login com múltiplas opções de autenticação.
 
-**Como usar**:
-1. Toque no botão "+" no Dashboard
-2. Digite o valor da glicemia
-3. Selecione o contexto da refeição:
-   - **Jejum**: Antes do café da manhã
-   - **Pré-refeição**: Antes de comer
-   - **Pós-refeição**: 2 horas após comer
-   - **Antes de dormir**: À noite
-   - **Madrugada**: Durante a madrugada
-4. Adicione notas opcionais
-5. Toque em "Salvar"
-
-#### 3. Gráficos e Análises
-**O que faz**: Mostra visualizações das leituras ao longo do tempo.
+**Funcionalidades**:
+- ✅ **Login com Email/Senha**: Autenticação tradicional
+- ✅ **Login com Google**: Integração OAuth completa
+- ✅ **Login Biométrico**: Autenticação por impressão digital/reconhecimento facial
+- ✅ **Verificação de Email**: Sistema de confirmação de email
+- ✅ **Recuperação de Senha**: Link para reset de senha
+- ✅ **Auto-login**: Login automático com biometria configurada
 
 **Como usar**:
-1. Toque em "Gráficos" no menu
-2. Selecione o período desejado:
-   - **7 dias**: Última semana
-   - **30 dias**: Último mês
-   - **90 dias**: Últimos 3 meses
-3. Visualize diferentes tipos de gráficos:
-   - **Linha**: Tendência temporal
-   - **Barras**: Comparação por período
-   - **Área**: Área sob a curva
+1. Digite email e senha ou toque em "Login com Google"
+2. Para biometria: configure uma vez, depois login automático
+3. Se esqueceu a senha: toque em "Esqueci minha senha"
+4. Verifique email se solicitado
 
-#### 4. Configurações
-**O que faz**: Permite personalizar metas glicêmicas e configurações do app.
+### 2. **RegisterScreen**
+**Arquivo**: `src/screens/RegisterScreen.tsx`
+**Função**: Criação de nova conta de usuário.
+
+**Funcionalidades**:
+- ✅ **Cadastro com Email/Senha**: Criação de conta tradicional
+- ✅ **Validação de Formulário**: Verificação de campos obrigatórios
+- ✅ **Confirmação de Senha**: Validação de senhas iguais
+- ✅ **Navegação para Login**: Redirecionamento após cadastro
+
+### 3. **ForgotPasswordScreen**
+**Arquivo**: `src/screens/ForgotPasswordScreen.tsx`
+**Função**: Recuperação de senha via email.
+
+**Funcionalidades**:
+- ✅ **Reset por Email**: Envio de link de recuperação
+- ✅ **Validação de Email**: Verificação de formato válido
+- ✅ **Feedback Visual**: Confirmação de envio
+
+### 4. **ResetPasswordScreen**
+**Arquivo**: `src/screens/ResetPasswordScreen.tsx`
+**Função**: Criação de nova senha após recuperação.
+
+**Funcionalidades**:
+- ✅ **Nova Senha**: Criação de senha segura
+- ✅ **Confirmação**: Validação de senhas iguais
+- ✅ **Redirecionamento**: Volta ao login após sucesso
+
+---
+
+## 👤 **TELAS DE ONBOARDING**
+
+### 5. **LoadingScreen**
+**Arquivo**: `src/screens/LoadingScreen.tsx`
+**Função**: Tela de carregamento durante inicialização.
+
+**Funcionalidades**:
+- ✅ **Indicador de Progresso**: Loading animado
+- ✅ **Verificação de Estado**: Checa autenticação e dados
+- ✅ **Redirecionamento Inteligente**: Direciona para tela correta
+
+### 6. **ProfileSetupScreen**
+**Arquivo**: `src/screens/ProfileSetupScreen.tsx`
+**Função**: Configuração inicial do perfil do usuário.
+
+**Funcionalidades**:
+- ✅ **Dados Pessoais**: Nome, email, data de nascimento
+- ✅ **Informações Médicas**: Tipo de diabetes, peso, altura
+- ✅ **Restrições Alimentares**: Alergias e preferências
+- ✅ **Validação Completa**: Verificação de todos os campos
+- ✅ **Navegação Progressiva**: Fluxo guiado de configuração
+
+### 7. **BiometricSetupScreen**
+**Arquivo**: `src/screens/BiometricSetupScreen.tsx`
+**Função**: Configuração de autenticação biométrica.
+
+**Funcionalidades**:
+- ✅ **Verificação de Hardware**: Checa disponibilidade de biometria
+- ✅ **Configuração de Biometria**: Ativa impressão digital/reconhecimento facial
+- ✅ **Armazenamento Seguro**: Salva credenciais criptografadas
+- ✅ **Teste de Funcionamento**: Validação da configuração
+- ✅ **Fallback para Senha**: Opção de usar senha se biometria falhar
+
+### 8. **GlycemicGoalScreen**
+**Arquivo**: `src/screens/GlycemicGoalScreen.tsx`
+**Função**: Configuração de metas glicêmicas personalizadas.
+
+**Funcionalidades**:
+- ✅ **Metas por Período**: Jejum, pré-refeição, pós-refeição, antes de dormir
+- ✅ **Valores Personalizáveis**: Limites mínimos e máximos
+- ✅ **Lembretes de Medicação**: Agendamento de alertas
+- ✅ **Validação de Valores**: Verificação de ranges seguros
+- ✅ **Salvamento Automático**: Persistência das configurações
+
+---
+
+## 🏠 **TELAS PRINCIPAIS**
+
+### 9. **DashboardScreen** ⭐
+**Arquivo**: `src/screens/DashboardScreen.tsx`
+**Função**: Tela principal com visão geral das leituras e estatísticas.
+
+**Funcionalidades**:
+- ✅ **Leituras Recentes**: Lista das últimas 5 leituras
+- ✅ **Estatísticas em Tempo Real**: Média, máximo, mínimo, tendências
+- ✅ **Cards de Status**: Indicadores visuais de controle glicêmico
+- ✅ **Ações Rápidas**: Botões para adicionar leitura, ver gráficos
+- ✅ **Recomendações Inteligentes**: Sugestões baseadas em padrões
+- ✅ **Atualização Automática**: Dados sempre atualizados
+- ✅ **Navegação Rápida**: Acesso direto a todas as funcionalidades
 
 **Como usar**:
-1. Toque em "Configurações" no menu
-2. Configure suas metas glicêmicas:
-   - **Jejum**: 70-100 mg/dL (padrão)
-   - **Pré-refeição**: 70-130 mg/dL (padrão)
-   - **Pós-refeição**: 70-180 mg/dL (padrão)
-   - **Antes de dormir**: 70-150 mg/dL (padrão)
-3. Configure alertas de notificação
-4. Ajuste configurações de sincronização
+1. Visualize leituras recentes no topo
+2. Monitore estatísticas nos cards coloridos
+3. Use botões de ação para funcionalidades rápidas
+4. Toque em leituras para editar ou deletar
 
-#### 5. Relatórios
-**O que faz**: Gera relatórios detalhados em PDF das suas leituras.
+### 10. **AddReadingScreen**
+**Arquivo**: `src/screens/AddReadingScreen.tsx`
+**Função**: Adicionar novas leituras de glicemia manualmente.
 
-**Como usar**:
-1. Toque em "Relatórios" no menu
-2. Selecione o período do relatório
-3. Escolha o tipo de relatório:
-   - **Resumo**: Estatísticas básicas
-   - **Detalhado**: Lista completa de leituras
-   - **Médico**: Relatório para consulta médica
-4. Toque em "Gerar Relatório"
-5. Compartilhe ou salve o PDF
-
-#### 6. Conexão Bluetooth
-**O que faz**: Conecta com dispositivos de medição de glicemia via Bluetooth.
+**Funcionalidades**:
+- ✅ **Entrada de Valor**: Campo numérico para glicemia
+- ✅ **Contexto de Refeição**: Jejum, pré/pós-refeição, antes de dormir, madrugada
+- ✅ **Notas Personalizadas**: Campo de texto livre
+- ✅ **Validação de Dados**: Verificação de valores válidos
+- ✅ **Data/Hora Automática**: Timestamp automático
+- ✅ **Salvamento Local**: Persistência imediata no SQLite
+- ✅ **Sincronização**: Upload automático para Firebase
 
 **Como usar**:
-1. Toque em "Dispositivos" no menu
-2. Ative o Bluetooth no seu dispositivo
-3. Toque em "Buscar Dispositivos"
-4. Selecione seu dispositivo da lista
-5. Toque em "Conectar"
-6. As leituras serão importadas automaticamente
+1. Digite o valor da glicemia (ex: 120)
+2. Selecione o contexto da refeição
+3. Adicione notas se necessário
+4. Toque em "Salvar"
+5. A leitura aparece imediatamente no Dashboard
 
-#### 7. Importação de Arquivos
-**O que faz**: Importa leituras de arquivos CSV ou Excel.
+### 11. **ChartsScreen**
+**Arquivo**: `src/screens/ChartsScreen.tsx`
+**Função**: Visualização de gráficos e análises das leituras.
+
+**Funcionalidades**:
+- ✅ **Gráficos Interativos**: Linha, barras, área
+- ✅ **Períodos Flexíveis**: 7 dias, 30 dias, 90 dias, personalizado
+- ✅ **Filtros Avançados**: Por contexto de refeição, horário
+- ✅ **Zoom e Pan**: Navegação detalhada nos gráficos
+- ✅ **Exportação**: Salvar imagens dos gráficos
+- ✅ **Análise de Tendências**: Identificação de padrões
+- ✅ **Comparação de Períodos**: Análise comparativa
 
 **Como usar**:
-1. Toque em "Importar" no menu
-2. Selecione "Arquivo Local" ou "GitHub"
-3. Para arquivo local:
-   - Selecione o arquivo CSV/Excel
-   - Confirme a importação
-4. Para GitHub:
-   - Digite a URL do repositório
-   - Selecione o arquivo
-   - Confirme a importação
+1. Selecione o período desejado
+2. Escolha o tipo de gráfico
+3. Use gestos para zoom e navegação
+4. Toque em pontos para ver detalhes
+5. Exporte gráficos se necessário
+
+### 12. **NutritionScreen** 🤖 **COM INTEGRAÇÃO IA**
+**Arquivo**: `src/screens/NutritionScreen.tsx`
+**Função**: Sugestões alimentares personalizadas com inteligência artificial.
+
+**🤖 Funcionalidades de IA**:
+- ✅ **Múltiplos Provedores**: Google Gemini, OpenAI GPT, Hugging Face
+- ✅ **Fallback Inteligente**: Sugestões pré-definidas se APIs falharem
+- ✅ **Personalização Completa**: Baseado em idade, condição, peso, altura, IMC
+- ✅ **Cardápio Diário**: Café, almoço, jantar, lanches personalizados
+- ✅ **Receitas Rápidas**: Pratos fáceis de preparar (≤15min)
+- ✅ **Alimentos Recomendados**: Lista específica por condição médica
+- ✅ **Alimentos a Evitar**: Baseado na condição do usuário
+- ✅ **Justificativa das Escolhas**: Explicação das recomendações
+- ✅ **Atualização em Tempo Real**: Regenerar sugestões com um toque
+
+**📊 Dados Considerados pela IA**:
+- **Condição Médica**: Diabetes tipo 1/2, pré-diabetes
+- **Características Físicas**: Peso, altura, idade, IMC
+- **Restrições Alimentares**: Alergias, preferências
+- **Objetivos**: Controle glicêmico, perda de peso, etc.
+
+**🔄 Como usar**:
+1. Configure seu perfil completo (peso, altura, condição)
+2. Toque em "Atualizar" para gerar sugestões com IA
+3. Visualize cardápio personalizado
+4. Veja receitas rápidas e fáceis
+5. Consulte alimentos recomendados e a evitar
+6. Use as sugestões como guia (não substitui orientação médica)
+
+**🎯 Exemplos de Sugestões por Condição**:
+- **Diabetes Tipo 1**: Controle rigoroso de carboidratos
+- **Diabetes Tipo 2**: Foco em alimentos de baixo índice glicêmico
+- **Pré-diabetes**: Prevenção com alimentação saudável
+
+### 13. **ReportScreen** 🔐 **COM AUTORIZAÇÃO BIOMÉTRICA**
+**Arquivo**: `src/screens/ReportScreen.tsx`
+**Função**: Geração de relatórios detalhados em PDF com proteção biométrica.
+
+**Funcionalidades**:
+- ✅ **Geração de PDF**: Relatórios profissionais em PDF
+- ✅ **Períodos Flexíveis**: Semanal, mensal, trimestral, anual
+- ✅ **Tipos de Relatório**: Resumo, detalhado, médico
+- ✅ **Compartilhamento**: Email, WhatsApp, salvar local
+- ✅ **Download Direto**: Salvar no dispositivo
+- ✅ **Autorização Biométrica**: Proteção por impressão digital/reconhecimento facial
+- ✅ **Dados Estatísticos**: Médias, tendências, padrões
+- ✅ **Visualizações**: Gráficos incluídos nos relatórios
+
+**🔐 Segurança**:
+- **Proteção por Biometria**: Acesso apenas com autenticação biométrica
+- **Verificação de Hardware**: Checa disponibilidade de biometria
+- **Fallback para Senha**: Opção de usar senha se biometria não disponível
+
+**Como usar**:
+1. Toque em "Gerar Relatório"
+2. Autorize com biometria quando solicitado
+3. Selecione período e tipo de relatório
+4. Aguarde geração do PDF
+5. Compartilhe ou salve o relatório
+
+### 14. **SettingsScreen**
+**Arquivo**: `src/screens/SettingsScreen.tsx`
+**Função**: Configurações gerais do aplicativo.
+
+**Funcionalidades**:
+- ✅ **Metas Glicêmicas**: Personalização de limites
+- ✅ **Notificações**: Configuração de alertas
+- ✅ **Sincronização**: Controle de backup em nuvem
+- ✅ **Privacidade**: Configurações de dados
+- ✅ **Perfil**: Edição de informações pessoais
+- ✅ **Sobre**: Informações do aplicativo
+- ✅ **Logout**: Sair da conta
+
+---
+
+## 🔗 **TELAS DE INTEGRAÇÃO**
+
+### 15. **DeviceConnectionScreen**
+**Arquivo**: `src/screens/DeviceConnectionScreen.tsx`
+**Função**: Conexão com dispositivos Bluetooth de medição.
+
+**Funcionalidades**:
+- ✅ **Busca de Dispositivos**: Escaneamento Bluetooth
+- ✅ **Conexão Automática**: Pairing simplificado
+- ✅ **Importação de Dados**: Leituras automáticas
+- ✅ **Histórico de Dispositivos**: Lista de dispositivos conectados
+- ✅ **Configuração Avançada**: Parâmetros de conexão
+- ✅ **Status de Conexão**: Indicador visual de conectividade
+
+**Como usar**:
+1. Ative o Bluetooth no dispositivo
+2. Toque em "Buscar Dispositivos"
+3. Selecione seu medidor de glicemia
+4. Toque em "Conectar"
+5. As leituras serão importadas automaticamente
+
+### 16. **ProfileEditScreen**
+**Arquivo**: `src/screens/ProfileEditScreen.tsx`
+**Função**: Edição completa do perfil do usuário.
+
+**Funcionalidades**:
+- ✅ **Dados Pessoais**: Nome, email, data de nascimento
+- ✅ **Informações Médicas**: Condição, peso, altura
+- ✅ **Restrições**: Alergias e preferências alimentares
+- ✅ **Validação de Email**: Verificação de novo email
+- ✅ **Salvamento Automático**: Sincronização em tempo real
+- ✅ **Histórico de Alterações**: Log de modificações
+
+---
+
+## 📧 **TELAS DE GERENCIAMENTO**
+
+### 17. **ChangeEmailScreen**
+**Arquivo**: `src/screens/ChangeEmailScreen.tsx`
+**Função**: Alteração do email da conta.
+
+**Funcionalidades**:
+- ✅ **Validação de Email**: Verificação de formato
+- ✅ **Confirmação de Senha**: Segurança adicional
+- ✅ **Verificação de Email**: Confirmação por email
+- ✅ **Atualização Segura**: Processo validado
+
+### 18. **ViewReportScreen**
+**Arquivo**: `src/screens/ViewReportScreen.tsx`
+**Função**: Visualização de relatórios gerados.
+
+**Funcionalidades**:
+- ✅ **Visualização de PDF**: Leitor integrado
+- ✅ **Compartilhamento**: Envio por diferentes canais
+- ✅ **Histórico**: Lista de relatórios gerados
+- ✅ **Filtros**: Busca por período ou tipo
+
+---
+
+## 🎯 **FLUXO DE NAVEGAÇÃO**
+
+### **Fluxo de Primeiro Uso**:
+```
+LoginScreen → ProfileSetupScreen → BiometricSetupScreen → GlycemicGoalScreen → DashboardScreen
+```
+
+### **Fluxo de Usuário Logado**:
+```
+DashboardScreen ↔ ChartsScreen ↔ AddReadingScreen ↔ NutritionScreen ↔ ReportScreen ↔ SettingsScreen
+```
+
+### **Fluxo de Configuração**:
+```
+SettingsScreen → ProfileEditScreen / GlycemicGoalScreen / DeviceConnectionScreen
+```
+
+---
+
+## 📊 **RESUMO DAS FUNCIONALIDADES**
+
+| Tela | Funcionalidade Principal | IA | Biometria | Offline |
+|------|-------------------------|----|-----------|---------| 
+| **DashboardScreen** | Visão geral e estatísticas | ❌ | ❌ | ✅ |
+| **AddReadingScreen** | Adicionar leituras | ❌ | ❌ | ✅ |
+| **ChartsScreen** | Gráficos e análises | ❌ | ❌ | ✅ |
+| **NutritionScreen** | Sugestões alimentares | ✅ | ❌ | ✅ |
+| **ReportScreen** | Relatórios em PDF | ❌ | ✅ | ✅ |
+| **SettingsScreen** | Configurações gerais | ❌ | ❌ | ✅ |
+| **DeviceConnectionScreen** | Bluetooth e importação | ❌ | ❌ | ✅ |
+
+**Legenda**: ✅ = Disponível | ❌ = Não disponível
 
 ## Pré-requisitos
 
@@ -640,6 +885,254 @@ npm install -g eas-cli
 5. Baixe o arquivo `google-services.json`
 6. Coloque o arquivo na pasta `android/app/`
 
+### Passo 4.5: Configurar Coleções do Firestore
+
+**📊 RESUMO DAS 5 COLEÇÕES NECESSÁRIAS:**
+
+| # | Coleção | Tipo | Localização |
+|---|---------|------|-------------|
+| 1 | `users` | **Coleção Principal** | Raiz do Firestore |
+| 2 | `readings` | **Subcoleção** | Dentro do documento `users` |
+| 3 | `notifications` | **Coleção Principal** | Raiz do Firestore |
+| 4 | `reports` | **Coleção Principal** | Raiz do Firestore |
+| 5 | `sync_meta` | **Coleção Principal** | Raiz do Firestore |
+
+**🎯 ESTRUTURA FINAL:**
+```
+Firestore Database/
+├── users/ (coleção principal)
+│   └── [ID_auto_gerado]/
+│       ├── campos do usuário...
+│       └── readings/ (subcoleção)
+│           └── [ID_auto_gerado]/
+│               └── campos da leitura...
+├── notifications/ (coleção principal)
+├── reports/ (coleção principal)
+└── sync_meta/ (coleção principal)
+```
+
+---
+
+#### 4.5.1 Criar Coleção `users` (Coleção Principal)
+
+1. **Acessar Firestore Database**
+   - No console Firebase, vá para "Firestore Database"
+   - Clique na aba "Dados"
+
+2. **Criar Coleção `users`**
+   - Clique em "+ Iniciar coleção"
+   - **ID da coleção**: `users`
+   - **ID do primeiro documento**: Deixe vazio (Firebase gera automaticamente)
+
+3. **Adicionar Campos do Documento `users`**
+   
+   | Campo | Tipo | Valor |
+   |-------|------|-------|
+   | `id` | String | `9Fz97YAMUNgZwmGRMISN` |
+   | `full_name` | String | `Eduardo Família` |
+   | `email` | String | `eduardofamilia01@gmail.com` |
+   | `google_id` | String | `google_123456789` |
+   | `onboarding_completed` | Boolean | `true` |
+   | `biometric_enabled` | Boolean | `true` |
+   | `weight` | Number | `70.5` |
+   | `height` | Number | `175` |
+   | `birth_date` | String | `1990-01-15T00:00:00Z` |
+   | `diabetes_condition` | String | `Type 1` |
+   | `restriction` | String | `Sem lactose` |
+   | `glycemic_goals` | String | `{"fasting": [70, 100]}` |
+   | `medication_reminders` | String | `[{"time": "08:00", "med": "Insulina"}]` |
+   | `updated_at` | String | `2024-01-15T14:30:05Z` |
+   | `email_verified` | Boolean | `true` |
+   | `pending_sync` | Boolean | `false` |
+
+#### 4.5.2 Criar Subcoleção `readings` (dentro do documento do usuário)
+
+**⚠️ IMPORTANTE:** `readings` é uma **SUBSCOLEÇÃO**, não uma coleção principal!
+
+1. **Navegar para o Documento do Usuário**
+   - Clique no documento que você criou na coleção `users`
+   - Você verá os campos do usuário
+
+2. **Criar Subcoleção `readings`**
+   - **DENTRO do documento do usuário**, clique em "+ Iniciar coleção"
+   - **ID da coleção**: `readings`
+   - **ID do primeiro documento**: Deixe vazio (Firebase gera automaticamente)
+
+3. **Adicionar Campos do Documento `readings`**
+   
+   | Campo | Tipo | Valor |
+   |-------|------|-------|
+   | `id` | String | `reading_abc123` |
+   | `user_id` | String | `9Fz97YAMUNgZwmGRMISN` |
+   | `measurement_time` | String | `2024-01-15T08:30:00Z` |
+   | `glucose_level` | Number | `120` |
+   | `meal_context` | String | `jejum` |
+   | `time_since_meal` | String | `2 horas` |
+   | `notes` | String | `Antes do exercício` |
+   | `updated_at` | String | `2024-01-15T08:30:05Z` |
+   | `deleted` | Boolean | `false` |
+   | `pending_sync` | Boolean | `false` |
+
+**🎯 RESULTADO ESPERADO:**
+```
+users/
+  └── [ID_do_usuario]/
+      ├── campos do usuário...
+      └── readings/ (subcoleção)
+          └── [ID_auto_gerado]/
+              └── campos da leitura...
+```
+
+#### 4.5.3 Criar Coleção `notifications` (Coleção Principal)
+
+1. **Voltar para Lista de Coleções**
+   - Clique em "Firestore Database" no menu lateral
+   - Você verá a lista de coleções
+
+2. **Criar Coleção `notifications`**
+   - Clique em "+ Iniciar coleção"
+   - **ID da coleção**: `notifications`
+   - **ID do primeiro documento**: Deixe vazio (Firebase gera automaticamente)
+
+3. **Adicionar Campos do Documento `notifications`**
+   
+   | Campo | Tipo | Valor |
+   |-------|------|-------|
+   | `id` | String | `notification_123456` |
+   | `user_id` | String | `9Fz97YAMUNgZwmGRMISN` |
+   | `type` | String | `medication_reminder` |
+   | `message` | String | `Hora de medir a glicemia` |
+   | `scheduled_time` | String | `2024-01-15T14:30:00Z` |
+   | `sent_time` | String | `2024-01-15T14:30:05Z` |
+   | `status` | String | `scheduled` |
+   | `updated_at` | String | `2024-01-15T14:30:05Z` |
+   | `deleted` | Boolean | `false` |
+   | `pending_sync` | Boolean | `false` |
+
+#### 4.5.4 Criar Coleção `reports` (Coleção Principal)
+
+1. **Criar Coleção `reports`**
+   - Clique em "+ Iniciar coleção"
+   - **ID da coleção**: `reports`
+   - **ID do primeiro documento**: Deixe vazio (Firebase gera automaticamente)
+
+2. **Adicionar Campos do Documento `reports`**
+   
+   | Campo | Tipo | Valor |
+   |-------|------|-------|
+   | `id` | String | `report_abc789` |
+   | `user_id` | String | `9Fz97YAMUNgZwmGRMISN` |
+   | `type` | String | `monthly` |
+   | `title` | String | `Relatório Mensal - Janeiro 2024` |
+   | `start_date` | String | `2024-01-01T00:00:00Z` |
+   | `end_date` | String | `2024-01-31T23:59:59Z` |
+   | `file_url` | String | `gs://bucket/relatorio.pdf` |
+   | `summary_data` | Map | `{"avg_glucose": 120, "total_readings": 45}` |
+   | `created_at` | String | `2024-01-31T23:59:59Z` |
+   | `updated_at` | String | `2024-01-31T23:59:59Z` |
+   | `deleted` | Boolean | `false` |
+   | `pending_sync` | Boolean | `false` |
+
+#### 4.5.5 Criar Coleção `sync_meta` (Coleção Principal)
+
+1. **Criar Coleção `sync_meta`**
+   - Clique em "+ Iniciar coleção"
+   - **ID da coleção**: `sync_meta`
+   - **ID do primeiro documento**: `9Fz97YAMUNgZwmGRMISN` (use o user_id)
+
+2. **Adicionar Campos do Documento `sync_meta`**
+   
+   | Campo | Tipo | Valor |
+   |-------|------|-------|
+   | `id` | String | `9Fz97YAMUNgZwmGRMISN` |
+   | `user_id` | String | `9Fz97YAMUNgZwmGRMISN` |
+   | `last_sync` | String | `2024-01-15T14:30:00Z` |
+   | `last_pull` | String | `2024-01-15T14:25:00Z` |
+   | `last_push` | String | `2024-01-15T14:30:00Z` |
+   | `sync_status` | String | `success` |
+   | `updated_at` | String | `2024-01-15T14:30:05Z` |
+   | `error_message` | **(deixe vazio)** | **null** |
+
+#### 4.5.6 Configurar Regras de Segurança
+
+1. **Acessar Regras do Firestore**
+   - No console Firebase, vá para "Firestore Database"
+   - Clique na aba "Regras"
+
+2. **Substituir Regras Existentes**
+   - Substitua o conteúdo por:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Usuários - apenas o próprio usuário
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Leituras - subcoleção do usuário
+    match /users/{userId}/readings/{readingId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Notificações - apenas do próprio usuário
+    match /notifications/{notificationId} {
+      allow read, write: if request.auth != null && 
+        resource.data.user_id == request.auth.uid;
+    }
+    
+    // Relatórios - apenas do próprio usuário
+    match /reports/{reportId} {
+      allow read, write: if request.auth != null && 
+        resource.data.user_id == request.auth.uid;
+    }
+    
+    // Metadados de sincronização - apenas do próprio usuário
+    match /sync_meta/{syncId} {
+      allow read, write: if request.auth != null && 
+        resource.data.user_id == request.auth.uid;
+    }
+  }
+}
+```
+
+3. **Publicar Regras**
+   - Clique em "Publicar"
+
+#### 4.5.7 Verificar Estrutura Final
+
+**Sua estrutura final deve ficar assim:**
+
+```
+Firestore Database
+├── users (coleção principal)
+│   └── [ID_auto_gerado] (documento do usuário)
+│       ├── campos do usuário...
+│       └── readings (subcoleção)
+│           └── [ID_auto_gerado] (documento de leitura)
+│               └── campos da leitura...
+├── notifications (coleção principal)
+│   └── [ID_auto_gerado] (documento de notificação)
+│       └── campos da notificação...
+├── reports (coleção principal)
+│   └── [ID_auto_gerado] (documento de relatório)
+│       └── campos do relatório...
+└── sync_meta (coleção principal)
+    └── 9Fz97YAMUNgZwmGRMISN (documento com ID = user_id)
+        └── campos de sincronização...
+```
+
+### ⚠️ **IMPORTANTE - DICAS PARA CONFIGURAÇÃO:**
+
+1. **IDs Automáticos**: Para `users`, `notifications` e `reports`, deixe o Firebase gerar IDs automaticamente
+2. **ID Manual**: Para `sync_meta`, use o `user_id` como ID do documento
+3. **Subcoleção**: `readings` deve ser criada DENTRO do documento do usuário
+4. **Campo `error_message`**: Deixe vazio para que seja `null`
+5. **Valores de Exemplo**: Use os valores da tabela, mas adapte para seus dados reais
+6. **Regras de Segurança**: Configure as regras para proteger os dados de cada usuário
+
 ### Passo 5: Configurar Variáveis de Ambiente
 
 #### 5.1 Criar Arquivo .env
@@ -657,6 +1150,27 @@ EXPO_PUBLIC_FIREBASE_APP_ID=seu_app_id_aqui
 1. No console Firebase, vá para "Configurações do projeto"
 2. Na seção "Seus apps", clique no ícone de configuração
 3. Copie as chaves e cole no arquivo `.env`
+
+#### 5.3 Configurar Chaves de IA (Opcional)
+Para ativar as funcionalidades de IA na NutritionScreen, adicione as chaves de API:
+
+```env
+# Google Gemini (Recomendado - Gratuito)
+EXPO_PUBLIC_GEMINI_API_KEY=sua_chave_gemini_aqui
+
+# OpenAI GPT (Opcional - Pago)
+EXPO_PUBLIC_OPENAI_API_KEY=sua_chave_openai_aqui
+
+# Hugging Face (Opcional - Limitado)
+EXPO_PUBLIC_HUGGINGFACE_API_KEY=sua_chave_huggingface_aqui
+```
+
+**🔑 Como obter as chaves**:
+- **Google Gemini**: [https://makersuite.google.com/app/apikey](https://makersuite.google.com/app/apikey)
+- **OpenAI**: [https://platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+- **Hugging Face**: [https://huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+
+**⚠️ Nota**: Se não configurar as chaves, a NutritionScreen funcionará com sugestões pré-definidas baseadas na condição médica do usuário.
 
 ### Passo 6: Executar a Aplicação
 

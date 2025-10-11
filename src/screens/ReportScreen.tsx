@@ -78,10 +78,10 @@ export default function ReportScreen() {
     try {
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
       const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-      const isSupported = await LocalAuthentication.isSupportedAsync();
+      const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
       
-      setBiometricSupported(hasHardware && isEnrolled && isSupported);
-      console.log('🔐 Status da biometria:', { hasHardware, isEnrolled, isSupported });
+      setBiometricSupported(hasHardware && isEnrolled && supportedTypes.length > 0);
+      console.log('🔐 Status da biometria:', { hasHardware, isEnrolled, supportedTypes });
     } catch (error) {
       console.error('❌ Erro ao verificar biometria:', error);
       setBiometricSupported(false);
@@ -101,8 +101,7 @@ export default function ReportScreen() {
       }
 
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: '🔐 Autorização Necessária',
-        subPromptMessage: 'Use sua biometria para acessar os relatórios',
+        promptMessage: '🔐 Autorização Necessária - Use sua biometria para acessar os relatórios',
         fallbackLabel: 'Usar senha',
         disableDeviceFallback: false,
       });
@@ -111,7 +110,7 @@ export default function ReportScreen() {
         console.log('✅ Autorização biométrica bem-sucedida');
         return true;
       } else {
-        console.log('❌ Autorização biométrica falhou:', result.error);
+        console.log('❌ Autorização biométrica falhou:', result);
         Alert.alert(
           'Autorização Negada',
           'Acesso aos relatórios foi negado. Tente novamente.',

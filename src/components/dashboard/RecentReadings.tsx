@@ -1,15 +1,10 @@
 import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
-import { listReadings } from '../../services/glucoseService';
+import { listReadings, Reading } from '../../services/dbService';
 // ✅ CAMINHO ADAPTADO: Usa '../utils/' porque 'utils' está dentro de 'components'
 import { getReadingStatus } from '../utils/getReadingStatus'; 
 
-// Definindo o tipo para leitura
-interface Reading {
-    id: string;
-    glucose_level: number;
-    measurement_time: string;
-}
+// ✅ Usando interface Reading do dbService
 
 export default function RecentReadings() {
     const [readings, setReadings] = useState<Reading[]>([]);

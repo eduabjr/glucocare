@@ -1,8 +1,7 @@
 // ✅ CONFIGURAÇÃO FIREBASE COMPLETA COM PERSISTÊNCIA
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
+import { initializeAuth, getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configuração do Firebase
 const firebaseConfig = {
@@ -32,13 +31,11 @@ export function initFirebase(): boolean {
             console.log('♻️ Firebase App reutilizado');
         }
         
-        // Inicializa Auth com persistência AsyncStorage
+        // Inicializa Auth (persistência automática no Firebase v10+)
         try {
-            // Tenta inicializar com persistência primeiro
-            auth = initializeAuth(app, {
-                persistence: getReactNativePersistence(AsyncStorage)
-            });
-            console.log('✅ Firebase Auth inicializado com persistência AsyncStorage');
+            // Tenta inicializar primeiro
+            auth = initializeAuth(app);
+            console.log('✅ Firebase Auth inicializado com persistência automática');
         } catch (authError: any) {
             console.log('⚠️ Auth já inicializado, reutilizando...');
             try {

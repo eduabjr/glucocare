@@ -1,11 +1,9 @@
 import { getDB, initDB } from './dbService';
-import * as SQLite from 'expo-sqlite';
 
 // Tipos de compatibilidade para SQLite
 type SQLTransaction = any;
 type SQLError = any;
 type SQLResultSetRowList = any;
-type SQLiteDatabase = any;  // Corrigido para usar expo-sqlite corretamente
 
 const DRIVE_UPLOAD_URL = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
 const DRIVE_FILES_URL = 'https://www.googleapis.com/drive/v3/files';
@@ -33,17 +31,11 @@ async function uploadReadingsToDrive(accessToken: string): Promise<boolean> {
 
     // Buscar leituras do banco de dados
     const readings: Reading[] = await new Promise((resolve, reject) => {
-      db.transaction((tx) => {
+      db.transaction((tx: SQLTransaction) => {
         tx.executeSql(
           'SELECT * FROM readings ORDER BY measurement_time DESC;',
           [],
-          (_, { rows }) => resolve(rows._array),
-          (_, err) => {
-      db.transaction((tx: SQLTransaction) => {  // Usando o tipo correto SQLTransaction
-        tx.executeSql(
-          'SELECT * FROM readings ORDER BY measurement_time DESC;',
-          [],
-          (_, { rows }: { rows: SQLResultSetRowList }) => resolve(rows._array),  // Tipagem de rows
+          (_, { rows }: { rows: SQLResultSetRowList }) => resolve(rows._array),
           (_, err: SQLError) => {
             console.error("Erro ao executar SQL:", err);
             reject(err);
@@ -53,49 +45,27 @@ async function uploadReadingsToDrive(accessToken: string): Promise<boolean> {
       });
     });
 
-    const fileContent = JSON.stringify(readings, null, 2);
-    const boundary = 'glucocare_boundary';
-    const metadata = {
-      name: DRIVE_FILE_NAME,
-      mimeType: 'application/json',
-    };
-
-    const body =
-      `--${boundary}\r\n` +
-      'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
-      JSON.stringify(metadata) +
-      `\r\n--${boundary}\r\n` +
-      'Content-Type: application/json\r\n\r\n' +
-      fileContent +
-      `\r\n--${boundary}--`;
-
-    // Verifica se o arquivo já existe no Google Drive
-    const q = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and trashed=false`);
-    const searchResp = await fetch(`${DRIVE_FILES_URL}?q=${q}&spaces=drive`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-
-    let fileId: string | null = null;
-    if (searchResp.ok) {
-      const searchData = await searchResp.json();
-      if (searchData.files && searchData.files.length > 0) {
-        fileId = searchData.files[0].id;
-      }
-    } else {
-      // Aqui você pode tratar se a busca falhar, como uma falha na API
-      throw new Error(`Falha ao buscar arquivos no Drive. Status: ${searchResp.status}`);
+    if (!readings || readings.length === 0) {
+      console.log("Nenhuma leitura encontrada para upload");
+      return true;
     }
 
-    // Decide se cria ou atualiza o arquivo
-    const url = fileId
-      ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
-      : DRIVE_UPLOAD_URL;
+    // Preparar dados para upload
+    const dataToUpload = {
+      timestamp: new Date().toISOString(),
+      version: "1.0",
+      readings: readings,
+      count: readings.length
+    };
 
-    const res = await fetch(url, {
-      method: fileId ? 'PATCH' : 'POST',
+    const body = JSON.stringify(dataToUpload, null, 2);
+
+    // Fazer upload para o Google Drive
+    const res = await fetch(DRIVE_UPLOAD_URL, {
+      method: 'POST',
       headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': `multipart/related; boundary=${boundary}`,
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
       },
       body,
     });
@@ -120,23 +90,26 @@ async function uploadReadingsToDrive(accessToken: string): Promise<boolean> {
 async function saveSyncTimestamp(db: any, isoString: string): Promise<boolean> {
   return new Promise((resolve, reject) => {
     db.transaction(
-      (tx: any) => {
-async function saveSyncTimestamp(db: SQLiteDatabase, isoString: string): Promise<boolean> {
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx: SQLTransaction) => {  // Usando o tipo correto SQLTransaction
+      (tx: SQLTransaction) => {
         tx.executeSql(
           `INSERT OR REPLACE INTO sync_meta (key, value) VALUES (?, ?);`,
-          ['last_sync', isoString]
+          ['last_sync', isoString],
+          () => resolve(true),
+          (_, err: SQLError) => {
+            console.warn("saveSyncTimestamp falhou:", err);
+            reject(err);
+            return true;
+          }
         );
       },
-      (err: any) => {
-      (err: SQLError) => {  // Tipagem explícita de err
-        console.warn("saveSyncTimestamp falhou:", err);
+      (err: SQLError) => {
+        console.error("Erro na transação saveSyncTimestamp:", err);
         reject(err);
-        return true;
       },
-      () => resolve(true)
+      () => {
+        console.log("Timestamp de sincronização salvo com sucesso");
+        resolve(true);
+      }
     );
   });
 }

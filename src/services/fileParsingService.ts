@@ -194,6 +194,7 @@ function parseCsv(csvContent: string, userId: string): Reading[] {
             
             parsedReadings.push({
                 id: idGenerator(index), 
+                user_id: userId, // ✅ ADICIONADO: user_id obrigatório
                 measurement_time: measurementTime,
                 timestamp: timestamp,
                 glucose_level: glucoseLevel,
@@ -354,6 +355,7 @@ function parsePdfMatches(matches: string[], userId: string, type: 'glucose' | 'n
             
             parsedReadings.push({
                 id: idGenerator(index),
+                user_id: userId, // ✅ ADICIONADO: user_id obrigatório
                 measurement_time: measurementTime,
                 timestamp: timestamp,
                 glucose_level: glucoseLevel,

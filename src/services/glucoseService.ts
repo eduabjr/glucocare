@@ -1,12 +1,10 @@
 import 'react-native-get-random-values'; // CORREÇÃO: Adicionada para suportar uuidv4
 import { getDB, initDB } from './dbService';
 import { v4 as uuidv4 } from 'uuid';
-import * as SQLite from 'expo-sqlite';
 
 // Tipos de compatibilidade
 type SQLTransaction = any;
 type SQLError = any;
-type SQLResultSetRowList = any;  // Corrigido para importar corretamente
 
 // Tipo para a leitura de glicemia
 interface GlucoseReading {
@@ -52,17 +50,18 @@ export async function createReading({
     const level = validateGlucoseValue(glucose_level);
 
     return new Promise((resolve, reject) => {
-      db.transaction((tx: any) => {
+      db.transaction((tx: SQLTransaction) => {
         tx.executeSql(
           `INSERT INTO readings (id, measurement_time, glucose_level, meal_context, time_since_meal, notes) VALUES (?, ?, ?, ?, ?, ?);`,
           [id, normalizedTime, level, meal_context, time_since_meal, notes],
-          (_, _result) => resolve({ id, measurement_time: normalizedTime, glucose_level: level, meal_context, time_since_meal, notes }),
-          (_, error: any) => {
-      db.transaction((tx: SQLTransaction) => {  // Usando o tipo correto SQLTransaction
-        tx.executeSql(
-          `INSERT INTO readings (id, measurement_time, glucose_level, meal_context, time_since_meal, notes) VALUES (?, ?, ?, ?, ?, ?);`,
-          [id, normalizedTime, level, meal_context, time_since_meal, notes],
-          (_, _result) => resolve({ id, measurement_time: normalizedTime, glucose_level: level, meal_context, time_since_meal, notes }), // Garantir que todas as propriedades sejam passadas
+          (_, _result) => resolve({ 
+            id, 
+            measurement_time: normalizedTime, 
+            glucose_level: level, 
+            meal_context, 
+            time_since_meal, 
+            notes 
+          }),
           (_, error: SQLError) => {
             console.error('createReading - sql error:', error);
             reject(error);
@@ -90,26 +89,120 @@ export async function addReading(value: number): Promise<GlucoseReading> {
  * Lista todas as leituras de glicemia
  */
 export async function listReadings(): Promise<GlucoseReading[]> {
-  await initDB();
-  const db = getDB();
-  return new Promise((resolve, reject) => {
-    db.transaction((tx: any) => {
-      tx.executeSql(
-        'SELECT * FROM readings ORDER BY measurement_time DESC;',
-        [],
-        (_, { rows }: any) => resolve(rows._array),
-        (_, error: any) => {
-    db.transaction((tx: SQLTransaction) => {  // Usando o tipo correto SQLTransaction
-      tx.executeSql(
-        'SELECT * FROM readings ORDER BY measurement_time DESC;',
-        [],
-        (_, { rows }: { rows: SQLResultSetRowList }) => resolve(rows._array),  // Tipagem de rows
-        (_, error: SQLError) => {
-          console.error('listReadings - sql error:', error);
-          reject(error);
-          return true;
-        }
-      );
+  try {
+    await initDB();
+    const db = getDB();
+
+    return new Promise((resolve, reject) => {
+      db.transaction((tx: SQLTransaction) => {
+        tx.executeSql(
+          'SELECT * FROM readings ORDER BY measurement_time DESC;',
+          [],
+          (_, result) => {
+            const readings: GlucoseReading[] = [];
+            for (let i = 0; i < result.rows.length; i++) {
+              readings.push(result.rows.item(i));
+            }
+            resolve(readings);
+          },
+          (_, error: SQLError) => {
+            console.error('listReadings - sql error:', error);
+            reject(error);
+            return true;
+          }
+        );
+      });
     });
-  });
+  } catch (err) {
+    console.error('listReadings - erro:', err);
+    throw err;
+  }
+}
+
+/**
+ * Remove uma leitura de glicemia
+ */
+export async function deleteReading(id: string): Promise<boolean> {
+  try {
+    await initDB();
+    const db = getDB();
+
+    return new Promise((resolve, reject) => {
+      db.transaction((tx: SQLTransaction) => {
+        tx.executeSql(
+          'DELETE FROM readings WHERE id = ?;',
+          [id],
+          (_, _result) => {
+            console.log('Leitura removida com sucesso');
+            resolve(true);
+          },
+          (_, error: SQLError) => {
+            console.error('deleteReading - sql error:', error);
+            reject(error);
+            return true;
+          }
+        );
+      });
+    });
+  } catch (err) {
+    console.error('deleteReading - erro:', err);
+    throw err;
+  }
+}
+
+/**
+ * Atualiza uma leitura existente
+ */
+export async function updateReading(id: string, updates: Partial<GlucoseReading>): Promise<boolean> {
+  try {
+    await initDB();
+    const db = getDB();
+
+    const fields = [];
+    const values = [];
+
+    if (updates.glucose_level !== undefined) {
+      fields.push('glucose_level = ?');
+      values.push(validateGlucoseValue(updates.glucose_level));
+    }
+    if (updates.meal_context !== undefined) {
+      fields.push('meal_context = ?');
+      values.push(updates.meal_context);
+    }
+    if (updates.time_since_meal !== undefined) {
+      fields.push('time_since_meal = ?');
+      values.push(updates.time_since_meal);
+    }
+    if (updates.notes !== undefined) {
+      fields.push('notes = ?');
+      values.push(updates.notes);
+    }
+
+    if (fields.length === 0) {
+      return true; // Nada para atualizar
+    }
+
+    values.push(id);
+
+    return new Promise((resolve, reject) => {
+      db.transaction((tx: SQLTransaction) => {
+        tx.executeSql(
+          `UPDATE readings SET ${fields.join(', ')} WHERE id = ?;`,
+          values,
+          (_, _result) => {
+            console.log('Leitura atualizada com sucesso');
+            resolve(true);
+          },
+          (_, error: SQLError) => {
+            console.error('updateReading - sql error:', error);
+            reject(error);
+            return true;
+          }
+        );
+      });
+    });
+  } catch (err) {
+    console.error('updateReading - erro:', err);
+    throw err;
+  }
 }

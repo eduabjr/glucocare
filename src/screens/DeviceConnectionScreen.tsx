@@ -619,6 +619,7 @@ const DeviceConnectionScreen: React.FC<ConnectionProps> = ({ navigation: _naviga
                     for (const reading of simulatedReadings) {
                       const dbReading = {
                         id: reading.id,
+                        user_id: user?.id || 'default_user', // ✅ ADICIONADO: user_id obrigatório
                         glucose_level: reading.value,
                         timestamp: reading.timestamp.getTime(),
                         measurement_time: reading.timestamp.toISOString(),

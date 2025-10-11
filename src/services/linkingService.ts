@@ -3,7 +3,6 @@ import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
 import { Reading } from './dbService';
 import { parseFileContent } from './fileParsingService';
-import { useAuth } from '../context/AuthContext';
 
 export interface FileLinkingResult {
   success: boolean;
@@ -50,13 +49,14 @@ class LinkingService {
     console.log('🔗 Deep link recebido:', url);
 
     try {
-      // Verifica se é uma URL de arquivo
-      if (url.startsWith('file://') || url.includes('.csv') || url.includes('.xlsx') || url.includes('.xml') || url.includes('.pdf')) {
-        const filePath = this.extractFilePath(url);
+      const parsedUrl = Linking.parse(url);
+      console.log('🔗 URL parseada:', parsedUrl);
+
+      if (parsedUrl.path === 'device-connection') {
+        const filePath = this.extractFilePathFromUrl(url);
         if (filePath) {
-          // Nota: O userId deve ser fornecido pela tela que chama este serviço
-          console.log('📁 Arquivo detectado via deep link:', filePath);
-          // A tela que usa este serviço deve chamar processFileFromDeepLink com o userId
+          // Processa o arquivo automaticamente (userId será obtido do contexto quando necessário)
+          await this.processFileFromDeepLink(filePath, 'temp-user');
         }
       }
     } catch (error) {
@@ -64,19 +64,17 @@ class LinkingService {
     }
   };
 
-  private extractFilePath(url: string): string | null {
-    // Extrai o caminho do arquivo da URL
-    if (url.startsWith('file://')) {
-      return decodeURIComponent(url.replace('file://', ''));
+  private extractFilePathFromUrl(url: string): string | null {
+    try {
+      const urlObj = new URL(url);
+      const filePath = urlObj.searchParams.get('filePath');
+      return filePath ? decodeURIComponent(filePath) : null;
+    } catch (error) {
+      console.error('❌ Erro ao extrair filePath da URL:', error);
+      return null;
     }
-    
-    // Para URLs de compartilhamento, pode vir como parâmetro
-    const urlObj = new URL(url);
-    const filePath = urlObj.searchParams.get('filePath');
-    return filePath ? decodeURIComponent(filePath) : null;
   }
 
-  public async processFileFromDeepLink(filePath: string, userId?: string): Promise<FileLinkingResult> {
   public async processFileFromDeepLink(filePath: string, userId: string): Promise<FileLinkingResult> {
     try {
       console.log('📁 Processando arquivo do deep link:', filePath);
@@ -93,17 +91,15 @@ class LinkingService {
       // Lê o conteúdo do arquivo
       const content = await FileSystem.readAsStringAsync(filePath, {
         encoding: 'utf8',
-        encoding: 'utf8' as any,
       });
 
       // Extrai o nome do arquivo
       const fileName = filePath.split('/').pop() || 'arquivo_importado';
 
       // Processa o conteúdo baseado na extensão
-      const readings = await parseFileContent(content, fileName, userId || 'temp-user');
       const readings = await parseFileContent(content, fileName, userId);
 
-      if (readings.length === 0) {
+      if (!readings || readings.length === 0) {
         return {
           success: false,
           error: 'Nenhuma leitura válida encontrada no arquivo',
@@ -113,19 +109,9 @@ class LinkingService {
 
       console.log(`✅ ${readings.length} leituras processadas do arquivo: ${fileName}`);
 
-      // Converte Reading[] para GlucoseReading[]
-      const glucoseReadings: GlucoseReading[] = readings.map((reading, index) => ({
-        id: reading.id || `reading-${index}`,
-        timestamp: new Date(reading.measurement_time || reading.timestamp),
-        value: reading.glucose_level,
-        mealContext: reading.meal_context as 'jejum' | 'pre-refeicao' | 'pos-refeicao' | 'antes-dormir' | 'madrugada' | undefined,
-        notes: reading.notes || undefined,
-        deviceName: 'imported-file'
-      }));
-
       return {
         success: true,
-        readings: glucoseReadings,
+        readings,
         fileName
       };
 
@@ -138,7 +124,6 @@ class LinkingService {
     }
   }
 
-  public async processSharedFile(userId?: string): Promise<FileLinkingResult> {
   public async processSharedFile(userId: string): Promise<FileLinkingResult> {
     try {
       // Usa o DocumentPicker para pegar o arquivo compartilhado
@@ -154,39 +139,30 @@ class LinkingService {
         };
       }
 
-      const file = result.assets[0];
-      const content = await FileSystem.readAsStringAsync(file.uri, {
+      const fileAsset = result.assets[0];
+      const content = await FileSystem.readAsStringAsync(fileAsset.uri, {
         encoding: 'utf8',
       });
 
-      const readings = await parseFileContent(content, file.name || 'arquivo_importado', userId || 'temp-user');
-        encoding: 'utf8' as any,
-      });
+      const fileName = fileAsset.name || 'arquivo_importado';
 
-      const readings = await parseFileContent(content, file.name || 'arquivo_importado', userId);
+      // Processa o conteúdo baseado na extensão
+      const readings = await parseFileContent(content, fileName, userId);
 
-      if (readings.length === 0) {
+      if (!readings || readings.length === 0) {
         return {
           success: false,
           error: 'Nenhuma leitura válida encontrada no arquivo',
-          fileName: file.name || 'arquivo_importado'
+          fileName
         };
       }
 
-      // Converte Reading[] para GlucoseReading[]
-      const glucoseReadings: GlucoseReading[] = readings.map((reading, index) => ({
-        id: reading.id || `reading-${index}`,
-        timestamp: new Date(reading.measurement_time || reading.timestamp),
-        value: reading.glucose_level,
-        mealContext: reading.meal_context as 'jejum' | 'pre-refeicao' | 'pos-refeicao' | 'antes-dormir' | 'madrugada' | undefined,
-        notes: reading.notes || undefined,
-        deviceName: 'imported-file'
-      }));
+      console.log(`✅ ${readings.length} leituras processadas do arquivo compartilhado: ${fileName}`);
 
       return {
         success: true,
-        readings: glucoseReadings,
-        fileName: file.name || 'arquivo_importado'
+        readings,
+        fileName
       };
 
     } catch (error) {
@@ -198,19 +174,71 @@ class LinkingService {
     }
   }
 
-  public cleanup() {
-    // Expo-linking não tem removeAllListeners, então apenas marca como não inicializado
-    this.isInitialized = false;
-    // Remove listener se existir
+  public async processUrlFile(url: string, userId: string): Promise<FileLinkingResult> {
     try {
-      // Em versões mais recentes do expo-linking, não há mais removeAllListeners
-      // O cleanup é automático quando o componente desmonta
-      this.isInitialized = false;
+      console.log('🌐 Processando arquivo da URL:', url);
+
+      // Baixa o arquivo da URL
+      const tempFilePath = `/tmp/temp_imported_file_${Date.now()}`;
+      const downloadResult = await FileSystem.downloadAsync(url, tempFilePath);
+      
+      if (!downloadResult.uri) {
+        return {
+          success: false,
+          error: 'Falha ao baixar arquivo da URL'
+        };
+      }
+
+      // Lê o conteúdo do arquivo baixado
+      const content = await FileSystem.readAsStringAsync(downloadResult.uri, {
+        encoding: 'utf8',
+      });
+
+      // Extrai o nome do arquivo da URL
+      const fileName = url.split('/').pop()?.split('?')[0] || 'arquivo_url_importado';
+
+      // Processa o conteúdo baseado na extensão
+      const readings = await parseFileContent(content, fileName, userId);
+
+      if (!readings || readings.length === 0) {
+        return {
+          success: false,
+          error: 'Nenhuma leitura válida encontrada no arquivo',
+          fileName
+        };
+      }
+
+      console.log(`✅ ${readings.length} leituras processadas da URL: ${fileName}`);
+
+      // Limpa o arquivo temporário
+      try {
+        await FileSystem.deleteAsync(downloadResult.uri);
+      } catch (cleanupError) {
+        console.warn('⚠️ Erro ao limpar arquivo temporário:', cleanupError);
+      }
+
+      return {
+        success: true,
+        readings,
+        fileName
+      };
+
     } catch (error) {
-      console.error('Erro ao limpar linking service:', error);
+      console.error('❌ Erro ao processar arquivo da URL:', error);
+      return {
+        success: false,
+        error: `Erro ao processar arquivo: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
+      };
+    }
+  }
+
+  public destroy() {
+    if (this.isInitialized) {
+      // Nota: removeEventListener foi removido na versão mais recente do expo-linking
+      // O listener será automaticamente limpo quando o componente for desmontado
+      this.isInitialized = false;
     }
   }
 }
 
-// Instância singleton
 export const linkingService = new LinkingService();

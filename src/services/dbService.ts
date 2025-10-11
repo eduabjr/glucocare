@@ -86,12 +86,12 @@ export function getDB(): any {
 export async function executeTransaction(sql: string, args: any[] = []): Promise<any> {
     return new Promise((resolve, reject) => {
         try {
-            const database = getDB();
+    const database = getDB();
             if (!database || typeof database.transaction !== 'function') {
                 throw new Error('Database não disponível');
             }
             
-            database.transaction(
+        database.transaction(
                 (tx: any) => {
                     tx.executeSql(
                         sql, 
@@ -109,16 +109,16 @@ export async function executeTransaction(sql: string, args: any[] = []): Promise
                         },
                         (tx: any, error: any) => {
                             console.error('❌ Erro SQL:', error);
-                            reject(error);
-                            return false;
-                        }
-                    );
-                },
+                        reject(error);
+                        return false;
+                    }
+                );
+            },
                 (error: any) => {
                     console.error('❌ Erro na transação:', error);
                     reject(error);
                 }
-            );
+        );
         } catch (error) {
             console.error('❌ Erro em executeTransaction:', error);
             reject(error);
@@ -241,7 +241,7 @@ export async function saveUser(user: any): Promise<boolean> {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         
-        const params = [
+    const params = [ 
             user.id || 'default',
             user.full_name || null,
             user.email || null,
@@ -258,13 +258,168 @@ export async function saveUser(user: any): Promise<boolean> {
             new Date().toISOString(),
             0,
             user.email_verified || 0
-        ];
-        
-        await executeTransaction(sql, params);
+    ];
+
+    await executeTransaction(sql, params);
         console.log('✅ Usuário salvo com sucesso');
         return true;
     } catch (error) {
         console.error('❌ Erro ao salvar usuário:', error);
+        return false;
+    }
+}
+
+// ✅ Interface para perfil de usuário
+export interface UserProfile {
+    id: string;
+    name: string;
+    email: string;
+    googleId?: string;
+    onboardingCompleted?: boolean;
+    biometricEnabled?: boolean;
+    weight?: number | null;
+    height?: number | null;
+    birthDate?: string;
+    condition?: string;
+    restriction?: string;
+    glycemicGoals?: string;
+    medicationReminders?: string;
+    updated_at?: string;
+    pending_sync?: boolean;
+    emailVerified?: boolean;
+}
+
+// ✅ Interface para leituras
+export interface Reading {
+    id: string;
+    user_id: string;
+    measurement_time: string;
+    glucose_level: number;
+    meal_context?: string;
+    time_since_meal?: string;
+    notes?: string;
+    updated_at: string;
+    deleted: boolean;
+    pending_sync: boolean;
+    timestamp?: number; // Para compatibilidade
+}
+
+// ✅ Função para listar todas as leituras
+export async function listReadings(): Promise<Reading[]> {
+    try {
+        const result = await executeTransaction(
+            'SELECT * FROM readings WHERE deleted = 0 ORDER BY measurement_time DESC'
+        );
+        
+        const readings = [];
+        for (let i = 0; i < result.rows.length; i++) {
+            const row = result.rows.item(i);
+            readings.push({
+                ...row,
+                timestamp: new Date(row.measurement_time).getTime() // Para compatibilidade
+            });
+        }
+        
+        console.log(`📊 ${readings.length} leituras carregadas`);
+        return readings;
+    } catch (error) {
+        console.error('❌ Erro ao listar leituras:', error);
+        return [];
+    }
+}
+
+// ✅ Função para adicionar uma leitura
+export async function addReading(reading: Omit<Reading, 'updated_at' | 'deleted' | 'pending_sync'>): Promise<boolean> {
+    try {
+        const sql = `
+            INSERT OR REPLACE INTO readings 
+            (id, user_id, measurement_time, glucose_level, meal_context, time_since_meal, notes, updated_at, deleted, pending_sync)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 1)
+        `;
+        
+    const params = [ 
+            reading.id,
+            reading.user_id,
+        reading.measurement_time,
+        reading.glucose_level,
+            reading.meal_context || null,
+            reading.time_since_meal || null,
+            reading.notes || null,
+            new Date().toISOString()
+    ];
+
+    await executeTransaction(sql, params);
+        console.log('✅ Leitura adicionada com sucesso');
+        return true;
+    } catch (error) {
+        console.error('❌ Erro ao adicionar leitura:', error);
+        return false;
+    }
+}
+
+// ✅ Função para deletar uma leitura (soft delete)
+export async function deleteReading(id: string): Promise<boolean> {
+    try {
+        const sql = 'UPDATE readings SET deleted = 1, pending_sync = 1, updated_at = ? WHERE id = ?';
+        const params = [new Date().toISOString(), id];
+
+    await executeTransaction(sql, params);
+        console.log('✅ Leitura deletada com sucesso');
+    return true;
+    } catch (error) {
+        console.error('❌ Erro ao deletar leitura:', error);
+        return false;
+    }
+}
+
+// ✅ Função para salvar ou atualizar usuário (alias para saveUser)
+export async function saveOrUpdateUser(user: any): Promise<boolean> {
+    return await saveUser(user);
+}
+
+// ✅ Função para atualizar uma leitura existente
+export async function updateReading(id: string, reading: Partial<Reading>): Promise<boolean> {
+    try {
+        const sql = `
+            UPDATE readings 
+            SET measurement_time = ?, glucose_level = ?, meal_context = ?, 
+                time_since_meal = ?, notes = ?, updated_at = ?, pending_sync = 1
+            WHERE id = ?
+        `;
+        
+    const params = [
+            reading.measurement_time || '',
+            reading.glucose_level || 0,
+            reading.meal_context || null,
+            reading.time_since_meal || null,
+            reading.notes || null,
+            new Date().toISOString(),
+            id
+        ];
+        
+        await executeTransaction(sql, params);
+        console.log('✅ Leitura atualizada com sucesso');
+        return true;
+    } catch (error) {
+        console.error('❌ Erro ao atualizar leitura:', error);
+        return false;
+    }
+}
+
+// ✅ Função para limpar todos os dados locais
+export async function clearLocalData(): Promise<boolean> {
+    try {
+        const tables = ['users', 'readings', 'notifications'];
+        
+        for (const table of tables) {
+            await executeTransaction(`DELETE FROM ${table}`);
+            console.log(`🗑️ Tabela ${table} limpa`);
+        }
+        
+        console.log('✅ Todos os dados locais foram limpos');
+        return true;
+    } catch (error) {
+        console.error('❌ Erro ao limpar dados locais:', error);
         return false;
     }
 }

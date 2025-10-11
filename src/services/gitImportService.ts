@@ -540,7 +540,6 @@ class GitImportService {
         meal_context: contextStr || 'importado',
         time_since_meal: null,
         notes: `Importado do Git (${format})`,
-        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         deleted: false,
         pending_sync: true,

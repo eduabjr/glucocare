@@ -360,7 +360,6 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
                 >
                     <AntDesign
                         name="user-add"
-                        name="user"
                         size={52}
                         color={theme.primary}
                         style={{ alignSelf: 'center', marginBottom: 12 }}

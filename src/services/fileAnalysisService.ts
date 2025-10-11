@@ -278,14 +278,15 @@ RESPONDA APENAS COM O JSON, SEM TEXTO ADICIONAL.
     return extractedData.map((data, index) => ({
       id: `ai-import-${userId}-${Date.now()}-${index}`,
       user_id: userId,
+      measurement_time: new Date(data.timestamp).toISOString(),
       glucose_level: data.glucoseLevel,
-      timestamp: data.timestamp,
       meal_context: data.mealContext,
+      time_since_meal: null,
       notes: data.notes,
-      created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      deleted: false,
       pending_sync: true,
-      ai_confidence: data.confidence
+      timestamp: data.timestamp // Para compatibilidade
     }));
   }
 

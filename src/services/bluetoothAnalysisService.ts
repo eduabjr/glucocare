@@ -40,6 +40,23 @@ class BluetoothAnalysisService {
     try {
       console.log('🤖 Analisando dados Bluetooth do dispositivo:', rawData.deviceType);
       
+      // Valida os dados antes do processamento
+      const validation = this.validateBluetoothData(rawData);
+      if (!validation.isValid) {
+        return {
+          success: false,
+          readings: [],
+          confidence: 0,
+          metadata: {
+            deviceType: rawData.deviceType,
+            totalDataPoints: 0,
+            validReadings: 0,
+            errors: validation.errors,
+            suggestions: ['Verifique os dados do dispositivo e tente novamente']
+          }
+        };
+      }
+      
       // Usa o serviço de análise de arquivos para processar os dados
       const aiExtractedData = await fileAnalysisService.analyzeBluetoothData(
         rawData.rawData,
@@ -70,15 +87,6 @@ class BluetoothAnalysisService {
         notes: data.notes || `Leitura do ${rawData.deviceType}`,
         deviceName: rawData.deviceType
       }));
-        value: data.glucoseLevel,
-        timestamp: new Date(data.timestamp || rawData.timestamp),
-        mealContext: data.mealContext || 'Bluetooth',
-        notes: data.notes || `Leitura do ${rawData.deviceType}`,
-        confidence: data.confidence,
-        deviceType: rawData.deviceType,
-        batteryLevel: rawData.metadata?.batteryLevel,
-        signalStrength: rawData.metadata?.signalStrength
-      }) as any);
       
       // Calcula confiança média dos dados originais
       const avgConfidence = aiExtractedData.reduce((sum, data) => sum + (data.confidence || 0), 0) / aiExtractedData.length;
@@ -120,23 +128,14 @@ class BluetoothAnalysisService {
     return bluetoothReadings.map(reading => ({
       id: reading.id,
       user_id: userId,
-      timestamp: reading.timestamp.getTime(),
-      measurement_time: reading.timestamp.toISOString(),
-      glucose_level: reading.value,
-      meal_context: reading.mealContext,
-      notes: reading.notes,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      pending_sync: true,
-      ai_confidence: 0.85 // Valor padrão de confiança para leituras Bluetooth
-      timestamp: typeof reading.timestamp === 'number' ? reading.timestamp : Date.now(),
+      timestamp: typeof reading.timestamp === 'number' ? reading.timestamp : reading.timestamp.getTime(),
+      measurement_time: reading.timestamp instanceof Date ? reading.timestamp.toISOString() : new Date(reading.timestamp).toISOString(),
       glucose_level: reading.value,
       meal_context: reading.mealContext || 'Bluetooth',
       notes: reading.notes || '',
-      created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      pending_sync: true,
-      ai_confidence: (reading as any).confidence || 0
+      deleted: false,
+      pending_sync: true
     }));
   }
 
@@ -185,6 +184,9 @@ class BluetoothAnalysisService {
     };
   }
 
+  /**
+   * Gera sugestões baseadas na análise dos dados Bluetooth
+   */
   private generateBluetoothSuggestions(
     confidence: number, 
     validReadings: number, 
