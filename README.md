@@ -11,10 +11,13 @@
 - [Membros do Grupo](#membros-do-grupo)
 - [Começando](#começando)
 - [Tecnologias Empregadas](#tecnologias-empregadas)
+- [Modelagem do Banco de Dados](#modelagem-do-banco-de-dados)
+- [Collections e Estrutura](#collections-e-estrutura)
 - [Instrução de Uso](#instrução-de-uso)
 - [Pré-requisitos](#pré-requisitos)
 - [Instrução de Instalação](#instrução-de-instalação)
 - [Configuração do Firebase](#configuração-do-firebase)
+- [Comandos e Scripts](#comandos-e-scripts)
 - [Roteiro de Testes da Aplicação](#roteiro-de-testes-da-aplicação)
 - [Build e Deploy](#build-e-deploy)
 - [Suporte](#suporte)
@@ -62,6 +65,19 @@ O SQLite é um sistema de gerenciamento de banco de dados relacional embutido qu
 2. **Performance**: Acesso rápido aos dados
 3. **Sincronização**: Integração com serviços em nuvem
 4. **Compatibilidade**: Funciona em todas as plataformas
+
+#### Arquitetura Híbrida (Firestore + SQLite)
+
+A aplicação utiliza uma arquitetura híbrida inteligente que combina o melhor dos dois mundos:
+
+##### Vantagens da Arquitetura Híbrida:
+
+1. **Offline-First**: SQLite garante funcionamento sem internet
+2. **Performance Local**: Acesso instantâneo aos dados
+3. **Backup Automático**: Firestore sincroniza dados na nuvem
+4. **Multi-dispositivo**: Acesso de qualquer lugar
+5. **Escalabilidade**: Suporte a milhões de usuários
+6. **Confiabilidade**: Dados sempre seguros
 
 ## Objetivos do Projeto
 
@@ -122,184 +138,759 @@ O GlucoCare é uma aplicação React Native que utiliza Expo para desenvolviment
 - **Expo Notifications**: Sistema de notificações
 - **Expo Secure Store**: Armazenamento seguro de dados
 
+## Modelagem do Banco de Dados
+
+### Arquitetura Híbrida
+
+O GlucoCare utiliza uma arquitetura híbrida que combina SQLite (local) e Firestore (nuvem) para otimizar performance e confiabilidade.
+
+#### Fluxo de Dados:
+
+```
+1. Usuário adiciona leitura → SQLite (instantâneo)
+2. App sincroniza → Firestore (background)
+3. Outro dispositivo → Firestore → SQLite local
+4. Modo offline → SQLite funciona normalmente
+```
+
+### Estrutura do SQLite (Local)
+
+#### Tabela: glucose_readings
+```sql
+CREATE TABLE glucose_readings (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    value REAL NOT NULL,
+    timestamp INTEGER NOT NULL,
+    meal_context TEXT CHECK(meal_context IN ('jejum', 'pre-refeicao', 'pos-refeicao', 'antes-dormir', 'madrugada')),
+    notes TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    pending_sync BOOLEAN DEFAULT 1,
+    ai_confidence REAL
+);
+```
+
+#### Tabela: users
+```sql
+CREATE TABLE users (
+    id TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    name TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+```
+
+#### Tabela: glycemic_goals
+```sql
+CREATE TABLE glycemic_goals (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    fasting_min INTEGER DEFAULT 70,
+    fasting_max INTEGER DEFAULT 100,
+    pre_meal_min INTEGER DEFAULT 70,
+    pre_meal_max INTEGER DEFAULT 130,
+    post_meal_min INTEGER DEFAULT 70,
+    post_meal_max INTEGER DEFAULT 180,
+    bedtime_min INTEGER DEFAULT 70,
+    bedtime_max INTEGER DEFAULT 150,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+```
+
+### Estrutura do Firestore (Nuvem)
+
+#### Collection: users
+```json
+{
+  "id": "user_123",
+  "email": "usuario@exemplo.com",
+  "name": "Nome do Usuário",
+  "createdAt": "2024-10-11T00:00:00.000Z",
+  "updatedAt": "2024-10-11T00:00:00.000Z"
+}
+```
+
+#### Collection: glucoseReadings
+```json
+{
+  "id": "reading_123",
+  "userId": "user_123",
+  "value": 120,
+  "timestamp": "2024-10-11T08:00:00.000Z",
+  "mealContext": "jejum",
+  "notes": "Leitura matinal",
+  "createdAt": "2024-10-11T08:00:00.000Z",
+  "updatedAt": "2024-10-11T08:00:00.000Z",
+  "aiConfidence": 0.95
+}
+```
+
+#### Collection: glycemicGoals
+```json
+{
+  "id": "goals_123",
+  "userId": "user_123",
+  "fastingMin": 70,
+  "fastingMax": 100,
+  "preMealMin": 70,
+  "preMealMax": 130,
+  "postMealMin": 70,
+  "postMealMax": 180,
+  "bedtimeMin": 70,
+  "bedtimeMax": 150,
+  "createdAt": "2024-10-11T00:00:00.000Z",
+  "updatedAt": "2024-10-11T00:00:00.000Z"
+}
+```
+
+## Collections e Estrutura
+
+### Collections do Firestore
+
+#### 1. **users**
+- **Propósito**: Armazenar dados dos usuários
+- **Campos**:
+  - `id`: Identificador único
+  - `email`: Email do usuário
+  - `name`: Nome do usuário
+  - `createdAt`: Data de criação
+  - `updatedAt`: Data de atualização
+
+#### 2. **glucoseReadings**
+- **Propósito**: Armazenar leituras de glicemia
+- **Campos**:
+  - `id`: Identificador único
+  - `userId`: ID do usuário
+  - `value`: Valor da glicemia
+  - `timestamp`: Data e hora da leitura
+  - `mealContext`: Contexto da refeição
+  - `notes`: Notas adicionais
+  - `createdAt`: Data de criação
+  - `updatedAt`: Data de atualização
+  - `aiConfidence`: Confiança da IA (se aplicável)
+
+#### 3. **glycemicGoals**
+- **Propósito**: Armazenar metas glicêmicas do usuário
+- **Campos**:
+  - `id`: Identificador único
+  - `userId`: ID do usuário
+  - `fastingMin/Max`: Meta para jejum
+  - `preMealMin/Max`: Meta para pré-refeição
+  - `postMealMin/Max`: Meta para pós-refeição
+  - `bedtimeMin/Max`: Meta para antes de dormir
+
+### Relacionamentos
+
+```
+users (1) ←→ (N) glucoseReadings
+users (1) ←→ (1) glycemicGoals
+```
+
 ## Instrução de Uso
 
 ### Funcionalidades Disponíveis
 
 #### 1. Dashboard
-- Visualização de leituras recentes
-- Estatísticas rápidas
-- Acesso rápido às funcionalidades principais
+**O que faz**: Tela principal que mostra uma visão geral das leituras recentes e estatísticas importantes.
 
-#### 2. Registro de Leituras
-- Adição manual de leituras
-- Seleção de contexto (jejum, pré-refeição, etc.)
-- Adição de notas personalizadas
+**Como usar**:
+1. Abra o aplicativo
+2. Faça login com sua conta Google
+3. Visualize as leituras recentes no topo
+4. Veja estatísticas como média, máximo e mínimo
+5. Acesse funcionalidades rápidas pelos botões
 
-#### 3. Análise e Gráficos
-- Visualização de tendências
-- Gráficos de linha e barras
-- Análise temporal dos dados
+**Elementos da tela**:
+- **Leituras Recentes**: Lista das últimas 5 leituras
+- **Estatísticas**: Cards com médias e tendências
+- **Botões de Ação**: Adicionar leitura, ver gráficos, configurações
+
+#### 2. Adicionar Leitura
+**O que faz**: Permite registrar uma nova leitura de glicemia manualmente.
+
+**Como usar**:
+1. Toque no botão "+" no Dashboard
+2. Digite o valor da glicemia
+3. Selecione o contexto da refeição:
+   - **Jejum**: Antes do café da manhã
+   - **Pré-refeição**: Antes de comer
+   - **Pós-refeição**: 2 horas após comer
+   - **Antes de dormir**: À noite
+   - **Madrugada**: Durante a madrugada
+4. Adicione notas opcionais
+5. Toque em "Salvar"
+
+#### 3. Gráficos e Análises
+**O que faz**: Mostra visualizações das leituras ao longo do tempo.
+
+**Como usar**:
+1. Toque em "Gráficos" no menu
+2. Selecione o período desejado:
+   - **7 dias**: Última semana
+   - **30 dias**: Último mês
+   - **90 dias**: Últimos 3 meses
+3. Visualize diferentes tipos de gráficos:
+   - **Linha**: Tendência temporal
+   - **Barras**: Comparação por período
+   - **Área**: Área sob a curva
 
 #### 4. Configurações
-- Personalização de metas glicêmicas
-- Configuração de alertas
-- Gerenciamento de perfil
+**O que faz**: Permite personalizar metas glicêmicas e configurações do app.
+
+**Como usar**:
+1. Toque em "Configurações" no menu
+2. Configure suas metas glicêmicas:
+   - **Jejum**: 70-100 mg/dL (padrão)
+   - **Pré-refeição**: 70-130 mg/dL (padrão)
+   - **Pós-refeição**: 70-180 mg/dL (padrão)
+   - **Antes de dormir**: 70-150 mg/dL (padrão)
+3. Configure alertas de notificação
+4. Ajuste configurações de sincronização
 
 #### 5. Relatórios
-- Geração de relatórios em PDF
-- Compartilhamento de dados
-- Histórico detalhado
+**O que faz**: Gera relatórios detalhados em PDF das suas leituras.
+
+**Como usar**:
+1. Toque em "Relatórios" no menu
+2. Selecione o período do relatório
+3. Escolha o tipo de relatório:
+   - **Resumo**: Estatísticas básicas
+   - **Detalhado**: Lista completa de leituras
+   - **Médico**: Relatório para consulta médica
+4. Toque em "Gerar Relatório"
+5. Compartilhe ou salve o PDF
+
+#### 6. Conexão Bluetooth
+**O que faz**: Conecta com dispositivos de medição de glicemia via Bluetooth.
+
+**Como usar**:
+1. Toque em "Dispositivos" no menu
+2. Ative o Bluetooth no seu dispositivo
+3. Toque em "Buscar Dispositivos"
+4. Selecione seu dispositivo da lista
+5. Toque em "Conectar"
+6. As leituras serão importadas automaticamente
+
+#### 7. Importação de Arquivos
+**O que faz**: Importa leituras de arquivos CSV ou Excel.
+
+**Como usar**:
+1. Toque em "Importar" no menu
+2. Selecione "Arquivo Local" ou "GitHub"
+3. Para arquivo local:
+   - Selecione o arquivo CSV/Excel
+   - Confirme a importação
+4. Para GitHub:
+   - Digite a URL do repositório
+   - Selecione o arquivo
+   - Confirme a importação
 
 ## Pré-requisitos
 
 ### Desenvolvimento
 - **Node.js**: Versão 18 ou superior
-- **npm**: Gerenciador de pacotes
-- **Expo CLI**: Ferramenta de desenvolvimento
+  - Download: [https://nodejs.org/](https://nodejs.org/)
+  - Verificação: `node --version`
+- **npm**: Gerenciador de pacotes (vem com Node.js)
+  - Verificação: `npm --version`
 - **Git**: Controle de versão
+  - Download: [https://git-scm.com/](https://git-scm.com/)
+  - Verificação: `git --version`
+- **Expo CLI**: Ferramenta de desenvolvimento
+  - Instalação: `npm install -g @expo/cli`
+- **EAS CLI**: Para builds em nuvem
+  - Instalação: `npm install -g eas-cli`
 
 ### Dispositivo
 - **Android**: API 24 (Android 7.0) ou superior
 - **iOS**: iOS 15.1 ou superior
 - **Bluetooth**: Para integração com dispositivos
+- **Espaço**: Pelo menos 100MB livres
 
 ### Contas e Serviços
+- **Conta Google**: Para autenticação
 - **Conta Expo**: Para builds e deploy
-- **Conta Google**: Para autenticação OAuth
+  - Criação: [https://expo.dev/](https://expo.dev/)
 - **Conta Firebase**: Para serviços em nuvem
+  - Criação: [https://console.firebase.google.com/](https://console.firebase.google.com/)
+
+### Conhecimento Básico
+- **JavaScript/TypeScript**: Conhecimento básico
+- **React**: Conceitos fundamentais
+- **Terminal/CMD**: Comandos básicos
+- **Git**: Conceitos básicos
 
 ## Instrução de Instalação
 
-### 1. Clone o Repositório
+### Passo 1: Preparar o Ambiente
+
+#### 1.1 Instalar Node.js
+1. Acesse [https://nodejs.org/](https://nodejs.org/)
+2. Baixe a versão LTS (Long Term Support)
+3. Execute o instalador
+4. Siga as instruções na tela
+5. Reinicie o terminal/CMD
+6. Verifique a instalação:
+   ```bash
+   node --version
+   npm --version
+   ```
+
+#### 1.2 Instalar Git
+1. Acesse [https://git-scm.com/](https://git-scm.com/)
+2. Baixe a versão para seu sistema operacional
+3. Execute o instalador
+4. Use as configurações padrão
+5. Verifique a instalação:
+   ```bash
+   git --version
+   ```
+
+### Passo 2: Clonar o Repositório
+
+#### 2.1 Abrir Terminal/CMD
+- **Windows**: Pressione `Win + R`, digite `cmd`, pressione Enter
+- **Mac**: Pressione `Cmd + Espaço`, digite `Terminal`, pressione Enter
+- **Linux**: Pressione `Ctrl + Alt + T`
+
+#### 2.2 Navegar para Pasta Desejada
+```bash
+cd C:\Users\SeuUsuario\Desktop
+```
+
+#### 2.3 Clonar o Repositório
 ```bash
 git clone https://github.com/eduardofamilia01-hub/glucocare.git
 cd glucocare
 ```
 
-### 2. Instale as Dependências
+### Passo 3: Instalar Dependências
+
+#### 3.1 Instalar Dependências do Projeto
 ```bash
 npm install --legacy-peer-deps
 ```
 
-### 3. Configure o Ambiente
+#### 3.2 Instalar Expo CLI Globalmente
 ```bash
-# Instale o Expo CLI globalmente
 npm install -g @expo/cli
+```
 
-# Instale o EAS CLI para builds
+#### 3.3 Instalar EAS CLI Globalmente
+```bash
 npm install -g eas-cli
 ```
 
-### 4. Configure as Variáveis de Ambiente
+### Passo 4: Configurar Firebase
+
+#### 4.1 Criar Projeto Firebase
+1. Acesse [https://console.firebase.google.com/](https://console.firebase.google.com/)
+2. Clique em "Criar um projeto"
+3. Digite o nome: "GlucoCare"
+4. Ative o Google Analytics (opcional)
+5. Clique em "Criar projeto"
+
+#### 4.2 Configurar Autenticação
+1. No console Firebase, vá para "Authentication"
+2. Clique em "Começar"
+3. Vá para a aba "Sign-in method"
+4. Habilite "Google"
+5. Configure o nome do projeto
+6. Salve as configurações
+
+#### 4.3 Configurar Firestore
+1. Vá para "Firestore Database"
+2. Clique em "Criar banco de dados"
+3. Escolha "Iniciar no modo de teste"
+4. Selecione uma localização (us-east1 recomendado)
+5. Clique em "Concluído"
+
+#### 4.4 Baixar Arquivos de Configuração
+1. Vá para "Configurações do projeto"
+2. Clique em "Adicionar app"
+3. Selecione o ícone do Android
+4. Digite o nome do pacote: `com.eduardofamilia01.glucocare`
+5. Baixe o arquivo `google-services.json`
+6. Coloque o arquivo na pasta `android/app/`
+
+### Passo 5: Configurar Variáveis de Ambiente
+
+#### 5.1 Criar Arquivo .env
 Crie um arquivo `.env` na raiz do projeto:
 ```env
-EXPO_PUBLIC_FIREBASE_API_KEY=sua_api_key
-EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=seu_domain
-EXPO_PUBLIC_FIREBASE_PROJECT_ID=seu_project_id
-EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=seu_bucket
-EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=seu_sender_id
-EXPO_PUBLIC_FIREBASE_APP_ID=seu_app_id
+EXPO_PUBLIC_FIREBASE_API_KEY=sua_api_key_aqui
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=seu_domain_aqui
+EXPO_PUBLIC_FIREBASE_PROJECT_ID=seu_project_id_aqui
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=seu_bucket_aqui
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=seu_sender_id_aqui
+EXPO_PUBLIC_FIREBASE_APP_ID=seu_app_id_aqui
 ```
 
-### 5. Execute a Aplicação
+#### 5.2 Obter Chaves do Firebase
+1. No console Firebase, vá para "Configurações do projeto"
+2. Na seção "Seus apps", clique no ícone de configuração
+3. Copie as chaves e cole no arquivo `.env`
+
+### Passo 6: Executar a Aplicação
+
+#### 6.1 Modo Desenvolvimento
 ```bash
-# Modo desenvolvimento
 npx expo start
+```
 
-# Para Android
+#### 6.2 Para Android
+```bash
 npx expo run:android
+```
 
-# Para iOS
+#### 6.3 Para iOS
+```bash
 npx expo run:ios
 ```
 
+### Passo 7: Testar a Instalação
+
+#### 7.1 Verificar Funcionalidades
+1. Abra o aplicativo no dispositivo/emulador
+2. Faça login com sua conta Google
+3. Adicione uma leitura de teste
+4. Verifique se aparece no dashboard
+5. Teste a navegação entre telas
+
+#### 7.2 Verificar Sincronização
+1. Adicione algumas leituras
+2. Aguarde alguns segundos
+3. Verifique no console Firebase se os dados aparecem
+4. Teste em outro dispositivo (se disponível)
+
 ## Configuração do Firebase
 
-### 1. Crie um Projeto Firebase
-1. Acesse o [Console do Firebase](https://console.firebase.google.com/)
-2. Clique em "Criar um projeto"
-3. Siga as instruções para configurar o projeto
+### Estrutura de Segurança
 
-### 2. Configure a Autenticação
-1. No console Firebase, vá para "Authentication"
-2. Clique em "Começar"
-3. Habilite "Google" como provedor de autenticação
-4. Configure os domínios autorizados
+#### Regras do Firestore
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Usuários podem ler/escrever apenas seus próprios dados
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Leituras de glicemia
+    match /glucoseReadings/{readingId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+    
+    // Metas glicêmicas
+    match /glycemicGoals/{goalId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+  }
+}
+```
 
-### 3. Configure o Firestore
-1. Vá para "Firestore Database"
-2. Clique em "Criar banco de dados"
-3. Escolha o modo de produção
-4. Configure as regras de segurança
+### Configuração de Autenticação
 
-### 4. Baixe o arquivo de configuração
-1. Vá para "Configurações do projeto"
-2. Baixe o arquivo `google-services.json` (Android)
-3. Baixe o arquivo `GoogleService-Info.plist` (iOS)
-4. Coloque os arquivos nas pastas apropriadas
+#### Provedores Habilitados
+- **Google**: Login com conta Google
+- **Email/Senha**: Login tradicional (opcional)
+
+#### Configurações de Domínio
+- **Domínios autorizados**: Configurados automaticamente
+- **Redirecionamento**: Configurado para o app
+
+## Comandos e Scripts
+
+### Scripts NPM Disponíveis
+
+#### Comandos Básicos
+```bash
+# Iniciar aplicação em modo desenvolvimento
+npm start
+
+# Build para Android
+npm run android
+
+# Build para iOS
+npm run ios
+
+# Executar no navegador
+npm run web
+
+# Executar linting
+npm run lint
+
+# Formatar código
+npm run format
+
+# Executar testes
+npm run test
+
+# Push rápido para GitHub
+npm run push:quick
+```
+
+### Scripts .bat Personalizados
+
+#### 1. Build e Deploy
+```bash
+# Build APK local
+.\build-apk.bat
+
+# Build com EAS (nuvem)
+.\build-with-eas.bat
+
+# Build com Expo CLI
+.\build-with-expo.bat
+
+# Build simples
+.\build-simple.bat
+```
+
+#### 2. Correção de Problemas
+```bash
+# Corrigir dependências
+.\fix-dependencies-final.bat
+
+# Corrigir package-lock.json
+.\fix-package-lock-definitivo.bat
+
+# Corrigir Gradle
+.\fix-gradle-8.13.bat
+
+# Corrigir plugins Expo
+.\fix-expo-plugins.bat
+
+# Sincronizar Git
+.\fix-git-sync.bat
+```
+
+#### 3. Configuração
+```bash
+# Instalar EAS CLI
+.\install-eas.bat
+
+# Baixar Gradle Wrapper
+.\download-gradle-wrapper.bat
+
+# Limpar cache Gradle
+.\clean-gradle-cache.bat
+
+# Recriar pasta Android
+.\recreate-android-folder.bat
+```
+
+#### 4. Git e Deploy
+```bash
+# Commit e push automático
+.\commit.bat
+
+# Push rápido
+.\commit-quick.bat
+
+# Configurar Git
+.\setup-git.ps1
+```
+
+### Scripts PowerShell
+
+#### Scripts Avançados
+```powershell
+# Baixar Gradle Wrapper
+.\download-gradle-8.13.ps1
+
+# Corrigir package-lock definitivamente
+.\fix-package-lock-definitivo.ps1
+
+# Baixar Gradle Wrapper
+.\download-gradle-wrapper.ps1
+```
+
+### Como Usar os Scripts
+
+#### Exemplo 1: Build Completo
+```bash
+# 1. Corrigir dependências
+.\fix-dependencies-final.bat
+
+# 2. Build com EAS
+.\build-with-eas.bat
+
+# 3. Push para GitHub
+npm run push:quick
+```
+
+#### Exemplo 2: Desenvolvimento Diário
+```bash
+# 1. Iniciar desenvolvimento
+npm start
+
+# 2. Fazer mudanças no código
+# 3. Testar no dispositivo
+# 4. Commit e push
+npm run push:quick
+```
+
+#### Exemplo 3: Resolver Problemas
+```bash
+# 1. Identificar problema
+# 2. Usar script específico
+.\fix-package-lock-definitivo.bat
+
+# 3. Testar solução
+npm start
+```
 
 ## Roteiro de Testes da Aplicação
 
 ### Testes de Funcionalidades Básicas
 
 #### 1. Autenticação
-- ✅ Login com Google OAuth
-- ✅ Logout
-- ✅ Persistência de sessão
-- ✅ Recuperação de senha
+**Objetivo**: Verificar se o sistema de login funciona corretamente.
+
+**Passos**:
+1. Abrir aplicativo
+2. Tocar em "Login com Google"
+3. Selecionar conta Google
+4. Aguardar redirecionamento
+5. Verificar se chegou ao Dashboard
+
+**Resultado Esperado**: Login bem-sucedido e acesso ao Dashboard.
+
+**Resultado Obtido**: ✅ Login funcionando corretamente.
 
 #### 2. Registro de Leituras
-- ✅ Adição manual de leituras
-- ✅ Validação de campos obrigatórios
-- ✅ Seleção de contexto glicêmico
-- ✅ Adição de notas
+**Objetivo**: Testar a funcionalidade de adicionar leituras manualmente.
 
-#### 3. Dashboard
-- ✅ Exibição de leituras recentes
-- ✅ Cálculo de estatísticas
-- ✅ Navegação entre seções
+**Passos**:
+1. Tocar no botão "+" no Dashboard
+2. Digitar valor: "120"
+3. Selecionar contexto: "Jejum"
+4. Adicionar nota: "Teste matinal"
+5. Tocar em "Salvar"
 
-#### 4. Gráficos e Análises
-- ✅ Visualização de tendências
-- ✅ Filtros por período
-- ✅ Gráficos responsivos
+**Resultado Esperado**: Leitura salva e aparecendo no Dashboard.
 
-#### 5. Configurações
-- ✅ Personalização de metas
-- ✅ Configuração de alertas
-- ✅ Gerenciamento de perfil
+**Resultado Obtido**: ✅ Leitura salva com sucesso.
+
+#### 3. Visualização de Gráficos
+**Objetivo**: Verificar se os gráficos são exibidos corretamente.
+
+**Passos**:
+1. Adicionar várias leituras com diferentes valores
+2. Ir para tela "Gráficos"
+3. Selecionar período "7 dias"
+4. Verificar diferentes tipos de gráfico
+
+**Resultado Esperado**: Gráficos exibidos com dados corretos.
+
+**Resultado Obtido**: ✅ Gráficos funcionando perfeitamente.
+
+#### 4. Configuração de Metas
+**Objetivo**: Testar a personalização de metas glicêmicas.
+
+**Passos**:
+1. Ir para "Configurações"
+2. Tocar em "Metas Glicêmicas"
+3. Alterar meta de jejum para 80-110
+4. Salvar configurações
+5. Verificar se alertas são ajustados
+
+**Resultado Esperado**: Metas salvas e alertas atualizados.
+
+**Resultado Obtido**: ✅ Configurações salvas corretamente.
+
+#### 5. Geração de Relatórios
+**Objetivo**: Testar a criação de relatórios em PDF.
+
+**Passos**:
+1. Ir para "Relatórios"
+2. Selecionar período "30 dias"
+3. Escolher tipo "Resumo"
+4. Tocar em "Gerar Relatório"
+5. Verificar se PDF é criado
+
+**Resultado Esperado**: PDF gerado com dados corretos.
+
+**Resultado Obtido**: ✅ Relatório gerado com sucesso.
 
 ### Testes de Integração
 
-#### 1. Bluetooth
-- ✅ Descoberta de dispositivos
-- ✅ Conexão com dispositivos
-- ✅ Recebimento de dados
-- ✅ Tratamento de erros
+#### 1. Sincronização com Firebase
+**Objetivo**: Verificar se dados são sincronizados com a nuvem.
 
-#### 2. Sincronização
-- ✅ Backup para Firebase
-- ✅ Restauração de dados
-- ✅ Resolução de conflitos
-- ✅ Modo offline
+**Passos**:
+1. Adicionar leitura no dispositivo
+2. Aguardar 10 segundos
+3. Verificar no console Firebase
+4. Abrir app em outro dispositivo
+5. Verificar se dados aparecem
 
-#### 3. Relatórios
-- ✅ Geração de PDF
-- ✅ Compartilhamento
-- ✅ Diferentes formatos
+**Resultado Esperado**: Dados sincronizados entre dispositivos.
+
+**Resultado Obtido**: ✅ Sincronização funcionando.
+
+#### 2. Modo Offline
+**Objetivo**: Testar funcionamento sem conexão com internet.
+
+**Passos**:
+1. Desativar WiFi/dados móveis
+2. Adicionar leitura
+3. Verificar se é salva localmente
+4. Reativar conexão
+5. Verificar sincronização
+
+**Resultado Esperado**: App funciona offline e sincroniza depois.
+
+**Resultado Obtido**: ✅ Modo offline funcionando.
+
+#### 3. Importação de Arquivos
+**Objetivo**: Testar importação de dados de arquivos externos.
+
+**Passos**:
+1. Criar arquivo CSV com leituras
+2. Ir para "Importar"
+3. Selecionar arquivo
+4. Confirmar importação
+5. Verificar se dados aparecem
+
+**Resultado Esperado**: Dados importados corretamente.
+
+**Resultado Obtido**: ✅ Importação funcionando.
 
 ### Testes de Performance
 
-#### 1. Carregamento
-- ✅ Tempo de inicialização
-- ✅ Carregamento de dados
-- ✅ Renderização de gráficos
+#### 1. Carregamento de Dados
+**Objetivo**: Verificar tempo de carregamento das telas.
 
-#### 2. Memória
-- ✅ Uso de memória
-- ✅ Vazamentos de memória
-- ✅ Garbage collection
+**Passos**:
+1. Medir tempo de abertura do Dashboard
+2. Adicionar 100 leituras
+3. Medir tempo de carregamento dos gráficos
+4. Verificar uso de memória
+
+**Resultado Esperado**: Carregamento rápido (< 2 segundos).
+
+**Resultado Obtido**: ✅ Performance dentro do esperado.
+
+#### 2. Responsividade
+**Objetivo**: Testar responsividade em diferentes tamanhos de tela.
+
+**Passos**:
+1. Testar em smartphone pequeno
+2. Testar em tablet
+3. Verificar layout em orientação paisagem
+4. Testar em diferentes resoluções
+
+**Resultado Esperado**: Layout adaptável e funcional.
+
+**Resultado Obtido**: ✅ Responsividade funcionando.
 
 ## Build e Deploy
 
@@ -329,11 +920,15 @@ eas build --platform ios --profile production
 1. Configure o projeto no Google Play Console
 2. Gere o APK/AAB com EAS Build
 3. Faça upload na Play Store
+4. Configure metadados e screenshots
+5. Publique a aplicação
 
 #### Apple App Store
 1. Configure o projeto no App Store Connect
 2. Gere o IPA com EAS Build
 3. Faça upload no App Store
+4. Configure metadados e screenshots
+5. Submeta para revisão
 
 ### Configuração EAS
 
@@ -351,7 +946,9 @@ eas build --platform ios --profile production
     "preview": {
       "distribution": "internal"
     },
-    "production": {}
+    "production": {
+      "distribution": "store"
+    }
   }
 }
 ```
@@ -375,40 +972,120 @@ R: Vá para Relatórios > Gerar Relatório > Selecione o período
 **P: Como configurar alertas?**
 R: Vá para Configurações > Alertas > Configure os limites
 
+**P: Como importar dados de outro app?**
+R: Use a funcionalidade de importação em Configurações > Importar
+
+**P: Como sincronizar dados entre dispositivos?**
+R: Faça login com a mesma conta Google em ambos os dispositivos
+
+**P: Como fazer backup dos dados?**
+R: Os dados são automaticamente sincronizados com o Firebase
+
 ## Licença
 
 Este projeto está licenciado sob a licença MIT. Sinta-se à vontade para editar e distribuir este modelo como desejar.
 
 Veja a [licença](./LICENSE) aqui para mais informações.
 
+### Detalhes da Licença MIT
+
+```
+MIT License
+
+Copyright (c) 2024 Eduardo Família
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
 ## Referência
 
+### Documentação Oficial
 - [Expo Documentation](https://docs.expo.dev/) - Acesso em: 11 out. 2024
 - [React Native Documentation](https://reactnative.dev/) - Acesso em: 11 out. 2024
 - [Firebase Documentation](https://firebase.google.com/docs) - Acesso em: 11 out. 2024
 - [TypeScript Documentation](https://www.typescriptlang.org/docs/) - Acesso em: 11 out. 2024
 - [EAS Build Documentation](https://docs.expo.dev/build/introduction/) - Acesso em: 11 out. 2024
 
+### Tutoriais e Guias
+- [React Native Tutorial](https://reactnative.dev/docs/tutorial) - Acesso em: 11 out. 2024
+- [Expo Getting Started](https://docs.expo.dev/get-started/installation/) - Acesso em: 11 out. 2024
+- [Firebase Setup Guide](https://firebase.google.com/docs/android/setup) - Acesso em: 11 out. 2024
+- [TypeScript with React Native](https://reactnative.dev/docs/typescript) - Acesso em: 11 out. 2024
+
+### Comunidade
+- [React Native Community](https://github.com/react-native-community) - Acesso em: 11 out. 2024
+- [Expo Community](https://forums.expo.dev/) - Acesso em: 11 out. 2024
+- [Firebase Community](https://firebase.google.com/community) - Acesso em: 11 out. 2024
+
+### Ferramentas Utilizadas
+- [Hackolade](https://hackolade.com/) - Para modelagem de banco de dados
+- [Readme.so](https://readme.so/pt) - Editor de README
+- [Thunder Client](https://www.thunderclient.com/) - Teste de APIs
+
 ## Agradecimento
 
 Obrigado por esses recursos incríveis que foram usados durante o desenvolvimento do GlucoCare:
 
-### Links Úteis:
+### Plataformas e Serviços:
 - **Expo** - Plataforma de desenvolvimento React Native. [https://expo.dev/](https://expo.dev/)
 - **Firebase** - Plataforma de serviços em nuvem do Google. [https://firebase.google.com/](https://firebase.google.com/)
 - **React Native** - Framework para desenvolvimento móvel. [https://reactnative.dev/](https://reactnative.dev/)
 - **TypeScript** - Linguagem de programação tipada. [https://www.typescriptlang.org/](https://www.typescriptlang.org/)
 - **EAS Build** - Serviço de build em nuvem. [https://expo.dev/build](https://expo.dev/build)
+
+### Ferramentas de Desenvolvimento:
 - **Visual Studio Code** - Editor de código. [https://code.visualstudio.com/](https://code.visualstudio.com/)
 - **GitHub** - Plataforma de desenvolvimento e versionamento. [https://github.com/](https://github.com/)
+- **Hackolade** - Modelagem de banco de dados. [https://hackolade.com/](https://hackolade.com/)
+- **Thunder Client** - Teste de APIs. [https://www.thunderclient.com/](https://www.thunderclient.com/)
 
-### Comunidade:
-- **React Native Community** - Comunidade ativa de desenvolvedores
-- **Expo Community** - Suporte e recursos da comunidade Expo
-- **Firebase Community** - Documentação e exemplos da comunidade
+### Comunidade e Recursos:
+- **React Native Community** - Suporte e recursos da comunidade
+- **Expo Community** - Documentação e exemplos
+- **Firebase Community** - Guias e tutoriais
+- **Stack Overflow** - Resolução de problemas
+- **GitHub** - Código aberto e colaboração
+
+### Inspiração:
+- **MongoDB API RESTful** - [https://github.com/eduabjr/mongodb](https://github.com/eduabjr/mongodb) - Referência para documentação profissional
+- **Comunidade Open Source** - Desenvolvedores que compartilham conhecimento
+- **Usuários Diabéticos** - Inspiração para criar uma ferramenta útil
 
 ---
 
 **Desenvolvido com ❤️ por Eduardo Família**
 
 *GlucoCare - Monitoramento inteligente da glicemia*
+
+---
+
+## Sobre
+
+Este projeto foi desenvolvido como uma solução completa para monitoramento de glicemia, combinando tecnologias modernas com uma interface intuitiva. A arquitetura híbrida (SQLite + Firestore) garante performance local e sincronização em nuvem, oferecendo a melhor experiência possível para usuários diabéticos.
+
+### Características Técnicas:
+- **Offline-First**: Funciona sem conexão com internet
+- **Sincronização Inteligente**: Backup automático na nuvem
+- **Performance Otimizada**: Acesso instantâneo aos dados
+- **Escalabilidade**: Suporte a milhões de usuários
+- **Segurança**: Autenticação e dados criptografados
+- **Acessibilidade**: Interface adaptável e inclusiva
+
+### Impacto Social:
+O GlucoCare visa melhorar a qualidade de vida de pessoas com diabetes, oferecendo uma ferramenta completa para monitoramento e controle da glicemia, com insights baseados em dados e alertas personalizados.
