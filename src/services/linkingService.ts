@@ -76,11 +76,8 @@ class LinkingService {
     return filePath ? decodeURIComponent(filePath) : null;
   }
 
-<<<<<<< HEAD
   public async processFileFromDeepLink(filePath: string, userId?: string): Promise<FileLinkingResult> {
-=======
   public async processFileFromDeepLink(filePath: string, userId: string): Promise<FileLinkingResult> {
->>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
     try {
       console.log('📁 Processando arquivo do deep link:', filePath);
 
@@ -95,22 +92,16 @@ class LinkingService {
 
       // Lê o conteúdo do arquivo
       const content = await FileSystem.readAsStringAsync(filePath, {
-<<<<<<< HEAD
         encoding: 'utf8',
-=======
         encoding: 'utf8' as any,
->>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
       });
 
       // Extrai o nome do arquivo
       const fileName = filePath.split('/').pop() || 'arquivo_importado';
 
       // Processa o conteúdo baseado na extensão
-<<<<<<< HEAD
       const readings = await parseFileContent(content, fileName, userId || 'temp-user');
-=======
       const readings = await parseFileContent(content, fileName, userId);
->>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
 
       if (readings.length === 0) {
         return {
@@ -147,11 +138,8 @@ class LinkingService {
     }
   }
 
-<<<<<<< HEAD
   public async processSharedFile(userId?: string): Promise<FileLinkingResult> {
-=======
   public async processSharedFile(userId: string): Promise<FileLinkingResult> {
->>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
     try {
       // Usa o DocumentPicker para pegar o arquivo compartilhado
       const result = await DocumentPicker.getDocumentAsync({
@@ -168,17 +156,14 @@ class LinkingService {
 
       const file = result.assets[0];
       const content = await FileSystem.readAsStringAsync(file.uri, {
-<<<<<<< HEAD
         encoding: 'utf8',
       });
 
       const readings = await parseFileContent(content, file.name || 'arquivo_importado', userId || 'temp-user');
-=======
         encoding: 'utf8' as any,
       });
 
       const readings = await parseFileContent(content, file.name || 'arquivo_importado', userId);
->>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
 
       if (readings.length === 0) {
         return {
@@ -214,10 +199,8 @@ class LinkingService {
   }
 
   public cleanup() {
-<<<<<<< HEAD
     // Expo-linking não tem removeAllListeners, então apenas marca como não inicializado
     this.isInitialized = false;
-=======
     // Remove listener se existir
     try {
       // Em versões mais recentes do expo-linking, não há mais removeAllListeners
@@ -226,7 +209,6 @@ class LinkingService {
     } catch (error) {
       console.error('Erro ao limpar linking service:', error);
     }
->>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
   }
 }
 

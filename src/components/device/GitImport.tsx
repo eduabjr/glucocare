@@ -153,11 +153,8 @@ export default function GitImport({ onImportComplete }: GitImportProps) {
 
   const renderResultModal = () => (
     <Modal
-<<<<<<< HEAD
       visible={showResult}
-=======
       visible={showResult && !!importResult}
->>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
       animationType="slide"
       transparent={true}
       onRequestClose={() => setShowResult(false)}

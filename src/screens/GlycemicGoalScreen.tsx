@@ -468,11 +468,8 @@ export default function GlycemicGoalScreen({ navigation }: GlycemicGoalScreenPro
     return (
         <SafeAreaView style={styles.container}>
             <LinearGradient
-<<<<<<< HEAD
                 colors={[theme.primary, theme.secundary]}
-=======
                 colors={[theme.primary, theme.primary]}
->>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
                 style={styles.header}
             >
                 <TouchableOpacity

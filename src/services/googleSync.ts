@@ -33,21 +33,18 @@ async function uploadReadingsToDrive(accessToken: string): Promise<boolean> {
 
     // Buscar leituras do banco de dados
     const readings: Reading[] = await new Promise((resolve, reject) => {
-<<<<<<< HEAD
       db.transaction((tx) => {
         tx.executeSql(
           'SELECT * FROM readings ORDER BY measurement_time DESC;',
           [],
           (_, { rows }) => resolve(rows._array),
           (_, err) => {
-=======
       db.transaction((tx: SQLTransaction) => {  // Usando o tipo correto SQLTransaction
         tx.executeSql(
           'SELECT * FROM readings ORDER BY measurement_time DESC;',
           [],
           (_, { rows }: { rows: SQLResultSetRowList }) => resolve(rows._array),  // Tipagem de rows
           (_, err: SQLError) => {
->>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
             console.error("Erro ao executar SQL:", err);
             reject(err);
             return true;
@@ -120,27 +117,21 @@ async function uploadReadingsToDrive(accessToken: string): Promise<boolean> {
 /**
  * 🔹 Salva timestamp de sincronização no SQLite
  */
-<<<<<<< HEAD
 async function saveSyncTimestamp(db: any, isoString: string): Promise<boolean> {
   return new Promise((resolve, reject) => {
     db.transaction(
       (tx: any) => {
-=======
 async function saveSyncTimestamp(db: SQLiteDatabase, isoString: string): Promise<boolean> {
   return new Promise((resolve, reject) => {
     db.transaction(
       (tx: SQLTransaction) => {  // Usando o tipo correto SQLTransaction
->>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
         tx.executeSql(
           `INSERT OR REPLACE INTO sync_meta (key, value) VALUES (?, ?);`,
           ['last_sync', isoString]
         );
       },
-<<<<<<< HEAD
       (err: any) => {
-=======
       (err: SQLError) => {  // Tipagem explícita de err
->>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
         console.warn("saveSyncTimestamp falhou:", err);
         reject(err);
         return true;

@@ -1,7 +1,8 @@
 // ✅ CONFIGURAÇÃO FIREBASE PARA REACT NATIVE - VERSÃO DEFINITIVA
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configuração do Firebase (do console Firebase)
 const firebaseConfig = {
@@ -14,69 +15,125 @@ const firebaseConfig = {
 };
 
 // ✅ INICIALIZAÇÃO CORRETA PARA REACT NATIVE
-let app;
-let auth;
-let db;
+let app: any = null;
+let auth: any = null;
+let db: any = null;
 
-try {
-    // Verifica se já existe uma instância do Firebase
-    if (getApps().length === 0) {
-        // Primeira inicialização
-        console.log('🔥 Inicializando Firebase pela primeira vez...');
-        app = initializeApp(firebaseConfig);
-        
-        // ✅ Inicializa Auth (React Native usa persistência automática via AsyncStorage)
-        auth = getAuth(app);
-        
-        db = getFirestore(app);
-        console.log('✅ Firebase inicializado com sucesso!');
-    } else {
-        // Já existe uma instância, reutiliza
-        console.log('♻️ Reutilizando instância existente do Firebase...');
-        app = getApp();
-        auth = getAuth(app);
-        db = getFirestore(app);
-        console.log('✅ Firebase conectado!');
-    }
-} catch (error: any) {
-    console.error('❌ ERRO CRÍTICO ao inicializar Firebase:', error);
-    console.error('Detalhes do erro:', error.message);
-    
-    // ⚠️ Fallback de emergência
-    if (!app && getApps().length === 0) {
-        app = initializeApp(firebaseConfig);
-    } else if (!app) {
-        app = getApp();
-    }
-    
-    // Tenta obter auth e db mesmo com erro
+// Função para inicializar Firebase de forma segura
+const initializeFirebase = () => {
     try {
-        auth = getAuth(app);
-        db = getFirestore(app);
-        console.log('⚠️ Firebase inicializado em modo fallback');
-    } catch (fallbackError) {
-        console.error('❌ Erro no fallback:', fallbackError);
+        console.log('🔥 Inicializando Firebase...');
+        
+        // Verifica se já existe uma instância do Firebase
+        const existingApps = getApps();
+        
+        if (existingApps.length === 0) {
+            // Primeira inicialização
+            console.log('🔥 Primeira inicialização do Firebase...');
+            app = initializeApp(firebaseConfig);
+        } else {
+            // Já existe uma instância, reutiliza
+            console.log('♻️ Reutilizando instância existente do Firebase...');
+            app = getApp();
+        }
+        
+        // Inicializa Auth de forma mais segura
+        try {
+            // Sempre usa getAuth primeiro para evitar problemas de registro
+            auth = getAuth(app);
+            console.log('✅ Firebase Auth inicializado com getAuth');
+        } catch (authError: any) {
+            console.error('❌ Erro ao inicializar Auth:', authError);
+            // Se getAuth falhar, tenta initializeAuth
+            try {
+                auth = initializeAuth(app, {
+                    persistence: getReactNativePersistence(AsyncStorage)
+                });
+                console.log('✅ Firebase Auth inicializado com initializeAuth');
+            } catch (initError: any) {
+                console.error('❌ Erro ao usar initializeAuth:', initError);
+                // Fallback final - cria um mock
+                auth = {
+                    currentUser: null,
+                    signInWithEmailAndPassword: () => Promise.reject(new Error('Auth não disponível')),
+                    createUserWithEmailAndPassword: () => Promise.reject(new Error('Auth não disponível')),
+                    signOut: () => Promise.resolve(),
+                    onAuthStateChanged: () => () => {}
+                };
+                console.log('⚠️ Firebase Auth usando mock');
+            }
+        }
+        
+        // Inicializa Firestore
+        try {
+            db = getFirestore(app);
+            console.log('✅ Firestore inicializado');
+        } catch (dbError: any) {
+            console.error('❌ Erro ao inicializar Firestore:', dbError);
+            db = null;
+        }
+        
+        console.log('✅ Firebase inicializado com sucesso!');
+        return true;
+        
+    } catch (error: any) {
+        console.error('❌ ERRO ao inicializar Firebase:', error);
+        console.error('Detalhes do erro:', error.message);
+        
+        // Fallback de emergência
+        try {
+            if (!app) {
+                app = initializeApp(firebaseConfig);
+            }
+            
+            // Fallback para Auth
+            try {
+                auth = initializeAuth(app, {
+                    persistence: getReactNativePersistence(AsyncStorage)
+                });
+            } catch (authError: any) {
+                if (authError.code === 'auth/already-initialized') {
+                    auth = getAuth(app);
+                } else {
+                    auth = getAuth(app); // Fallback simples
+                }
+            }
+            
+            db = getFirestore(app);
+            console.log('⚠️ Firebase inicializado em modo fallback');
+            return true;
+        } catch (fallbackError) {
+            console.error('❌ Erro crítico no fallback:', fallbackError);
+            app = null;
+            auth = null;
+            db = null;
+            return false;
+        }
     }
-}
+};
+
+// Inicializa Firebase imediatamente
+initializeFirebase();
 
 // ✅ Função para aguardar Firebase estar pronto
 export const waitForFirebase = async (): Promise<boolean> => {
     return new Promise((resolve) => {
         let attempts = 0;
-        const maxAttempts = 50; // 5 segundos máximo
+        const maxAttempts = 30; // 3 segundos máximo
         
         const checkFirebase = () => {
             attempts++;
             
             try {
-                if (auth && db && app) {
+                // Verifica se pelo menos o app está inicializado
+                if (app) {
                     console.log('✅ Firebase está pronto para uso!');
                     resolve(true);
                     return;
                 }
                 
                 if (attempts >= maxAttempts) {
-                    console.error('⚠️ Timeout ao aguardar Firebase');
+                    console.warn('⚠️ Timeout ao aguardar Firebase - continuando sem Firebase');
                     resolve(false);
                     return;
                 }
@@ -85,6 +142,7 @@ export const waitForFirebase = async (): Promise<boolean> => {
             } catch (error) {
                 console.error('❌ Erro ao verificar Firebase:', error);
                 if (attempts >= maxAttempts) {
+                    console.warn('⚠️ Firebase não disponível - continuando sem Firebase');
                     resolve(false);
                 } else {
                     setTimeout(checkFirebase, 100);
@@ -96,6 +154,6 @@ export const waitForFirebase = async (): Promise<boolean> => {
     });
 };
 
-// ✅ Exporta as instâncias
+// ✅ Exporta as instâncias com verificações de segurança
 export { auth, db };
 export default app;

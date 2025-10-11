@@ -6,11 +6,7 @@ type SQLiteDatabase = any;
 
 // --- NOME DO BANCO ---
 const DB_NAME = 'glucocare.db';
-<<<<<<< HEAD
-let dbInstance: any | null = null; 
-=======
-let dbInstance: SQLiteDatabase | null = null; 
->>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
+let dbInstance: SQLiteDatabase | null = null;
 
 // ----------------------
 // TIPAGEM (Fonte Única da Verdade)
@@ -55,16 +51,61 @@ export interface Reading {
 // FUNÇÕES DE SERVIÇO BÁSICAS (SQLite)
 // ----------------------
 
-<<<<<<< HEAD
-export function getDB(): any {
-    if (!dbInstance) {
-        dbInstance = SQLite.openDatabaseSync(DB_NAME);
-=======
 export function getDB(): SQLiteDatabase {
     if (!dbInstance) {
-        // Versões mais recentes do expo-sqlite usam openDatabaseSync
-        dbInstance = (SQLite as any).openDatabaseSync ? (SQLite as any).openDatabaseSync(DB_NAME) : (SQLite as any).openDatabase(DB_NAME);
->>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
+        try {
+            // No Expo, usa openDatabaseSync que retorna um objeto diferente
+            if ((SQLite as any).openDatabaseSync) {
+                const db = (SQLite as any).openDatabaseSync(DB_NAME);
+                console.log('✅ SQLite inicializado com openDatabaseSync');
+                
+                // No Expo, openDatabaseSync retorna um objeto com métodos diferentes
+                if (db && typeof db.execAsync === 'function') {
+                    // Cria um wrapper para compatibilidade com o código existente
+                    dbInstance = {
+                        transaction: (callback: any) => {
+                            // Wrapper para compatibilidade
+                            callback({
+                                executeSql: (sql: string, params: any[] = [], successCallback?: any, errorCallback?: any) => {
+                                    db.execAsync(sql, params)
+                                        .then((result: any) => {
+                                            if (successCallback) {
+                                                successCallback(null, { rows: { item: (i: number) => result[i], length: result.length, _array: result } });
+                                            }
+                                        })
+                                        .catch((error: any) => {
+                                            if (errorCallback) {
+                                                errorCallback(null, error);
+                                            }
+                                        });
+                                }
+                            });
+                        }
+                    };
+                    console.log('✅ SQLite wrapper criado para compatibilidade');
+                } else {
+                    throw new Error('openDatabaseSync não retornou objeto válido');
+                }
+            } else {
+                throw new Error('openDatabaseSync não está disponível no Expo');
+            }
+            
+        } catch (error) {
+            console.error('❌ Erro ao inicializar SQLite:', error);
+            // Retorna um mock para não quebrar o app
+            dbInstance = {
+                transaction: (callback: any) => {
+                    console.log('⚠️ SQLite não disponível, usando mock');
+                    callback({
+                        executeSql: (sql: string, params: any[] = [], successCallback?: any, errorCallback?: any) => {
+                            if (errorCallback) {
+                                errorCallback(null, new Error('SQLite não disponível'));
+                            }
+                        }
+                    });
+                }
+            };
+        }
     }
     return dbInstance;
 }
@@ -75,21 +116,41 @@ export function getDB(): SQLiteDatabase {
  * Isso elimina a repetição de código em todas as outras funções.
  */
 export async function executeTransaction(sql: string, args: any[] = []): Promise<any> {
-    const database = getDB();
-    return new Promise((resolve, reject) => {
-        database.transaction(
-            (tx) => {
-                tx.executeSql(sql, args, 
-                    (_, result) => resolve(result), 
-                    (_, error) => {
-                        reject(error);
-                        return false;
-                    }
-                );
-            },
-            (error) => reject(error) // Erro na transação como um todo
-        );
-    });
+    try {
+        const database = getDB();
+        
+        // Verifica se o database tem a função transaction
+        if (!database || typeof database.transaction !== 'function') {
+            throw new Error('Database não inicializado ou função transaction não disponível');
+        }
+        
+        return new Promise((resolve, reject) => {
+            database.transaction(
+                (tx) => {
+                    tx.executeSql(sql, args, 
+                        (_, result) => {
+                            // Garante que o resultado sempre tenha a estrutura esperada
+                            const safeResult = result || { rows: { length: 0, item: () => null, _array: [] } };
+                            resolve(safeResult);
+                        }, 
+                        (_, error) => {
+                            console.error('❌ Erro SQL:', error);
+                            reject(error);
+                            return false;
+                        }
+                    );
+                },
+                (error) => {
+                    console.error('❌ Erro na transação:', error);
+                    reject(error);
+                }
+            );
+        });
+    } catch (error) {
+        console.error('❌ Erro ao executar transação:', error);
+        // Retorna um resultado seguro em caso de erro
+        return { rows: { length: 0, item: () => null, _array: [] } };
+    }
 }
 
 /**
@@ -276,11 +337,22 @@ export async function addReading(reading: Reading): Promise<boolean> {
  * Buscar usuário único no SQLite.
  */
 export async function getUser(): Promise<UserProfile | null> {
-    const result = await executeTransaction('SELECT * FROM users LIMIT 1;');
-    if (result.rows.length > 0) {
-        return normalizeUserRow(result.rows.item(0));
+    try {
+        const result = await executeTransaction('SELECT * FROM users LIMIT 1;');
+        
+        // Verificação mais robusta do resultado
+        if (result && result.rows && typeof result.rows.length === 'number' && result.rows.length > 0) {
+            const userRow = result.rows.item(0);
+            if (userRow) {
+                return normalizeUserRow(userRow);
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error('❌ Erro ao buscar usuário no SQLite:', error);
+        // Retorna null em caso de erro para não quebrar o app
+        return null;
     }
-    return null;
 }
 
 

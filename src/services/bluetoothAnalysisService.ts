@@ -64,14 +64,12 @@ class BluetoothAnalysisService {
       // Converte para formato GlucoseReading
       const readings = aiExtractedData.map((data, index) => ({
         id: `bluetooth-${userId}-${Date.now()}-${index}`,
-<<<<<<< HEAD
         timestamp: new Date(data.timestamp || rawData.timestamp),
         value: data.glucoseLevel,
         mealContext: (data.mealContext as 'jejum' | 'pre-refeicao' | 'pos-refeicao' | 'antes-dormir' | 'madrugada') || undefined,
         notes: data.notes || `Leitura do ${rawData.deviceType}`,
         deviceName: rawData.deviceType
       }));
-=======
         value: data.glucoseLevel,
         timestamp: new Date(data.timestamp || rawData.timestamp),
         mealContext: data.mealContext || 'Bluetooth',
@@ -81,7 +79,6 @@ class BluetoothAnalysisService {
         batteryLevel: rawData.metadata?.batteryLevel,
         signalStrength: rawData.metadata?.signalStrength
       }) as any);
->>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
       
       // Calcula confiança média dos dados originais
       const avgConfidence = aiExtractedData.reduce((sum, data) => sum + (data.confidence || 0), 0) / aiExtractedData.length;
@@ -123,7 +120,6 @@ class BluetoothAnalysisService {
     return bluetoothReadings.map(reading => ({
       id: reading.id,
       user_id: userId,
-<<<<<<< HEAD
       timestamp: reading.timestamp.getTime(),
       measurement_time: reading.timestamp.toISOString(),
       glucose_level: reading.value,
@@ -133,7 +129,6 @@ class BluetoothAnalysisService {
       updated_at: new Date().toISOString(),
       pending_sync: true,
       ai_confidence: 0.85 // Valor padrão de confiança para leituras Bluetooth
-=======
       timestamp: typeof reading.timestamp === 'number' ? reading.timestamp : Date.now(),
       glucose_level: reading.value,
       meal_context: reading.mealContext || 'Bluetooth',
@@ -142,7 +137,6 @@ class BluetoothAnalysisService {
       updated_at: new Date().toISOString(),
       pending_sync: true,
       ai_confidence: (reading as any).confidence || 0
->>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
     }));
   }
 

@@ -4,11 +4,7 @@ import { auth, db, waitForFirebase } from '../config/firebase-config'; // ✨ AD
 import { doc, getDoc, setDoc } from 'firebase/firestore'; // ✨ ADICIONADO: Funções do Firestore
 import { initDB } from '../services/dbService'; // ✨ ADICIONADO: Importar initDB
 import AsyncStorage from '@react-native-async-storage/async-storage'; // ✅ NOVO: Para persistir estado
-<<<<<<< HEAD
-import * as SecureStore from 'expo-secure-store'; // ✅ NOVO: Para armazenamento seguro
-=======
 import * as SecureStore from 'expo-secure-store'; // ✅ CORREÇÃO: Importar SecureStore
->>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
 
 // A sua interface de perfil de utilizador detalhada
 export interface UserProfile {
@@ -87,6 +83,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         // Aguardar Firebase estar pronto antes de configurar o listener
         waitForFirebase().then(() => {
+            // Verifica se auth está disponível antes de configurar o listener
+            if (!auth) {
+                console.warn('⚠️ Firebase Auth não está disponível');
+                setIsLoading(false);
+                return;
+            }
+            
             const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
                 try {
                     if (firebaseUser) {

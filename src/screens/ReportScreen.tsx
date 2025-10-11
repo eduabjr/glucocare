@@ -300,12 +300,8 @@ export default function ReportScreen() {
       console.log('🔍 Debug: Salvando arquivo no dispositivo...');
       
       // Caminho de destino no diretório de documentos
-<<<<<<< HEAD
-      const downloadPath = `file:///storage/emulated/0/Download/${fileName}.pdf`;
-=======
       const docDir = (FileSystem as any).documentDirectory || '';
       const downloadPath = `${docDir}${fileName}.pdf`;
->>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
       
       // Copia o arquivo PDF para o diretório de documentos
       await FileSystem.copyAsync({
@@ -397,12 +393,8 @@ export default function ReportScreen() {
       console.log('🔍 Debug: Salvando arquivo mensal no dispositivo...');
       
       // Caminho de destino no diretório de documentos
-<<<<<<< HEAD
-      const downloadPath = `file:///storage/emulated/0/Download/${fileName}.pdf`;
-=======
       const docDir = (FileSystem as any).documentDirectory || '';
       const downloadPath = `${docDir}${fileName}.pdf`;
->>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
       
       // Copia o arquivo PDF para o diretório de documentos
       await FileSystem.copyAsync({
@@ -495,12 +487,8 @@ export default function ReportScreen() {
       console.log('🔍 Debug: Salvando arquivo completo no dispositivo...');
       
       // Caminho de destino no diretório de documentos
-<<<<<<< HEAD
-      const downloadPath = `file:///storage/emulated/0/Download/${fileName}.pdf`;
-=======
       const docDir = (FileSystem as any).documentDirectory || '';
       const downloadPath = `${docDir}${fileName}.pdf`;
->>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
       
       // Copia o arquivo PDF para o diretório de documentos
       await FileSystem.copyAsync({
