@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged, User, signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential, signOut, reload } from 'firebase/auth';
-import { auth, db, checkFirebase, waitForFirebase } from '../config/firebase-config'; // ✨ ADICIONADO: Importar configuração atualizada
+import { auth, db, waitForFirebase } from '../config/firebase-config'; // ✨ CORRIGIDO: Removido checkFirebase
 import { doc, getDoc, setDoc } from 'firebase/firestore'; // ✨ ADICIONADO: Funções do Firestore
 import { initDB } from '../services/dbService'; // ✨ ADICIONADO: Importar initDB
 import AsyncStorage from '@react-native-async-storage/async-storage'; // ✅ NOVO: Para persistir estado
@@ -51,46 +51,49 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Initialize database on app start
         const initializeApp = async () => {
             try {
+                console.log('🔄 Iniciando aplicação...');
+                
                 // Aguardar Firebase estar pronto
-                await checkFirebase();
+                const firebaseReady = await waitForFirebase();
+                console.log('🔥 Firebase pronto:', firebaseReady);
                 
                 await initDB();
-                console.log('Database initialized successfully');
+                console.log('✅ Database inicializado com sucesso');
                 
-                // ✅ NOVO: Carrega o estado de conta existente do AsyncStorage
+                // ✅ Carrega o estado de conta existente do AsyncStorage
                 const savedHasExistingAccount = await AsyncStorage.getItem('hasExistingAccount');
                 if (savedHasExistingAccount !== null) {
                     setHasExistingAccount(JSON.parse(savedHasExistingAccount));
                     console.log('📱 Estado de conta existente carregado:', JSON.parse(savedHasExistingAccount));
                 }
                 
-                // 🧪 Teste de conexão com Firestore
-                const { testFirestoreConnection } = await import('../utils/firestoreTest');
-                const firestoreConnected = await testFirestoreConnection();
-                
-                if (firestoreConnected) {
-                    console.log('🔥 Firestore conectado com sucesso');
-                } else {
-                    console.error('❌ Erro na conexão com Firestore');
-                }
+                console.log('✅ Inicialização do app concluída');
                 
             } catch (error) {
-                console.error('Failed to initialize database:', error);
+                console.error('❌ Erro na inicialização do app:', error);
+            } finally {
+                // ✅ IMPORTANTE: Sempre define isLoading como false
+                setIsLoading(false);
+                console.log('🔄 Loading finalizado');
             }
         };
         
         initializeApp();
         
-        // Aguardar Firebase estar pronto antes de configurar o listener
-        waitForFirebase().then(() => {
-            // Verifica se auth está disponível antes de configurar o listener
-            if (!auth) {
-                console.warn('⚠️ Firebase Auth não está disponível');
-                setIsLoading(false);
-                return;
-            }
-            
-            const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
+        // ✅ SIMPLIFICADO: Configurar listener de auth de forma mais direta
+        const setupAuthListener = async () => {
+            try {
+                await waitForFirebase();
+                
+                // Verifica se auth está disponível antes de configurar o listener
+                if (!auth) {
+                    console.warn('⚠️ Firebase Auth não está disponível');
+                    return;
+                }
+                
+                console.log('🔥 Configurando listener de autenticação...');
+                
+                const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
                 try {
                     if (firebaseUser) {
                         console.log('🔥 Firebase User autenticado:', firebaseUser.uid);
@@ -231,10 +234,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                     setIsLoading(false);
                 }
             });
-        }).catch((error) => {
-            console.error('❌ Erro ao aguardar Firebase:', error);
+            
+            // ✅ IMPORTANTE: Garantir que unsubscribe seja chamado
+            return () => {
+                console.log('🧹 Limpando listener de autenticação');
+                unsubscribe();
+            };
+            
+        } catch (error) {
+            console.error('❌ Erro ao configurar listener de auth:', error);
             setIsLoading(false);
-        });
+        }
+        };
+        
+        setupAuthListener();
         
         return () => {
             // Cleanup function

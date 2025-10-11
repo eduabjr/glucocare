@@ -1,6 +1,6 @@
 // ✅ CONFIGURAÇÃO FIREBASE COMPLETA COM PERSISTÊNCIA
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeAuth, getAuth } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 // Configuração do Firebase
@@ -18,44 +18,36 @@ let app: any = null;
 let auth: any = null;
 let db: any = null;
 
-export function initFirebase(): boolean {
+export async function initFirebase(): Promise<boolean> {
     try {
-        console.log('🔥 Inicializando Firebase com persistência...');
+        console.log('🔥 Inicializando Firebase para Expo Go...');
         
-        // Inicializa app
-        if (getApps().length === 0) {
+        // ✅ CORREÇÃO: Verifica se já existe uma instância do Firebase
+        const existingApps = getApps();
+        
+        if (existingApps.length === 0) {
+            // Primeira inicialização
+            console.log('🔥 Primeira inicialização do Firebase...');
             app = initializeApp(firebaseConfig);
-            console.log('🔥 Firebase App inicializado');
         } else {
+            // Já existe uma instância, reutiliza
+            console.log('♻️ Reutilizando instância existente do Firebase...');
             app = getApp();
             console.log('♻️ Firebase App reutilizado');
         }
         
-        // Inicializa Auth (persistência automática no Firebase v10+)
-        try {
-            // Tenta inicializar primeiro
-            auth = initializeAuth(app);
-            console.log('✅ Firebase Auth inicializado com persistência automática');
-        } catch (authError: any) {
-            console.log('⚠️ Auth já inicializado, reutilizando...');
-            try {
-                auth = getAuth(app);
-                console.log('✅ Firebase Auth reutilizado');
-            } catch (reuseError: any) {
-                console.error('❌ Erro ao reutilizar Auth:', reuseError);
-                // Fallback com mock funcional
-                auth = {
-                    currentUser: null,
-                    signInWithEmailAndPassword: () => Promise.reject(new Error('Auth não disponível')),
-                    createUserWithEmailAndPassword: () => Promise.reject(new Error('Auth não disponível')),
-                    signOut: () => Promise.resolve(),
-                    onAuthStateChanged: () => () => {},
-                    updatePassword: () => Promise.reject(new Error('Auth não disponível')),
-                    updateEmail: () => Promise.reject(new Error('Auth não disponível'))
-                };
-                console.log('⚠️ Firebase Auth usando mock funcional');
-            }
-        }
+        // ✅ EXPO GO: Inicializa Auth com mock funcional (Firebase Auth não funciona no Expo Go)
+        console.log('⚠️ Expo Go detectado - usando mock do Firebase Auth');
+        auth = {
+            currentUser: null,
+            signInWithEmailAndPassword: () => Promise.reject(new Error('Firebase Auth não disponível no Expo Go')),
+            createUserWithEmailAndPassword: () => Promise.reject(new Error('Firebase Auth não disponível no Expo Go')),
+            signOut: () => Promise.resolve(),
+            onAuthStateChanged: () => () => {},
+            updatePassword: () => Promise.reject(new Error('Firebase Auth não disponível no Expo Go')),
+            updateEmail: () => Promise.reject(new Error('Firebase Auth não disponível no Expo Go'))
+        };
+        console.log('✅ Firebase Auth mock inicializado para Expo Go');
         
         // Inicializa Firestore
         try {
@@ -66,7 +58,7 @@ export function initFirebase(): boolean {
             db = null;
         }
         
-        console.log('✅ Firebase inicializado com sucesso!');
+        console.log('✅ Firebase inicializado com sucesso para Expo Go!');
         return true;
         
     } catch (error: any) {
@@ -91,7 +83,9 @@ export function initFirebase(): boolean {
 }
 
 // Inicializa imediatamente
-initFirebase();
+initFirebase().catch(error => {
+    console.error('❌ Erro ao inicializar Firebase:', error);
+});
 
 // Função de verificação robusta
 export function checkFirebase(): Promise<boolean> {

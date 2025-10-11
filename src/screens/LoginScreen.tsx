@@ -335,17 +335,17 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
             <Text style={styles.welcomeText}>Bem-vindo ao GlucoCare</Text>
 
-            {/* ✅ Botão Google sempre disponível para login */}
-            <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin} disabled={anyLoading}>
-              {googleLoading ? (
-                <ActivityIndicator size="small" color={theme.text} />
-              ) : (
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                  <AntDesign name="google" size={20} color="#DB4437" style={styles.googleIconInline} />
-                  <Text style={styles.googleButtonText}>Entrar com Google</Text>
-                </View>
-              )}
-            </TouchableOpacity>
+                   {/* ✅ Botão Google disponível em todas as plataformas */}
+                   <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin} disabled={anyLoading}>
+                     {googleLoading ? (
+                       <ActivityIndicator size="small" color={theme.text} />
+                     ) : (
+                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                         <AntDesign name="google" size={20} color="#DB4437" style={styles.googleIconInline} />
+                         <Text style={styles.googleButtonText}>Entrar com Google</Text>
+                       </View>
+                     )}
+                   </TouchableOpacity>
 
             <View style={styles.separator}>
               <View style={styles.separatorLine} />

@@ -1204,9 +1204,456 @@ npx expo run:ios
 3. Verifique no console Firebase se os dados aparecem
 4. Teste em outro dispositivo (se disponível)
 
-## Configuração do Firebase
+## Configuração do Google Login (Expo Go)
 
-### Estrutura de Segurança
+### 📋 **Informações Importantes para Desenvolvimento**
+
+#### 1. Porta do Servidor Expo
+
+Para que o Google Login funcione corretamente no Expo Go, é recomendado usar a **porta 8098**:
+
+```bash
+npx expo start --clear --port 8098
+```
+
+**Portas utilizadas:**
+- **Porta Expo (recomendada):** `8098`
+- **Porta Web (desenvolvimento):** `19006` (padrão do Expo para web)
+
+### 🔑 **Credenciais do Google Cloud Console**
+
+#### Web Client ID (Principal)
+Este é o Client ID usado no código do aplicativo para autenticação:
+
+```
+360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com
+```
+
+**Onde é usado:** `src/services/authService.ts` no campo `androidClientId` (compatibilidade com Expo Go)
+
+#### Android Client ID (Configuração)
+Este Client ID é específico para a plataforma Android no Google Cloud Console:
+
+```
+360317541807-19cbu2121eftbm4d9p50mk3okma4bhtj.apps.googleusercontent.com
+```
+
+**Configuração Android:**
+- **Nome do Pacote:** `com.eduabjr.glucocare`
+- **SHA-1:** `DF:6E:9E:11:2F:5C:A8:50:50:74:2A:CA:05:05:8D:46:AF:FD:8B:4C`
+
+### 🌐 **APIs Necessárias no Google Cloud**
+
+Ative as seguintes APIs no seu projeto `glucocare-e68c8`:
+
+1. **Google People API** ✅
+   - Essencial para obter informações do perfil do usuário
+   - Ativação: Google Cloud Console > APIs e serviços > Biblioteca
+
+2. **Google+ API** (opcional)
+   - Funcionalidades adicionais de perfil
+   - Geralmente ativada automaticamente
+
+### ⚙️ **Configuração no Google Cloud Console**
+
+#### URIs de Redirecionamento Autorizadas
+
+No OAuth 2.0 Client ID "Glucocare Expo Client", adicione:
+
+```
+https://auth.expo.io/@eduabjr/glucocare
+https://auth.expo.io/@anonymous/glucocare
+```
+
+**✅ Configuração Atual:**
+- ✅ `https://auth.expo.io/@eduabjr/glucocare` (projeto publicado)
+- ✅ `https://auth.expo.io/@anonymous/glucocare` (Expo Go em desenvolvimento)
+
+#### Origens JavaScript Autorizadas
+
+Adicione as seguintes origens:
+
+```
+https://auth.expo.io
+https://localhost:19006
+```
+
+### 💻 **Configuração no Código**
+
+#### `src/services/authService.ts`
+
+```typescript
+const [request, response, promptAsync] = Google.useAuthRequest({
+    // Web Client ID do Google Cloud Console
+    androidClientId: "360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com",
+    scopes: ["profile", "email"],
+    redirectUri: "https://auth.expo.io/@anonymous/glucocare"
+});
+```
+
+**Importante:**
+- O `androidClientId` usa o **Web Client ID** para compatibilidade com Expo Go
+- O `redirectUri` aponta para `@anonymous` quando não logado no Expo CLI
+
+#### `app.config.js`
+
+```javascript
+export default {
+  expo: {
+    name: "GlucoCare",
+    slug: "glucocare",
+    scheme: "glucocare",
+    android: {
+      package: "com.glucocare.app",
+      config: {
+        googleSignIn: {
+          androidClientId: "360317541807-19cbu2121eftbm4d9p50mk3okma4bhtj.apps.googleusercontent.com"
+        }
+      }
+    }
+  }
+};
+```
+
+### 🔧 **Diferença: Web vs Android Client ID**
+
+| Configuração | Client ID Usado | Onde |
+|-------------|-----------------|------|
+| **Expo Go (Android)** | Web Client ID | `authService.ts` |
+| **Expo Go (iOS)** | Web Client ID | `authService.ts` |
+| **Build Nativo (Android)** | Android Client ID | `app.config.js` |
+| **Web Browser** | Web Client ID | Automático |
+
+### ✅ **Checklist de Configuração**
+
+- [ ] Web Client ID adicionado em `authService.ts`
+- [ ] Android Client ID configurado no Google Cloud Console
+- [ ] URIs de redirecionamento adicionadas no Google Cloud Console
+- [ ] Origens JavaScript autorizadas no Google Cloud Console
+- [ ] Google People API ativada
+- [ ] Porta 8098 disponível para o Expo
+- [ ] `app.config.js` configurado corretamente
+
+### 🚨 **Problemas Comuns e Soluções**
+
+#### Erro: "redirect_uri_mismatch"
+**Causa:** URI de redirecionamento não autorizada no Google Cloud Console  
+**Solução:** Adicionar `https://auth.expo.io/@anonymous/glucocare` nas URIs autorizadas
+
+#### Erro: "Client Id property must be defined"
+**Causa:** `androidClientId` não configurado corretamente  
+**Solução:** Usar o Web Client ID em `authService.ts`
+
+#### Erro: "Something went wrong trying to finish signing in"
+**Causa:** Origens JavaScript não autorizadas  
+**Solução:** Adicionar `https://auth.expo.io` nas origens autorizadas
+
+### 🎨 **Configuração da Tela de Consentimento OAuth (Branding)**
+
+Esta seção detalha as informações de branding e domínio do seu aplicativo, que são exibidas aos usuários na tela de consentimento do Google.
+
+#### Informações do Aplicativo
+
+- **Nome do Aplicativo:** `GlucoCare`
+  - *Onde configurar:* Google Cloud Console > APIs e serviços > Tela de consentimento OAuth > Informações do aplicativo
+- **Logotipo do Aplicativo:**
+  - *Descrição:* Um logotipo com o texto "GlucoCare" e um ícone de folha/gota verde
+  - *Onde configurar:* Google Cloud Console > APIs e serviços > Tela de consentimento OAuth > Logotipo do aplicativo
+- **E-mail para suporte do usuário:** `eduardo.junior1@uscsonline.com.br`
+  - *Onde configurar:* Google Cloud Console > APIs e serviços > Tela de consentimento OAuth > E-mail para suporte do usuário
+
+#### Domínio do Aplicativo
+
+Estes URLs são exibidos na tela de consentimento e devem ser acessíveis:
+
+- **Página inicial do aplicativo:** `https://glucocare.com`
+  - *Onde configurar:* Google Cloud Console > APIs e serviços > Tela de consentimento OAuth > Domínio do aplicativo > Página inicial
+- **Link da Política de Privacidade:** `https://glucocare.com/privacy`
+  - *Onde configurar:* Google Cloud Console > APIs e serviços > Tela de consentimento OAuth > Domínio do aplicativo > Link da Política de Privacidade
+- **Link dos Termos de Serviço:** `https://glucocare.com/terms`
+  - *Onde configurar:* Google Cloud Console > APIs e serviços > Tela de consentimento OAuth > Domínio do aplicativo > Link dos Termos de Serviço
+
+#### Domínios Autorizados
+
+Estes domínios são usados para validar os redirecionamentos:
+
+- `expo.lo` (para desenvolvimento Expo)
+- `glucocare.com` (domínio principal)
+  - *Onde configurar:* Google Cloud Console > APIs e serviços > Tela de consentimento OAuth > Domínios autorizados
+
+#### Dados de Contato do Desenvolvedor
+
+- **Endereço de e-mail:** `eduardo.junior1@uscsonline.com.br`
+  - *Onde configurar:* Google Cloud Console > APIs e serviços > Tela de consentimento OAuth > Dados de contato do desenvolvedor
+
+#### Status da Verificação
+
+- **Status atual:** "A verificação não é obrigatória"
+- **Recomendação:** Para aplicações de produção, considere verificar o domínio para aumentar a confiança dos usuários
+
+### 📋 **Checklist Completo de Configuração OAuth**
+
+- [ ] ✅ Web Client ID configurado em `authService.ts`
+- [ ] ✅ Android Client ID configurado no Google Cloud Console
+- [ ] ✅ URIs de redirecionamento autorizadas
+- [ ] ✅ Origens JavaScript autorizadas
+- [ ] ✅ Google People API ativada
+- [ ] ✅ Porta 8098 disponível para o Expo
+- [ ] ✅ `app.config.js` configurado corretamente
+- [ ] ✅ **NOME DO APLICATIVO** configurado na tela de consentimento
+- [ ] ✅ **LOGOTIPO** adicionado na tela de consentimento
+- [ ] ✅ **DOMÍNIO DO APLICATIVO** configurado (página inicial, política de privacidade, termos)
+- [ ] ✅ **DOMÍNIOS AUTORIZADOS** adicionados (`expo.lo`, `glucocare.com`)
+- [ ] ✅ **E-MAIL DE SUPORTE** configurado
+- [ ] ✅ **DADOS DE CONTATO** do desenvolvedor preenchidos
+
+## Configuração do Firebase - Passo a Passo Completo
+
+### 📋 **Pré-requisitos**
+
+Antes de começar, você precisa de:
+- ✅ Conta Google ativa
+- ✅ Nome do projeto: `GlucoCare`
+- ✅ Pacote Android: `com.glucocare.app`
+- ✅ Bundle iOS: `com.glucocare.app`
+
+### 🚀 **PASSO 1: Criar Projeto Firebase**
+
+#### 1.1 Acessar o Firebase Console
+1. **Abra o navegador** e acesse: https://console.firebase.google.com/
+2. **Faça login** com sua conta Google
+3. **Clique em** "Criar um projeto" ou "Adicionar projeto"
+
+#### 1.2 Configurar o Projeto
+1. **Nome do projeto:** Digite `GlucoCare`
+2. **ID do projeto:** Deixe o Firebase gerar automaticamente (ex: `glucocare-e68c8`)
+3. **Google Analytics:** ✅ **Marque "Habilitar"** (recomendado)
+4. **Clique em** "Criar projeto"
+5. **Aguarde** a criação (pode levar alguns minutos)
+
+### 🔐 **PASSO 2: Configurar Authentication**
+
+#### 2.1 Habilitar Authentication
+1. **No painel lateral**, clique em "Authentication"
+2. **Clique em** "Começar"
+3. **Vá para a aba** "Sign-in method"
+
+#### 2.2 Configurar Google Sign-In
+1. **Clique em** "Google" na lista de provedores
+2. **Ative** o toggle "Habilitar"
+3. **Nome do projeto:** `GlucoCare`
+4. **E-mail de suporte:** `eduardo.junior1@uscsonline.com.br`
+5. **Clique em** "Salvar"
+
+#### 2.3 Configurar Email/Senha (Opcional)
+1. **Clique em** "Email/senha"
+2. **Ative** o toggle "Habilitar"
+3. **Clique em** "Salvar"
+
+### 🗄️ **PASSO 3: Configurar Firestore Database**
+
+#### 3.1 Criar o Banco de Dados
+1. **No painel lateral**, clique em "Firestore Database"
+2. **Clique em** "Criar banco de dados"
+3. **Modo de início:** Selecione "Iniciar no modo de teste" (para desenvolvimento)
+4. **Localização:** Escolha `us-central1` (Iowa) ou `southamerica-east1` (São Paulo)
+5. **Clique em** "Concluído"
+
+#### 3.2 Configurar Regras de Segurança
+1. **Na aba "Regras"**, substitua o código por:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Usuários - apenas o próprio usuário
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Leituras - subcoleção do usuário
+    match /users/{userId}/readings/{readingId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Notificações - apenas do próprio usuário
+    match /notifications/{notificationId} {
+      allow read, write: if request.auth != null && 
+        resource.data.user_id == request.auth.uid;
+    }
+    
+    // Relatórios - apenas do próprio usuário
+    match /reports/{reportId} {
+      allow read, write: if request.auth != null && 
+        resource.data.user_id == request.auth.uid;
+    }
+    
+    // Metadados de sincronização - apenas do próprio usuário
+    match /sync_meta/{syncId} {
+      allow read, write: if request.auth != null && 
+        resource.data.user_id == request.auth.uid;
+    }
+  }
+}
+```
+
+3. **Clique em** "Publicar"
+
+### 📱 **PASSO 4: Adicionar Aplicativo Android**
+
+#### 4.1 Registrar App Android
+1. **Na página inicial** do projeto Firebase, clique no ícone **Android** (🟢)
+2. **Nome do pacote Android:** Digite `com.glucocare.app`
+3. **Apelido do app:** `GlucoCare Android`
+4. **Chave de assinatura SHA-1:** Digite `DF:6E:9E:11:2F:5C:A8:50:50:74:2A:CA:05:05:8D:46:AF:FD:8B:4C`
+5. **Clique em** "Registrar app"
+
+#### 4.2 Baixar google-services.json
+1. **Clique em** "Baixar google-services.json"
+2. **Salve o arquivo** na pasta `android/app/` do seu projeto
+3. **Clique em** "Próxima"
+
+#### 4.3 Configurar Gradle
+1. **Siga as instruções** do Firebase (geralmente já configurado)
+2. **Clique em** "Próxima"
+3. **Clique em** "Continuar no console"
+
+### 🍎 **PASSO 5: Adicionar Aplicativo iOS (Opcional)**
+
+#### 5.1 Registrar App iOS
+1. **Na página inicial** do projeto Firebase, clique no ícone **iOS** (🍎)
+2. **ID do pacote iOS:** Digite `com.glucocare.app`
+3. **Apelido do app:** `GlucoCare iOS`
+4. **Clique em** "Registrar app"
+
+#### 5.2 Baixar GoogleService-Info.plist
+1. **Clique em** "Baixar GoogleService-Info.plist"
+2. **Adicione ao projeto** iOS (se usando)
+3. **Clique em** "Próxima"
+
+### 🌐 **PASSO 6: Adicionar Aplicativo Web**
+
+#### 6.1 Registrar App Web
+1. **Na página inicial** do projeto Firebase, clique no ícone **Web** (</>)
+2. **Apelido do app:** `GlucoCare Web`
+3. **Marque** "Também configurar o Firebase Hosting" (opcional)
+4. **Clique em** "Registrar app"
+
+#### 6.2 Configurar SDK
+1. **Copie o código** de configuração do Firebase
+2. **Cole no arquivo** `src/config/firebase-config.ts`
+
+### 📊 **PASSO 7: Configurar Coleções do Firestore**
+
+#### 7.1 Criar Coleção `users`
+1. **Vá para** Firestore Database > Dados
+2. **Clique em** "+ Iniciar coleção"
+3. **ID da coleção:** `users`
+4. **ID do documento:** Deixe vazio (Firebase gera automaticamente)
+5. **Adicione campos** conforme a estrutura definida na documentação
+
+#### 7.2 Criar Coleção `notifications`
+1. **Clique em** "+ Iniciar coleção"
+2. **ID da coleção:** `notifications`
+3. **Configure campos** conforme documentação
+
+#### 7.3 Criar Coleção `reports`
+1. **Clique em** "+ Iniciar coleção"
+2. **ID da coleção:** `reports`
+3. **Configure campos** conforme documentação
+
+#### 7.4 Criar Coleção `sync_meta`
+1. **Clique em** "+ Iniciar coleção"
+2. **ID da coleção:** `sync_meta`
+3. **ID do documento:** Use o `user_id` (ex: `9Fz97YAMUNgZwmGRMISN`)
+4. **Configure campos** conforme documentação
+
+### 🔑 **PASSO 8: Obter Chaves de Configuração**
+
+#### 8.1 Acessar Configurações do Projeto
+1. **Clique no ícone** de configurações (⚙️) ao lado de "Visão geral do projeto"
+2. **Vá para** "Seus apps"
+3. **Encontre seu app** Android/iOS/Web
+
+#### 8.2 Copiar Configurações
+Para cada app, copie as seguintes chaves:
+
+```javascript
+const firebaseConfig = {
+  apiKey: "AIzaSyCvVmOXpVZsV6Bs3k73SUr-0G0j2tu7aLQ",
+  authDomain: "glucocare-e68c8.firebaseapp.com",
+  projectId: "glucocare-e68c8",
+  storageBucket: "glucocare-e68c8.appspot.com",
+  messagingSenderId: "501715449083",
+  appId: "1:501715449083:android:8b781286cf0f02d752ac5e"
+};
+```
+
+### ✅ **PASSO 9: Verificar Configuração**
+
+#### 9.1 Testar Authentication
+1. **Vá para** Authentication > Usuários
+2. **Teste o login** com Google no app
+3. **Verifique se** o usuário aparece na lista
+
+#### 9.2 Testar Firestore
+1. **Vá para** Firestore Database > Dados
+2. **Adicione uma leitura** no app
+3. **Verifique se** os dados aparecem no Firestore
+
+#### 9.3 Verificar Regras
+1. **Vá para** Firestore Database > Regras
+2. **Teste as regras** no simulador
+3. **Certifique-se** de que apenas dados próprios são acessíveis
+
+### 🚨 **Problemas Comuns e Soluções**
+
+#### Erro: "Firebase App named '[DEFAULT]' already exists"
+**Causa:** Firebase já foi inicializado  
+**Solução:** Verifique se não há múltiplas inicializações no código
+
+#### Erro: "Permission denied"
+**Causa:** Regras do Firestore bloqueando acesso  
+**Solução:** Verifique se o usuário está autenticado e se as regras estão corretas
+
+#### Erro: "google-services.json not found"
+**Causa:** Arquivo não está na pasta correta  
+**Solução:** Coloque o arquivo em `android/app/google-services.json`
+
+### 📋 **Checklist de Configuração Firebase**
+
+- [ ] ✅ Projeto Firebase criado
+- [ ] ✅ Authentication configurado (Google + Email/Senha)
+- [ ] ✅ Firestore Database criado
+- [ ] ✅ Regras de segurança configuradas
+- [ ] ✅ App Android registrado
+- [ ] ✅ google-services.json baixado e colocado em `android/app/`
+- [ ] ✅ App iOS registrado (se necessário)
+- [ ] ✅ App Web registrado
+- [ ] ✅ Chaves de configuração copiadas
+- [ ] ✅ Coleções do Firestore criadas
+- [ ] ✅ Teste de Authentication realizado
+- [ ] ✅ Teste de Firestore realizado
+- [ ] ✅ Regras de segurança testadas
+
+### 🔧 **Configurações Avançadas**
+
+#### Storage (Opcional)
+1. **Vá para** Storage
+2. **Clique em** "Começar"
+3. **Configure** para armazenar relatórios PDF
+
+#### Analytics (Opcional)
+1. **Vá para** Analytics
+2. **Configure** eventos personalizados
+3. **Monitore** uso do app
+
+#### Functions (Opcional)
+1. **Vá para** Functions
+2. **Configure** funções serverless
+3. **Implemente** lógica de backend
+
+### 📚 **Estrutura de Segurança Final**
 
 #### Regras do Firestore
 ```javascript
@@ -1236,12 +1683,12 @@ service cloud.firestore {
 ### Configuração de Autenticação
 
 #### Provedores Habilitados
-- **Google**: Login com conta Google
-- **Email/Senha**: Login tradicional (opcional)
+- **Google**: Login com conta Google ✅
+- **Email/Senha**: Login tradicional ✅
 
 #### Configurações de Domínio
-- **Domínios autorizados**: Configurados automaticamente
-- **Redirecionamento**: Configurado para o app
+- **Domínios autorizados**: Configurados automaticamente ✅
+- **Redirecionamento**: Configurado para o app ✅
 
 ## Comandos e Scripts
 
