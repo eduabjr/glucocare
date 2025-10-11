@@ -1841,144 +1841,269 @@ service cloud.firestore {
 
 ## Comandos e Scripts
 
-### Scripts NPM Disponíveis
+### 📦 **Scripts NPM Disponíveis**
 
-#### Comandos Básicos
+#### Comandos Básicos de Desenvolvimento
 ```bash
 # Iniciar aplicação em modo desenvolvimento
 npm start
 
-# Build para Android
-npm run android
-
-# Build para iOS
-npm run ios
+# Iniciar com dev client (para builds customizados)
+npm run start:dev
 
 # Executar no navegador
 npm run web
 
-# Executar linting
+# Build para iOS (requer Xcode)
+npm run ios
+
+# Executar linting e corrigir erros automaticamente
 npm run lint
 
-# Formatar código
+# Formatar código com Prettier
 npm run format
 
-# Executar testes
+# Executar testes Jest
 npm run test
 
-# Push rápido para GitHub
+# Push rápido para GitHub (commit automático)
 npm run push:quick
 ```
 
-### Scripts .bat Personalizados
+### 🔧 **Scripts .bat Personalizados**
 
-#### 1. Build e Deploy
+#### 1. Git e Deploy
 ```bash
-# Build APK local
-.\build-apk.bat
+# Commit e push automático para ambos os repositórios
+.\commit.bat
+# OU use o atalho NPM:
+npm run push:quick
+
+# Este script faz:
+# - Configura repositórios remotos (origin e eduabjr)
+# - Adiciona todos os arquivos (git add .)
+# - Faz commit com timestamp
+# - Pull antes do push (evita conflitos)
+# - Push para ambos os repositórios
+```
+
+### 📋 **Comandos Git Úteis**
+
+#### Configuração Inicial
+```bash
+# Configurar repositórios remotos
+git remote add origin https://github.com/eduardofamilia01-hub/glucocare.git
+git remote add eduabjr https://github.com/eduabjr/glucocare.git
+
+# Verificar repositórios configurados
+git remote -v
+```
+
+#### Workflow Diário
+```bash
+# Adicionar mudanças
+git add .
+
+# Commit com mensagem personalizada
+git commit -m "feat: adicionar nova funcionalidade"
+
+# Commit automático com timestamp (usado pelo commit.bat)
+git commit -m "Update: $(date)"
+
+# Push para repositório principal
+git push origin main
+
+# Push para repositório secundário
+git push eduabjr main
+
+# Push para ambos (equivale ao commit.bat)
+git push origin main && git push eduabjr main
+```
+
+#### Resolução de Problemas
+```bash
+# Pull com merge automático
+git pull origin main --allow-unrelated-histories --no-edit
+
+# Forçar push (use com cuidado)
+git push origin main --force
+
+# Reset para commit anterior
+git reset --hard HEAD~1
+
+# Ver histórico de commits
+git log --oneline
+```
+
+### ⚡ **Comandos Expo Específicos**
+
+#### Desenvolvimento
+```bash
+# Iniciar Expo (padrão)
+npx expo start
+
+# Iniciar com cache limpo
+npx expo start --clear
+
+# Iniciar em porta específica (recomendado para Google Login)
+npx expo start --clear --port 8098
+
+# Iniciar no navegador
+npx expo start --web
+
+# Iniciar com dev client
+npx expo start --dev-client
+```
+
+#### Build e Deploy
+```bash
+# Build para Android
+npx expo run:android
+
+# Build para iOS
+npx expo run:ios
 
 # Build com EAS (nuvem)
-.\build-with-eas.bat
+eas build --platform android --profile development
+eas build --platform ios --profile development
 
-# Build com Expo CLI
-.\build-with-expo.bat
-
-# Build simples
-.\build-simple.bat
+# Build de produção
+eas build --platform android --profile production
+eas build --platform ios --profile production
 ```
 
-#### 2. Correção de Problemas
+### 🛠️ **Comandos de Manutenção**
+
+#### Limpeza e Correção
 ```bash
-# Corrigir dependências
-.\fix-dependencies-final.bat
+# Limpar cache do npm
+npm cache clean --force
 
-# Corrigir package-lock.json
-.\fix-package-lock-definitivo.bat
+# Limpar cache do Expo
+npx expo r -c
 
-# Corrigir Gradle
-.\fix-gradle-8.13.bat
+# Reinstalar node_modules
+rm -rf node_modules package-lock.json
+npm install --legacy-peer-deps
 
-# Corrigir plugins Expo
-.\fix-expo-plugins.bat
-
-# Sincronizar Git
-.\fix-git-sync.bat
+# Verificar dependências
+npm audit
+npm audit fix
 ```
 
-#### 3. Configuração
+#### Verificação de Configuração
 ```bash
-# Instalar EAS CLI
-.\install-eas.bat
+# Verificar versões
+node --version
+npm --version
+npx expo --version
 
-# Baixar Gradle Wrapper
-.\download-gradle-wrapper.bat
+# Verificar configuração do projeto
+npx expo config
 
-# Limpar cache Gradle
-.\clean-gradle-cache.bat
-
-# Recriar pasta Android
-.\recreate-android-folder.bat
+# Verificar status do Git
+git status
+git branch
+git remote -v
 ```
 
-#### 4. Git e Deploy
+### 🎯 **Exemplos de Uso dos Scripts**
+
+#### Exemplo 1: Desenvolvimento Diário
 ```bash
-# Commit e push automático
-.\commit.bat
-
-# Push rápido
-.\commit-quick.bat
-
-# Configurar Git
-.\setup-git.ps1
-```
-
-### Scripts PowerShell
-
-#### Scripts Avançados
-```powershell
-# Baixar Gradle Wrapper
-.\download-gradle-8.13.ps1
-
-# Corrigir package-lock definitivamente
-.\fix-package-lock-definitivo.ps1
-
-# Baixar Gradle Wrapper
-.\download-gradle-wrapper.ps1
-```
-
-### Como Usar os Scripts
-
-#### Exemplo 1: Build Completo
-```bash
-# 1. Corrigir dependências
-.\fix-dependencies-final.bat
-
-# 2. Build com EAS
-.\build-with-eas.bat
-
-# 3. Push para GitHub
-npm run push:quick
-```
-
-#### Exemplo 2: Desenvolvimento Diário
-```bash
-# 1. Iniciar desenvolvimento
-npm start
+# 1. Iniciar desenvolvimento (porta recomendada para Google Login)
+npx expo start --clear --port 8098
 
 # 2. Fazer mudanças no código
-# 3. Testar no dispositivo
-# 4. Commit e push
+# 3. Testar no dispositivo/emulador
+# 4. Commit e push automático
 npm run push:quick
 ```
 
-#### Exemplo 3: Resolver Problemas
+#### Exemplo 2: Build e Deploy
 ```bash
-# 1. Identificar problema
-# 2. Usar script específico
-.\fix-package-lock-definitivo.bat
+# 1. Verificar se tudo está funcionando
+npm run lint
+npm run test
 
-# 3. Testar solução
-npm start
+# 2. Build para Android
+npx expo run:android
+
+# 3. Build para iOS (se no Mac)
+npx expo run:ios
+
+# 4. Deploy para GitHub
+npm run push:quick
+```
+
+#### Exemplo 3: Resolver Problemas Comuns
+```bash
+# Problema: Cache corrompido
+npx expo start --clear
+
+# Problema: Dependências desatualizadas
+npm cache clean --force
+npm install --legacy-peer-deps
+
+# Problema: Git com conflitos
+git pull origin main --allow-unrelated-histories --no-edit
+npm run push:quick
+```
+
+#### Exemplo 4: Workflow Completo
+```bash
+# 1. Verificar status
+git status
+git remote -v
+
+# 2. Desenvolvimento
+npx expo start --clear --port 8098
+
+# 3. Testes
+npm run lint
+npm run test
+
+# 4. Deploy
+npm run push:quick
+```
+
+### 📋 **Resumo dos Comandos Mais Usados**
+
+| Comando | Função | Quando Usar |
+|---------|--------|-------------|
+| `npx expo start --clear --port 8098` | Iniciar desenvolvimento | **Sempre** para desenvolvimento |
+| `npm run push:quick` | Commit e push automático | Após fazer mudanças |
+| `npm run lint` | Verificar código | Antes de fazer commit |
+| `npm run test` | Executar testes | Antes de fazer deploy |
+| `git status` | Ver status do Git | Antes de fazer push |
+| `git remote -v` | Ver repositórios | Para verificar configuração |
+
+### ⚠️ **Comandos Importantes**
+
+#### Para Google Login Funcionar:
+```bash
+# SEMPRE use esta porta para desenvolvimento
+npx expo start --clear --port 8098
+```
+
+#### Para Deploy:
+```bash
+# SEMPRE teste antes de fazer deploy
+npm run lint
+npm run test
+npm run push:quick
+```
+
+#### Para Resolver Problemas:
+```bash
+# Cache limpo
+npx expo start --clear
+
+# Dependências
+npm install --legacy-peer-deps
+
+# Git
+git pull origin main --allow-unrelated-histories --no-edit
 ```
 
 ## Roteiro de Testes da Aplicação
