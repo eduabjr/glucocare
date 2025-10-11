@@ -1,10 +1,10 @@
-// ✅ CONFIGURAÇÃO FIREBASE PARA REACT NATIVE - VERSÃO DEFINITIVA
+// ✅ CONFIGURAÇÃO FIREBASE COMPLETA COM PERSISTÊNCIA
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Configuração do Firebase (do console Firebase)
+// Configuração do Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyCvVmOXpVZsV6Bs3k73SUr-0G0j2tu7aLQ",
     authDomain: "glucocare-e68c8.firebaseapp.com",
@@ -14,53 +14,49 @@ const firebaseConfig = {
     appId: "1:501715449083:android:8b781286cf0f02d752ac5e"
 };
 
-// ✅ INICIALIZAÇÃO CORRETA PARA REACT NATIVE
+// Inicialização robusta com persistência
 let app: any = null;
 let auth: any = null;
 let db: any = null;
 
-// Função para inicializar Firebase de forma segura
-const initializeFirebase = () => {
+export function initFirebase(): boolean {
     try {
-        console.log('🔥 Inicializando Firebase...');
+        console.log('🔥 Inicializando Firebase com persistência...');
         
-        // Verifica se já existe uma instância do Firebase
-        const existingApps = getApps();
-        
-        if (existingApps.length === 0) {
-            // Primeira inicialização
-            console.log('🔥 Primeira inicialização do Firebase...');
+        // Inicializa app
+        if (getApps().length === 0) {
             app = initializeApp(firebaseConfig);
+            console.log('🔥 Firebase App inicializado');
         } else {
-            // Já existe uma instância, reutiliza
-            console.log('♻️ Reutilizando instância existente do Firebase...');
             app = getApp();
+            console.log('♻️ Firebase App reutilizado');
         }
         
-        // Inicializa Auth de forma mais segura
+        // Inicializa Auth com persistência AsyncStorage
         try {
-            // Sempre usa getAuth primeiro para evitar problemas de registro
-            auth = getAuth(app);
-            console.log('✅ Firebase Auth inicializado com getAuth');
+            // Tenta inicializar com persistência primeiro
+            auth = initializeAuth(app, {
+                persistence: getReactNativePersistence(AsyncStorage)
+            });
+            console.log('✅ Firebase Auth inicializado com persistência AsyncStorage');
         } catch (authError: any) {
-            console.error('❌ Erro ao inicializar Auth:', authError);
-            // Se getAuth falhar, tenta initializeAuth
+            console.log('⚠️ Auth já inicializado, reutilizando...');
             try {
-                auth = initializeAuth(app, {
-                    persistence: getReactNativePersistence(AsyncStorage)
-                });
-                console.log('✅ Firebase Auth inicializado com initializeAuth');
-            } catch (initError: any) {
-                console.error('❌ Erro ao usar initializeAuth:', initError);
-                // Fallback final - cria um mock
+                auth = getAuth(app);
+                console.log('✅ Firebase Auth reutilizado');
+            } catch (reuseError: any) {
+                console.error('❌ Erro ao reutilizar Auth:', reuseError);
+                // Fallback com mock funcional
                 auth = {
                     currentUser: null,
                     signInWithEmailAndPassword: () => Promise.reject(new Error('Auth não disponível')),
                     createUserWithEmailAndPassword: () => Promise.reject(new Error('Auth não disponível')),
                     signOut: () => Promise.resolve(),
-                    onAuthStateChanged: () => () => {}
+                    onAuthStateChanged: () => () => {},
+                    updatePassword: () => Promise.reject(new Error('Auth não disponível')),
+                    updateEmail: () => Promise.reject(new Error('Auth não disponível'))
                 };
-                console.log('⚠️ Firebase Auth usando mock');
+                console.log('⚠️ Firebase Auth usando mock funcional');
             }
         }
         
@@ -69,7 +65,7 @@ const initializeFirebase = () => {
             db = getFirestore(app);
             console.log('✅ Firestore inicializado');
         } catch (dbError: any) {
-            console.error('❌ Erro ao inicializar Firestore:', dbError);
+            console.warn('⚠️ Firestore não disponível');
             db = null;
         }
         
@@ -78,55 +74,52 @@ const initializeFirebase = () => {
         
     } catch (error: any) {
         console.error('❌ ERRO ao inicializar Firebase:', error);
-        console.error('Detalhes do erro:', error.message);
         
-        // Fallback de emergência
-        try {
-            if (!app) {
-                app = initializeApp(firebaseConfig);
-            }
-            
-            // Fallback para Auth
-            try {
-                auth = initializeAuth(app, {
-                    persistence: getReactNativePersistence(AsyncStorage)
-                });
-            } catch (authError: any) {
-                if (authError.code === 'auth/already-initialized') {
-                    auth = getAuth(app);
-                } else {
-                    auth = getAuth(app); // Fallback simples
-                }
-            }
-            
-            db = getFirestore(app);
-            console.log('⚠️ Firebase inicializado em modo fallback');
-            return true;
-        } catch (fallbackError) {
-            console.error('❌ Erro crítico no fallback:', fallbackError);
-            app = null;
-            auth = null;
-            db = null;
-            return false;
-        }
+        // Mock completo em caso de erro total
+        app = { name: 'mock-app' };
+        auth = {
+            currentUser: null,
+            signInWithEmailAndPassword: () => Promise.reject(new Error('Firebase não disponível')),
+            createUserWithEmailAndPassword: () => Promise.reject(new Error('Firebase não disponível')),
+            signOut: () => Promise.resolve(),
+            onAuthStateChanged: () => () => {},
+            updatePassword: () => Promise.reject(new Error('Firebase não disponível')),
+            updateEmail: () => Promise.reject(new Error('Firebase não disponível'))
+        };
+        db = null;
+        
+        console.log('⚠️ Firebase usando mocks completos');
+        return false;
     }
-};
+}
 
-// Inicializa Firebase imediatamente
-initializeFirebase();
+// Inicializa imediatamente
+initFirebase();
 
-// ✅ Função para aguardar Firebase estar pronto
-export const waitForFirebase = async (): Promise<boolean> => {
+// Função de verificação robusta
+export function checkFirebase(): Promise<boolean> {
+    return new Promise((resolve) => {
+        if (app && auth) {
+            console.log('✅ Firebase está pronto para uso!');
+            resolve(true);
+        } else {
+            console.warn('⚠️ Firebase não disponível');
+            resolve(false);
+        }
+    });
+}
+
+// Função para aguardar Firebase estar pronto
+export function waitForFirebase(): Promise<boolean> {
     return new Promise((resolve) => {
         let attempts = 0;
-        const maxAttempts = 30; // 3 segundos máximo
+        const maxAttempts = 50; // 5 segundos máximo
         
         const checkFirebase = () => {
             attempts++;
             
             try {
-                // Verifica se pelo menos o app está inicializado
-                if (app) {
+                if (app && auth) {
                     console.log('✅ Firebase está pronto para uso!');
                     resolve(true);
                     return;
@@ -150,10 +143,11 @@ export const waitForFirebase = async (): Promise<boolean> => {
             }
         };
         
+        // Inicia a verificação
         checkFirebase();
     });
-};
+}
 
-// ✅ Exporta as instâncias com verificações de segurança
+// Exporta as instâncias
 export { auth, db };
 export default app;

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged, User, signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential, signOut, reload } from 'firebase/auth';
-import { auth, db, waitForFirebase } from '../config/firebase-config'; // ✨ ADICIONADO: Importar configuração atualizada
+import { auth, db, checkFirebase, waitForFirebase } from '../config/firebase-config'; // ✨ ADICIONADO: Importar configuração atualizada
 import { doc, getDoc, setDoc } from 'firebase/firestore'; // ✨ ADICIONADO: Funções do Firestore
 import { initDB } from '../services/dbService'; // ✨ ADICIONADO: Importar initDB
 import AsyncStorage from '@react-native-async-storage/async-storage'; // ✅ NOVO: Para persistir estado
@@ -52,7 +52,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const initializeApp = async () => {
             try {
                 // Aguardar Firebase estar pronto
-                await waitForFirebase();
+                await checkFirebase();
                 
                 await initDB();
                 console.log('Database initialized successfully');

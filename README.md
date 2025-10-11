@@ -248,45 +248,169 @@ CREATE TABLE glycemic_goals (
 
 ## Collections e Estrutura
 
-### Collections do Firestore
+### 🔥 **COLEÇÕES FIREBASE FIRESTORE - ESTRUTURA COMPLETA**
 
-#### 1. **users**
-- **Propósito**: Armazenar dados dos usuários
-- **Campos**:
-  - `id`: Identificador único
-  - `email`: Email do usuário
-  - `name`: Nome do usuário
-  - `createdAt`: Data de criação
-  - `updatedAt`: Data de atualização
+O GlucoCare utiliza **5 coleções principais** no Firebase Firestore para armazenar todos os dados da aplicação:
 
-#### 2. **glucoseReadings**
-- **Propósito**: Armazenar leituras de glicemia
-- **Campos**:
-  - `id`: Identificador único
-  - `userId`: ID do usuário
-  - `value`: Valor da glicemia
-  - `timestamp`: Data e hora da leitura
-  - `mealContext`: Contexto da refeição
-  - `notes`: Notas adicionais
-  - `createdAt`: Data de criação
-  - `updatedAt`: Data de atualização
-  - `aiConfidence`: Confiança da IA (se aplicável)
+---
 
-#### 3. **glycemicGoals**
-- **Propósito**: Armazenar metas glicêmicas do usuário
-- **Campos**:
-  - `id`: Identificador único
-  - `userId`: ID do usuário
-  - `fastingMin/Max`: Meta para jejum
-  - `preMealMin/Max`: Meta para pré-refeição
-  - `postMealMin/Max`: Meta para pós-refeição
-  - `bedtimeMin/Max`: Meta para antes de dormir
+## 📋 **COLEÇÃO 1: `users` (Coleção Principal)**
 
-### Relacionamentos
+**Propósito**: Armazenar dados dos usuários autenticados.
+
+| Campo | Tipo | Obrigatório | Descrição | Exemplo |
+|-------|------|-------------|-----------|---------|
+| `id` | **String** | ✅ Sim | ID único do usuário (Firebase Auth UID) | `"9Fz97YAMUNgZwmGRMISN"` |
+| `full_name` | **String** | ✅ Sim | Nome completo do usuário | `"Eduardo Família"` |
+| `email` | **String** | ✅ Sim | Email do usuário | `"eduardofamilia01@gmail.com"` |
+| `google_id` | **String** | ❌ Opcional | ID do Google OAuth | `"google_123456789"` |
+| `onboarding_completed` | **Boolean** | ✅ Sim | Se completou o onboarding | `true` |
+| `biometric_enabled` | **Boolean** | ✅ Sim | Se biometria está habilitada | `true` |
+| `weight` | **Number** | ❌ Opcional | Peso do usuário (kg) | `70.5` |
+| `height` | **Number** | ❌ Opcional | Altura do usuário (cm) | `175` |
+| `birth_date` | **String** | ❌ Opcional | Data de nascimento (ISO 8601) | `"1990-01-15T00:00:00Z"` |
+| `diabetes_condition` | **String** | ❌ Opcional | Tipo de diabetes | `"Type 1"` |
+| `restriction` | **String** | ❌ Opcional | Restrições alimentares | `"Sem lactose"` |
+| `glycemic_goals` | **String** | ❌ Opcional | Metas glicêmicas (JSON) | `'{"fasting": [70, 100]}'` |
+| `medication_reminders` | **String** | ❌ Opcional | Lembretes de medicação (JSON) | `'[{"time": "08:00", "med": "Insulina"}]'` |
+| `updated_at` | **String** | ✅ Sim | Última atualização (ISO 8601) | `"2024-01-15T14:30:05Z"` |
+| `email_verified` | **Boolean** | ✅ Sim | Se email foi verificado | `true` |
+| `pending_sync` | **Boolean** | ✅ Sim | Se precisa sincronizar | `false` |
+
+---
+
+## 📚 **COLEÇÃO 2: `users/{userId}/readings` (Subcoleção)**
+
+**Propósito**: Armazenar leituras de glicemia de cada usuário (subcoleção).
+
+| Campo | Tipo | Obrigatório | Descrição | Exemplo |
+|-------|------|-------------|-----------|---------|
+| `id` | **String** | ✅ Sim | ID único da leitura | `"reading_abc123"` |
+| `user_id` | **String** | ✅ Sim | ID do usuário (referência) | `"9Fz97YAMUNgZwmGRMISN"` |
+| `measurement_time` | **String** | ✅ Sim | Data/hora da medição (ISO 8601) | `"2024-01-15T08:30:00Z"` |
+| `glucose_level` | **Number** | ✅ Sim | Nível de glicemia (mg/dL) | `120` |
+| `meal_context` | **String** | ❌ Opcional | Contexto da refeição | `"jejum"` |
+| `time_since_meal` | **String** | ❌ Opcional | Tempo desde última refeição | `"2 horas"` |
+| `notes` | **String** | ❌ Opcional | Notas adicionais | `"Antes do exercício"` |
+| `updated_at` | **String** | ✅ Sim | Última atualização (ISO 8601) | `"2024-01-15T08:30:05Z"` |
+| `deleted` | **Boolean** | ✅ Sim | Se foi deletada | `false` |
+| `pending_sync` | **Boolean** | ✅ Sim | Se precisa sincronizar | `false` |
+
+---
+
+## 📋 **COLEÇÃO 3: `notifications` (Coleção Principal)**
+
+**Propósito**: Gerenciar notificações do aplicativo (lembretes, alertas).
+
+| Campo | Tipo | Obrigatório | Descrição | Exemplo |
+|-------|------|-------------|-----------|---------|
+| `id` | **String** | ✅ Sim | ID único da notificação | `"notification_123456"` |
+| `user_id` | **String** | ✅ Sim | ID do usuário (Firebase Auth UID) | `"9Fz97YAMUNgZwmGRMISN"` |
+| `type` | **String** | ✅ Sim | Tipo da notificação | `"medication_reminder"` |
+| `message` | **String** | ✅ Sim | Mensagem da notificação | `"Hora de medir a glicemia"` |
+| `scheduled_time` | **String** | ✅ Sim | Data/hora agendada (ISO 8601) | `"2024-01-15T14:30:00Z"` |
+| `sent_time` | **String** | ❌ Opcional | Data/hora enviada (ISO 8601) | `"2024-01-15T14:30:05Z"` |
+| `status` | **String** | ✅ Sim | Status da notificação | `"scheduled"` |
+| `updated_at` | **String** | ✅ Sim | Última atualização (ISO 8601) | `"2024-01-15T14:30:05Z"` |
+| `deleted` | **Boolean** | ✅ Sim | Se foi deletada | `false` |
+| `pending_sync` | **Boolean** | ✅ Sim | Se precisa sincronizar | `false` |
+
+---
+
+## 📊 **COLEÇÃO 4: `reports` (Coleção Principal)**
+
+**Propósito**: Armazenar metadados e referências aos relatórios gerados.
+
+| Campo | Tipo | Obrigatório | Descrição | Exemplo |
+|-------|------|-------------|-----------|---------|
+| `id` | **String** | ✅ Sim | ID único do relatório | `"report_abc789"` |
+| `user_id` | **String** | ✅ Sim | ID do usuário (Firebase Auth UID) | `"9Fz97YAMUNgZwmGRMISN"` |
+| `type` | **String** | ✅ Sim | Tipo do relatório | `"monthly"` |
+| `title` | **String** | ✅ Sim | Título do relatório | `"Relatório Mensal - Janeiro 2024"` |
+| `start_date` | **String** | ✅ Sim | Data início (ISO 8601) | `"2024-01-01T00:00:00Z"` |
+| `end_date` | **String** | ✅ Sim | Data fim (ISO 8601) | `"2024-01-31T23:59:59Z"` |
+| `file_url` | **String** | ❌ Opcional | URL do arquivo PDF | `"gs://bucket/relatorio.pdf"` |
+| `summary_data` | **Map** | ❌ Opcional | Dados resumidos | `{"avg_glucose": 120, "total_readings": 45}` |
+| `created_at` | **String** | ✅ Sim | Data criação (ISO 8601) | `"2024-01-31T23:59:59Z"` |
+| `updated_at` | **String** | ✅ Sim | Última atualização (ISO 8601) | `"2024-01-31T23:59:59Z"` |
+| `deleted` | **Boolean** | ✅ Sim | Se foi deletado | `false` |
+| `pending_sync` | **Boolean** | ✅ Sim | Se precisa sincronizar | `false` |
+
+---
+
+## 🔄 **COLEÇÃO 5: `sync_meta` (Coleção Principal)**
+
+**Propósito**: Armazenar metadados de sincronização entre SQLite local e Firebase.
+
+| Campo | Tipo | Obrigatório | Descrição | Exemplo |
+|-------|------|-------------|-----------|---------|
+| `id` | **String** | ✅ Sim | ID único (use o user_id) | `"9Fz97YAMUNgZwmGRMISN"` |
+| `user_id` | **String** | ✅ Sim | ID do usuário (Firebase Auth UID) | `"9Fz97YAMUNgZwmGRMISN"` |
+| `last_sync` | **String** | ✅ Sim | Última sincronização (ISO 8601) | `"2024-01-15T14:30:00Z"` |
+| `last_pull` | **String** | ❌ Opcional | Último pull (ISO 8601) | `"2024-01-15T14:25:00Z"` |
+| `last_push` | **String** | ❌ Opcional | Último push (ISO 8601) | `"2024-01-15T14:30:00Z"` |
+| `sync_status` | **String** | ✅ Sim | Status da sincronização | `"success"` |
+| `error_message` | **String** | ❌ Opcional | Mensagem de erro | `null` |
+| `updated_at` | **String** | ✅ Sim | Última atualização (ISO 8601) | `"2024-01-15T14:30:05Z"` |
+
+---
+
+## 🔗 **RELACIONAMENTOS ENTRE COLEÇÕES**
 
 ```
-users (1) ←→ (N) glucoseReadings
-users (1) ←→ (1) glycemicGoals
+users (1) ←→ (N) users/{userId}/readings (subcoleção)
+users (1) ←→ (N) notifications
+users (1) ←→ (N) reports  
+users (1) ←→ (1) sync_meta
+```
+
+### **📊 Resumo das Coleções:**
+
+| Coleção | Tipo | Quantidade de Campos | Finalidade |
+|---------|------|---------------------|------------|
+| `users` | Principal | 16 campos | Dados do usuário |
+| `users/{userId}/readings` | Subcoleção | 10 campos | Leituras de glicemia |
+| `notifications` | Principal | 10 campos | Notificações e alertas |
+| `reports` | Principal | 12 campos | Metadados de relatórios |
+| `sync_meta` | Principal | 8 campos | Controle de sincronização |
+| **TOTAL** | **5 coleções** | **56 campos** | **Sistema completo** |
+
+### **🔒 Regras de Segurança:**
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Usuários - apenas o próprio usuário
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Leituras - subcoleção do usuário
+    match /users/{userId}/readings/{readingId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Notificações - apenas do próprio usuário
+    match /notifications/{notificationId} {
+      allow read, write: if request.auth != null && 
+        resource.data.user_id == request.auth.uid;
+    }
+    
+    // Relatórios - apenas do próprio usuário
+    match /reports/{reportId} {
+      allow read, write: if request.auth != null && 
+        resource.data.user_id == request.auth.uid;
+    }
+    
+    // Metadados de sincronização - apenas do próprio usuário
+    match /sync_meta/{syncId} {
+      allow read, write: if request.auth != null && 
+        resource.data.user_id == request.auth.uid;
+    }
+  }
+}
 ```
 
 ## Instrução de Uso

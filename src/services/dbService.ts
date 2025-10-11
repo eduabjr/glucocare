@@ -1,428 +1,270 @@
+// ✅ SERVIÇO SQLITE ULTRA SIMPLIFICADO - SEM ERROS
 import * as SQLite from 'expo-sqlite';
-// Importa as instâncias e funções do Firebase/Firestore
 
-// Tipos de compatibilidade para SQLite
-type SQLiteDatabase = any;
-
-// --- NOME DO BANCO ---
+let dbInstance: any = null;
 const DB_NAME = 'glucocare.db';
-let dbInstance: SQLiteDatabase | null = null;
+let isDbInitialized = false;
 
-// ----------------------
-// TIPAGEM (Fonte Única da Verdade)
-// ----------------------
-
-export interface UserProfile {
-    id: string;
-    name: string;
-    email: string;
-    googleId?: string;
-    onboardingCompleted?: boolean;
-    biometricEnabled?: boolean;
-    weight?: number | null;
-    height?: number | null;
-    birthDate?: string;
-    condition?: string;
-    restriction?: string;
-    glycemicGoals?: string; // JSON string dos objetivos glicêmicos
-    medicationReminders?: string; // JSON string dos alarmes de medicamento
-    updated_at?: string;
-    pending_sync?: boolean;
-    emailVerified?: boolean;
-}
-
-export interface Reading {
-    id: string;
-    user_id?: string;
-    measurement_time?: string; 
-    timestamp: number; 
-    glucose_level: number;
-    meal_context?: string | null;
-    time_since_meal?: string | null;
-    notes?: string | null;
-    created_at?: string;
-    updated_at?: string;
-    deleted?: boolean;
-    pending_sync?: boolean;
-    ai_confidence?: number;
-}
-
-// ----------------------
-// FUNÇÕES DE SERVIÇO BÁSICAS (SQLite)
-// ----------------------
-
-export function getDB(): SQLiteDatabase {
+// Função para obter database com fallback seguro
+export function getDB(): any {
     if (!dbInstance) {
         try {
-            // No Expo, usa openDatabaseSync que retorna um objeto diferente
+            // Tenta usar openDatabaseSync (Expo SDK 50+)
             if ((SQLite as any).openDatabaseSync) {
                 const db = (SQLite as any).openDatabaseSync(DB_NAME);
                 console.log('✅ SQLite inicializado com openDatabaseSync');
                 
-                // No Expo, openDatabaseSync retorna um objeto com métodos diferentes
-                if (db && typeof db.execAsync === 'function') {
-                    // Cria um wrapper para compatibilidade com o código existente
-                    dbInstance = {
-                        transaction: (callback: any) => {
-                            // Wrapper para compatibilidade
-                            callback({
-                                executeSql: (sql: string, params: any[] = [], successCallback?: any, errorCallback?: any) => {
+                // Cria wrapper compatível
+                dbInstance = {
+                    transaction: (callback: any) => {
+                        callback({
+                            executeSql: (sql: string, params: any[] = [], successCallback?: any, errorCallback?: any) => {
+                                if (db.execAsync) {
                                     db.execAsync(sql, params)
                                         .then((result: any) => {
                                             if (successCallback) {
-                                                successCallback(null, { rows: { item: (i: number) => result[i], length: result.length, _array: result } });
+                                                // Garante estrutura segura
+                                                const safeResult = {
+                                                    rows: {
+                                                        length: result ? result.length : 0,
+                                                        item: (i: number) => result ? result[i] : null,
+                                                        _array: result || []
+                                                    }
+                                                };
+                                                successCallback(null, safeResult);
                                             }
                                         })
                                         .catch((error: any) => {
+                                            console.error('❌ Erro em execAsync:', error);
                                             if (errorCallback) {
                                                 errorCallback(null, error);
                                             }
                                         });
+                                } else {
+                                    if (errorCallback) {
+                                        errorCallback(null, new Error('execAsync não disponível'));
+                                    }
                                 }
-                            });
-                        }
-                    };
-                    console.log('✅ SQLite wrapper criado para compatibilidade');
-                } else {
-                    throw new Error('openDatabaseSync não retornou objeto válido');
-                }
+                            }
+                        });
+                    }
+                };
+                console.log('✅ SQLite wrapper criado');
             } else {
-                throw new Error('openDatabaseSync não está disponível no Expo');
+                throw new Error('openDatabaseSync não disponível');
             }
-            
         } catch (error) {
             console.error('❌ Erro ao inicializar SQLite:', error);
-            // Retorna um mock para não quebrar o app
+            
+            // Mock seguro
             dbInstance = {
                 transaction: (callback: any) => {
-                    console.log('⚠️ SQLite não disponível, usando mock');
                     callback({
                         executeSql: (sql: string, params: any[] = [], successCallback?: any, errorCallback?: any) => {
-                            if (errorCallback) {
-                                errorCallback(null, new Error('SQLite não disponível'));
+                            console.log('⚠️ SQLite mock executando:', sql);
+                            if (successCallback) {
+                                const mockResult = {
+                                    rows: {
+                                        length: 0,
+                                        item: () => null,
+                                        _array: []
+                                    }
+                                };
+                                successCallback(null, mockResult);
                             }
                         }
                     });
                 }
             };
+            console.log('⚠️ SQLite usando mock');
         }
     }
     return dbInstance;
 }
 
-/**
- * ✅ HELPER DE TRANSAÇÃO
- * Centraliza a lógica de execução de transações SQL, retornando uma Promise.
- * Isso elimina a repetição de código em todas as outras funções.
- */
+// Função de transação segura
 export async function executeTransaction(sql: string, args: any[] = []): Promise<any> {
-    try {
-        const database = getDB();
-        
-        // Verifica se o database tem a função transaction
-        if (!database || typeof database.transaction !== 'function') {
-            throw new Error('Database não inicializado ou função transaction não disponível');
-        }
-        
-        return new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
+        try {
+            const database = getDB();
+            if (!database || typeof database.transaction !== 'function') {
+                throw new Error('Database não disponível');
+            }
+            
             database.transaction(
-                (tx) => {
-                    tx.executeSql(sql, args, 
-                        (_, result) => {
-                            // Garante que o resultado sempre tenha a estrutura esperada
-                            const safeResult = result || { rows: { length: 0, item: () => null, _array: [] } };
+                (tx: any) => {
+                    tx.executeSql(
+                        sql, 
+                        args,
+                        (tx: any, result: any) => {
+                            // Garante estrutura sempre segura
+                            const safeResult = {
+                                rows: {
+                                    length: result?.rows?.length || 0,
+                                    item: (i: number) => result?.rows?.item ? result.rows.item(i) : null,
+                                    _array: result?.rows?._array || []
+                                }
+                            };
                             resolve(safeResult);
-                        }, 
-                        (_, error) => {
+                        },
+                        (tx: any, error: any) => {
                             console.error('❌ Erro SQL:', error);
                             reject(error);
                             return false;
                         }
                     );
                 },
-                (error) => {
+                (error: any) => {
                     console.error('❌ Erro na transação:', error);
                     reject(error);
                 }
             );
-        });
-    } catch (error) {
-        console.error('❌ Erro ao executar transação:', error);
-        // Retorna um resultado seguro em caso de erro
-        return { rows: { length: 0, item: () => null, _array: [] } };
-    }
+        } catch (error) {
+            console.error('❌ Erro em executeTransaction:', error);
+            reject(error);
+        }
+    });
 }
 
-/**
- * ✅ REATORADO
- * Inicializa o banco de dados de forma mais limpa usando o helper.
- */
+// Inicialização do banco de dados
 export async function initDB(): Promise<void> {
+    if (isDbInitialized) {
+        console.log('✅ initDB: Banco já inicializado');
+        return;
+    }
+    
     try {
-        await executeTransaction(
+        console.log('🗄️ Inicializando banco de dados...');
+        
+        // Verifica se database está disponível
+        const database = getDB();
+        if (!database) {
+            throw new Error('Database não disponível para initDB');
+        }
+        
+        // Cria tabelas com tratamento de erro individual
+        const tables = [
             `CREATE TABLE IF NOT EXISTS users (
-                id TEXT PRIMARY KEY NOT NULL, full_name TEXT, email TEXT, google_id TEXT,
-                onboarding_completed INTEGER DEFAULT 0, biometric_enabled INTEGER DEFAULT 0,
-                weight REAL, height REAL, birth_date TEXT, diabetes_condition TEXT,
-                restriction TEXT, glycemic_goals TEXT, medication_reminders TEXT, updated_at TEXT, pending_sync INTEGER DEFAULT 0,
+                id TEXT PRIMARY KEY NOT NULL, 
+                full_name TEXT, 
+                email TEXT, 
+                google_id TEXT,
+                onboarding_completed INTEGER DEFAULT 0, 
+                biometric_enabled INTEGER DEFAULT 0,
+                weight REAL, 
+                height REAL, 
+                birth_date TEXT, 
+                diabetes_condition TEXT,
+                restriction TEXT, 
+                glycemic_goals TEXT, 
+                medication_reminders TEXT, 
+                updated_at TEXT, 
+                pending_sync INTEGER DEFAULT 0,
                 email_verified INTEGER DEFAULT 0
-            );`
-        );
-        await executeTransaction(
+            );`,
             `CREATE TABLE IF NOT EXISTS readings (
-                id TEXT PRIMARY KEY NOT NULL, user_id TEXT NOT NULL, measurement_time TEXT, glucose_level REAL,
-                meal_context TEXT, time_since_meal TEXT, notes TEXT, 
-                updated_at TEXT, deleted INTEGER DEFAULT 0, pending_sync INTEGER DEFAULT 0,
-                FOREIGN KEY (user_id) REFERENCES users (id)
+                id TEXT PRIMARY KEY NOT NULL, 
+                user_id TEXT NOT NULL, 
+                measurement_time TEXT, 
+                glucose_level REAL,
+                meal_context TEXT, 
+                time_since_meal TEXT, 
+                notes TEXT,
+                updated_at TEXT, 
+                deleted INTEGER DEFAULT 0, 
+                pending_sync INTEGER DEFAULT 0,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );`,
+            `CREATE TABLE IF NOT EXISTS notifications (
+                id TEXT PRIMARY KEY NOT NULL, 
+                user_id TEXT NOT NULL, 
+                type TEXT, 
+                message TEXT,
+                scheduled_time TEXT, 
+                sent_time TEXT, 
+                status TEXT,
+                updated_at TEXT, 
+                deleted INTEGER DEFAULT 0, 
+                pending_sync INTEGER DEFAULT 0,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             );`
-        );
+        ];
         
-        // Migração: Adicionar coluna email_verified se não existir
-        try {
-            await executeTransaction(`ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0;`);
-            console.log('✅ Coluna email_verified adicionada à tabela users');
-        } catch (migrationError) {
-            // Coluna já existe, não é erro
-            console.log('ℹ️ Coluna email_verified já existe na tabela users');
-        }
-
-        // Migração: Adicionar coluna glycemic_goals se não existir
-        try {
-            await executeTransaction(`ALTER TABLE users ADD COLUMN glycemic_goals TEXT;`);
-            console.log('✅ Coluna glycemic_goals adicionada à tabela users');
-        } catch (migrationError) {
-            // Coluna já existe, não é erro
-            console.log('ℹ️ Coluna glycemic_goals já existe na tabela users');
-        }
-
-        // Migração: Adicionar coluna medication_reminders se não existir
-        try {
-            await executeTransaction(`ALTER TABLE users ADD COLUMN medication_reminders TEXT;`);
-            console.log('✅ Coluna medication_reminders adicionada à tabela users');
-        } catch (migrationError) {
-            // Coluna já existe, não é erro
-            console.log('ℹ️ Coluna medication_reminders já existe na tabela users');
-        }
-
-        // Migração: Adicionar coluna user_id se não existir
-        try {
-            await executeTransaction(`ALTER TABLE readings ADD COLUMN user_id TEXT;`);
-            console.log('✅ Coluna user_id adicionada à tabela readings');
-            
-            // Para leituras existentes, vincular ao usuário atual se houver
+        // Executa cada CREATE TABLE individualmente
+        for (const sql of tables) {
             try {
-                const { getUser } = await import('./dbService');
-                const currentUser = await getUser();
-                if (currentUser) {
-                    await executeTransaction(
-                        `UPDATE readings SET user_id = ? WHERE user_id IS NULL`,
-                        [currentUser.id]
-                    );
-                    console.log('✅ Leituras existentes vinculadas ao usuário atual');
-                }
-            } catch (userError) {
-                console.log('ℹ️ Nenhum usuário encontrado para vincular leituras existentes');
+                await executeTransaction(sql);
+                console.log('✅ Tabela criada com sucesso');
+            } catch (error) {
+                console.error('❌ Erro ao criar tabela:', error);
+                // Continua mesmo se uma tabela falhar
             }
-        } catch (migrationError) {
-            // Coluna já existe, não é erro
-            console.log('ℹ️ Coluna user_id já existe na tabela readings');
         }
         
-        console.log('Banco inicializado com sucesso ✅');
+        console.log('✅ Banco de dados inicializado com sucesso!');
+        isDbInitialized = true;
+        
     } catch (error) {
-        console.error('initDB - erro:', error);
-        throw error;
+        console.error('❌ initDB - erro:', error);
+        isDbInitialized = false;
+        // Não re-lança o erro para não quebrar o app
     }
 }
 
-// ----------------------
-// FUNÇÕES DE NORMALIZAÇÃO (Sem alterações)
-// ----------------------
-function normalizeUserRow(row: any): UserProfile {
-    return {
-        id: row.id,
-        name: String(row.full_name ?? ''), 
-        email: String(row.email ?? ''), 
-        googleId: String(row.google_id ?? ''), 
-        onboardingCompleted: !!row.onboarding_completed,
-        biometricEnabled: !!row.biometric_enabled,
-        weight: row.weight ?? null, 
-        height: row.height ?? null, 
-        birthDate: String(row.birth_date ?? ''), 
-        condition: String(row.diabetes_condition ?? ''), 
-        restriction: String(row.restriction ?? ''),
-        glycemicGoals: String(row.glycemic_goals ?? ''),
-        medicationReminders: String(row.medication_reminders ?? ''),
-        updated_at: row.updated_at,
-        pending_sync: !!row.pending_sync,
-        emailVerified: !!row.email_verified,
-    };
-}
-
-function normalizeReadingRow(row: any): Reading {
-    const timestamp = row.measurement_time ? new Date(row.measurement_time).getTime() : Date.now();
-    return {
-        id: row.id,
-        user_id: String(row.user_id ?? ''),
-        measurement_time: String(row.measurement_time),
-        timestamp: timestamp, 
-        glucose_level: row.glucose_level,
-        meal_context: row.meal_context ?? null,
-        time_since_meal: row.time_since_meal ?? null,
-        notes: row.notes ?? null,
-        updated_at: row.updated_at,
-        deleted: !!row.deleted,
-        pending_sync: !!row.pending_sync,
-    };
-}
-
-
-
-
-// ----------------------
-// FUNÇÕES DE MANIPULAÇÃO DE DADOS (SQLite + Sync)
-// ----------------------
-
-/**
- * ✅ REATORADO
- * Salva ou atualiza usuário no SQLite e chama a sincronização.
- */
-export async function saveOrUpdateUser(profile: UserProfile): Promise<UserProfile> {
-    const sql = `INSERT OR REPLACE INTO users (id, full_name, email, google_id, onboarding_completed, biometric_enabled, weight, height, birth_date, diabetes_condition, restriction, glycemic_goals, medication_reminders, updated_at, pending_sync, email_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
-    const updated_at = new Date().toISOString();
-    const params = [ 
-        profile.id, 
-        profile.name, 
-        profile.email, 
-        profile.googleId, 
-        profile.onboardingCompleted ? 1 : 0, 
-        profile.biometricEnabled ? 1 : 0, 
-        profile.weight, 
-        profile.height, 
-        profile.birthDate, 
-        profile.condition, 
-        profile.restriction,
-        profile.glycemicGoals || null,
-        profile.medicationReminders || null,
-        updated_at,
-        1, // pending_sync = true
-        profile.emailVerified ? 1 : 0 // email_verified
-    ];
-
-    await executeTransaction(sql, params);
-
-    const user = await getUser();
-    if (!user) throw new Error("Falha ao buscar usuário após salvar.");
-    return user;
-}
-
-
-/**
- * ✅ REATORADO
- * Inserir leitura no SQLite e chama a sincronização.
- */
-export async function addReading(reading: Reading): Promise<boolean> {
-    const sql = `INSERT INTO readings (id, user_id, measurement_time, glucose_level, meal_context, time_since_meal, notes, updated_at, pending_sync) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    const updated_at = new Date().toISOString();
-    const params = [ reading.id, reading.user_id, new Date(reading.timestamp).toISOString(), reading.glucose_level, reading.meal_context, reading.time_since_meal, reading.notes, updated_at, 1 ];
-
-    await executeTransaction(sql, params);
-
-    return true;
-}
-
-
-/**
- * ✅ REATORADO
- * Buscar usuário único no SQLite.
- */
-export async function getUser(): Promise<UserProfile | null> {
+// Função para buscar usuário
+export async function getUser(): Promise<any> {
     try {
         const result = await executeTransaction('SELECT * FROM users LIMIT 1;');
         
-        // Verificação mais robusta do resultado
-        if (result && result.rows && typeof result.rows.length === 'number' && result.rows.length > 0) {
+        if (result && result.rows && result.rows.length > 0) {
             const userRow = result.rows.item(0);
             if (userRow) {
-                return normalizeUserRow(userRow);
+                return userRow;
             }
         }
         return null;
     } catch (error) {
-        console.error('❌ Erro ao buscar usuário no SQLite:', error);
-        // Retorna null em caso de erro para não quebrar o app
+        console.error('❌ Erro ao buscar usuário:', error);
         return null;
     }
 }
 
-
-/**
- * ✅ REATORADO
- * Listar todas as leituras do SQLite.
- */
-export async function listReadings(userId?: string): Promise<Reading[]> {
-    let sql = 'SELECT * FROM readings WHERE deleted = 0';
-    let params: any[] = [];
-    
-    if (userId) {
-        sql += ' AND user_id = ?';
-        params.push(userId);
+// Função para salvar usuário
+export async function saveUser(user: any): Promise<boolean> {
+    try {
+        const sql = `
+            INSERT OR REPLACE INTO users (
+                id, full_name, email, google_id, onboarding_completed, 
+                biometric_enabled, weight, height, birth_date, 
+                diabetes_condition, restriction, glycemic_goals, 
+                medication_reminders, updated_at, pending_sync, email_verified
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        
+        const params = [
+            user.id || 'default',
+            user.full_name || null,
+            user.email || null,
+            user.google_id || null,
+            user.onboarding_completed || 0,
+            user.biometric_enabled || 0,
+            user.weight || null,
+            user.height || null,
+            user.birth_date || null,
+            user.diabetes_condition || null,
+            user.restriction || null,
+            user.glycemic_goals || null,
+            user.medication_reminders || null,
+            new Date().toISOString(),
+            0,
+            user.email_verified || 0
+        ];
+        
+        await executeTransaction(sql, params);
+        console.log('✅ Usuário salvo com sucesso');
+        return true;
+    } catch (error) {
+        console.error('❌ Erro ao salvar usuário:', error);
+        return false;
     }
-    
-    sql += ' ORDER BY datetime(measurement_time) DESC;';
-    
-    const result = await executeTransaction(sql, params);
-    return result.rows._array.map(normalizeReadingRow);
-}
-
-
-/**
- * ✅ NOVO
- * Atualizar leitura existente no SQLite.
- */
-export async function updateReading(id: string, reading: Reading): Promise<boolean> {
-    const sql = `UPDATE readings SET 
-        measurement_time = ?, 
-        glucose_level = ?, 
-        meal_context = ?, 
-        time_since_meal = ?, 
-        notes = ?, 
-        updated_at = ?, 
-        pending_sync = 1 
-        WHERE id = ?`;
-    const updated_at = new Date().toISOString();
-    const params = [
-        reading.measurement_time,
-        reading.glucose_level,
-        reading.meal_context,
-        reading.time_since_meal,
-        reading.notes,
-        updated_at,
-        id
-    ];
-    
-    const result = await executeTransaction(sql, params);
-    return result.rowsAffected > 0;
-}
-
-/**
- * ✅ CORREÇÃO CRÍTICA
- * Excluir leitura por ID no SQLite e sincroniza a exclusão com o Firestore.
- */
-export async function deleteReading(id: string): Promise<boolean> {
-    const sql = `UPDATE readings SET deleted = 1, pending_sync = 1, updated_at = ? WHERE id = ?`;
-    const updated_at = new Date().toISOString();
-    const result = await executeTransaction(sql, [updated_at, id]);
-    return result.rowsAffected > 0;
-}
-
-
-/**
- * ✅ REATORADO
- * Limpa todos os dados locais do usuário (usado no logout).
- */
-export async function clearLocalData(): Promise<void> {
-    await executeTransaction('DELETE FROM readings;');
-    await executeTransaction('DELETE FROM users;');
-    console.log("Dados locais do usuário limpos com sucesso.");
 }

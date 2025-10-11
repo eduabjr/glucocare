@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
+import * as LocalAuthentication from 'expo-local-authentication';
 // import * as MediaLibrary from 'expo-media-library'; // Removido - não funciona no Expo Go
 
 import { listReadings, Reading } from '../services/dbService'; // Funções do seu banco
@@ -39,6 +40,10 @@ export default function ReportScreen() {
     full: false
   });
 
+  // Estados para autorização biométrica
+  const [biometricSupported, setBiometricSupported] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+
   // Estados para o seletor de data
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date());
@@ -55,9 +60,75 @@ export default function ReportScreen() {
     }
     fetchAllData();
     
+    // Verificar suporte à biometria
+    checkBiometricSupport();
     
     // Cleanup - removido removeListener
   }, []);
+
+  // Verificar se biometria está habilitada quando usuário carrega
+  useEffect(() => {
+    if (user) {
+      setBiometricEnabled(user.biometricEnabled || false);
+    }
+  }, [user]);
+
+  // Função para verificar suporte à biometria
+  const checkBiometricSupport = async () => {
+    try {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      const isSupported = await LocalAuthentication.isSupportedAsync();
+      
+      setBiometricSupported(hasHardware && isEnrolled && isSupported);
+      console.log('🔐 Status da biometria:', { hasHardware, isEnrolled, isSupported });
+    } catch (error) {
+      console.error('❌ Erro ao verificar biometria:', error);
+      setBiometricSupported(false);
+    }
+  };
+
+  // Função para autorização biométrica
+  const authenticateWithBiometry = async (): Promise<boolean> => {
+    try {
+      if (!biometricSupported || !biometricEnabled) {
+        Alert.alert(
+          'Biometria Não Disponível',
+          'A biometria não está configurada ou disponível neste dispositivo.',
+          [{ text: 'OK' }]
+        );
+        return false;
+      }
+
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: '🔐 Autorização Necessária',
+        subPromptMessage: 'Use sua biometria para acessar os relatórios',
+        fallbackLabel: 'Usar senha',
+        disableDeviceFallback: false,
+      });
+
+      if (result.success) {
+        console.log('✅ Autorização biométrica bem-sucedida');
+        return true;
+      } else {
+        console.log('❌ Autorização biométrica falhou:', result.error);
+        Alert.alert(
+          'Autorização Negada',
+          'Acesso aos relatórios foi negado. Tente novamente.',
+          [{ text: 'OK' }]
+        );
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Erro na autorização biométrica:', error);
+      Alert.alert(
+        'Erro na Autorização',
+        'Ocorreu um erro durante a verificação biométrica. Tente novamente.',
+        [{ text: 'OK' }]
+      );
+      return false;
+    }
+  };
 
   // Função para verificar status do email
   const handleCheckEmailStatus = async () => {
@@ -236,6 +307,14 @@ export default function ReportScreen() {
       return;
     }
 
+    // Verificar autorização biométrica antes de compartilhar
+    if (biometricSupported && biometricEnabled) {
+      const isAuthorized = await authenticateWithBiometry();
+      if (!isAuthorized) {
+        return; // Usuário cancelou a autorização
+      }
+    }
+
     try {
       // Determina o tipo baseado nos dados
       const now = new Date();
@@ -269,6 +348,14 @@ export default function ReportScreen() {
     if (reportData.length === 0) {
       console.log("Nenhum relatório para baixar");
       return;
+    }
+
+    // Verificar autorização biométrica antes de baixar
+    if (biometricSupported && biometricEnabled) {
+      const isAuthorized = await authenticateWithBiometry();
+      if (!isAuthorized) {
+        return; // Usuário cancelou a autorização
+      }
     }
 
     if (downloading.range) {
@@ -358,6 +445,14 @@ export default function ReportScreen() {
       return;
     }
 
+    // Verificar autorização biométrica antes de compartilhar
+    if (biometricSupported && biometricEnabled) {
+      const isAuthorized = await authenticateWithBiometry();
+      if (!isAuthorized) {
+        return; // Usuário cancelou a autorização
+      }
+    }
+
     try {
       const { uri, fileName, data } = await generatePdfFile([], 'monthly');
       await Sharing.shareAsync(uri, { 
@@ -376,6 +471,14 @@ export default function ReportScreen() {
     if (!user?.emailVerified) {
       console.log("Email não verificado para download do relatório mensal");
       return;
+    }
+
+    // Verificar autorização biométrica antes de baixar
+    if (biometricSupported && biometricEnabled) {
+      const isAuthorized = await authenticateWithBiometry();
+      if (!isAuthorized) {
+        return; // Usuário cancelou a autorização
+      }
     }
 
     if (downloading.monthly) {
@@ -452,6 +555,14 @@ export default function ReportScreen() {
       return;
     }
 
+    // Verificar autorização biométrica antes de compartilhar
+    if (biometricSupported && biometricEnabled) {
+      const isAuthorized = await authenticateWithBiometry();
+      if (!isAuthorized) {
+        return; // Usuário cancelou a autorização
+      }
+    }
+
     try {
       const { uri, fileName, data } = await generatePdfFile([], 'full');
       await Sharing.shareAsync(uri, { 
@@ -470,6 +581,14 @@ export default function ReportScreen() {
     if (!user?.emailVerified) {
       console.log("Email não verificado para download do histórico completo");
       return;
+    }
+
+    // Verificar autorização biométrica antes de baixar
+    if (biometricSupported && biometricEnabled) {
+      const isAuthorized = await authenticateWithBiometry();
+      if (!isAuthorized) {
+        return; // Usuário cancelou a autorização
+      }
     }
 
     if (downloading.full) {
@@ -563,6 +682,14 @@ export default function ReportScreen() {
           </View>
         <Text style={styles.title}>Relatório de Glicemia</Text>
         <Text style={styles.subtitle}>Gere e exporte seu histórico de medições</Text>
+        
+        {/* Indicador de segurança biométrica */}
+        {biometricSupported && biometricEnabled && (
+          <View style={styles.securityIndicator}>
+            <MaterialIcons name="security" size={16} color="#4CAF50" />
+            <Text style={styles.securityText}>Protegido por biometria</Text>
+          </View>
+        )}
 
         </View>
 
@@ -913,6 +1040,23 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: '#fff', 
     fontWeight: '600', 
     fontSize: 16 
+  },
+
+  // Estilos para o indicador de segurança
+  securityIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E8',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginTop: 8,
+  },
+  securityText: {
+    fontSize: 12,
+    color: '#4CAF50',
+    fontWeight: '600',
+    marginLeft: 4,
   },
 
   // Novos estilos para os cards de relatório
