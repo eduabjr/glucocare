@@ -64,18 +64,15 @@ class BluetoothAnalysisService {
       // Converte para formato GlucoseReading
       const readings = aiExtractedData.map((data, index) => ({
         id: `bluetooth-${userId}-${Date.now()}-${index}`,
-        glucoseLevel: data.glucoseLevel,
-        timestamp: data.timestamp || rawData.timestamp,
-        mealContext: data.mealContext || 'Bluetooth',
+        timestamp: new Date(data.timestamp || rawData.timestamp),
+        value: data.glucoseLevel,
+        mealContext: (data.mealContext as 'jejum' | 'pre-refeicao' | 'pos-refeicao' | 'antes-dormir' | 'madrugada') || undefined,
         notes: data.notes || `Leitura do ${rawData.deviceType}`,
-        confidence: data.confidence,
-        deviceType: rawData.deviceType,
-        batteryLevel: rawData.metadata?.batteryLevel,
-        signalStrength: rawData.metadata?.signalStrength
+        deviceName: rawData.deviceType
       }));
       
-      // Calcula confiança média
-      const avgConfidence = readings.reduce((sum, reading) => sum + (reading.confidence || 0), 0) / readings.length;
+      // Calcula confiança média dos dados originais
+      const avgConfidence = aiExtractedData.reduce((sum, data) => sum + (data.confidence || 0), 0) / aiExtractedData.length;
       
       return {
         success: true,
@@ -114,14 +111,15 @@ class BluetoothAnalysisService {
     return bluetoothReadings.map(reading => ({
       id: reading.id,
       user_id: userId,
-      timestamp: reading.timestamp,
-      glucose_level: reading.glucoseLevel,
+      timestamp: reading.timestamp.getTime(),
+      measurement_time: reading.timestamp.toISOString(),
+      glucose_level: reading.value,
       meal_context: reading.mealContext,
       notes: reading.notes,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       pending_sync: true,
-      ai_confidence: reading.confidence
+      ai_confidence: 0.85 // Valor padrão de confiança para leituras Bluetooth
     }));
   }
 

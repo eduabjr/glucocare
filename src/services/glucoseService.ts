@@ -47,15 +47,15 @@ export async function createReading({
     const level = validateGlucoseValue(glucose_level);
 
     return new Promise((resolve, reject) => {
-      db.transaction((tx: SQLite.SQLTransaction) => {  // Usando o tipo correto SQLTransaction
+      db.transaction((tx: any) => {
         tx.executeSql(
           `INSERT INTO readings (id, measurement_time, glucose_level, meal_context, time_since_meal, notes) VALUES (?, ?, ?, ?, ?, ?);`,
           [id, normalizedTime, level, meal_context, time_since_meal, notes],
-          (_, _result) => resolve({ id, measurement_time: normalizedTime, glucose_level: level, meal_context, time_since_meal, notes }), // Garantir que todas as propriedades sejam passadas
-          (_, error: SQLite.SQLError) => {
+          (_, _result) => resolve({ id, measurement_time: normalizedTime, glucose_level: level, meal_context, time_since_meal, notes }),
+          (_, error: any) => {
             console.error('createReading - sql error:', error);
             reject(error);
-            return true;  // Retorna true para indicar que o erro foi tratado
+            return true;
           }
         );
       });
@@ -82,15 +82,15 @@ export async function listReadings(): Promise<GlucoseReading[]> {
   await initDB();
   const db = getDB();
   return new Promise((resolve, reject) => {
-    db.transaction((tx: SQLite.SQLTransaction) => {  // Usando o tipo correto SQLTransaction
+    db.transaction((tx: any) => {
       tx.executeSql(
         'SELECT * FROM readings ORDER BY measurement_time DESC;',
         [],
-        (_, { rows }: { rows: SQLite.SQLResultSetRowList }) => resolve(rows._array),  // Tipagem de rows
-        (_, error: SQLite.SQLError) => {
+        (_, { rows }: any) => resolve(rows._array),
+        (_, error: any) => {
           console.error('listReadings - sql error:', error);
           reject(error);
-          return true;  // Retorna true para indicar que o erro foi tratado
+          return true;
         }
       );
     });

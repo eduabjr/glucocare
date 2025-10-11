@@ -27,15 +27,15 @@ async function uploadReadingsToDrive(accessToken: string): Promise<boolean> {
 
     // Buscar leituras do banco de dados
     const readings: Reading[] = await new Promise((resolve, reject) => {
-      db.transaction((tx: SQLite.SQLTransaction) => {  // Usando o tipo correto SQLTransaction
+      db.transaction((tx) => {
         tx.executeSql(
           'SELECT * FROM readings ORDER BY measurement_time DESC;',
           [],
-          (_, { rows }: { rows: SQLite.SQLResultSetRowList }) => resolve(rows._array),  // Tipagem de rows
-          (_, err: SQLite.SQLError) => {
+          (_, { rows }) => resolve(rows._array),
+          (_, err) => {
             console.error("Erro ao executar SQL:", err);
-            reject(err);  // Agora o erro é tratado corretamente
-            return true;  // Retorna true para indicar que o erro foi tratado
+            reject(err);
+            return true;
           }
         );
       });
@@ -105,19 +105,19 @@ async function uploadReadingsToDrive(accessToken: string): Promise<boolean> {
 /**
  * 🔹 Salva timestamp de sincronização no SQLite
  */
-async function saveSyncTimestamp(db: SQLite.Database, isoString: string): Promise<boolean> {
+async function saveSyncTimestamp(db: any, isoString: string): Promise<boolean> {
   return new Promise((resolve, reject) => {
     db.transaction(
-      (tx: SQLite.SQLTransaction) => {  // Usando o tipo correto SQLTransaction
+      (tx: any) => {
         tx.executeSql(
           `INSERT OR REPLACE INTO sync_meta (key, value) VALUES (?, ?);`,
           ['last_sync', isoString]
         );
       },
-      (err: SQLite.SQLError) => {  // Tipagem explícita de err
+      (err: any) => {
         console.warn("saveSyncTimestamp falhou:", err);
         reject(err);
-        return true;  // Retorna true para indicar que o erro foi tratado
+        return true;
       },
       () => resolve(true)
     );

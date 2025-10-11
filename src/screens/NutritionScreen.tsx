@@ -121,7 +121,7 @@ const ProfileCard = ({ profile, loading, onUpdate, theme }: any) => {
     if (!profile) return null;
 
     const handleEditProfile = () => {
-        navigation.navigate('ProfileEdit');
+        (navigation as any).navigate('ProfileEdit');
     };
 
     return (

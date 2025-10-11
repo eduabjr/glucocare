@@ -4,6 +4,7 @@ import { auth, db } from '../config/firebase'; // ✨ ADICIONADO: Importar 'db' 
 import { doc, getDoc, setDoc } from 'firebase/firestore'; // ✨ ADICIONADO: Funções do Firestore
 import { initDB } from '../services/dbService'; // ✨ ADICIONADO: Importar initDB
 import AsyncStorage from '@react-native-async-storage/async-storage'; // ✅ NOVO: Para persistir estado
+import * as SecureStore from 'expo-secure-store'; // ✅ NOVO: Para armazenamento seguro
 
 // A sua interface de perfil de utilizador detalhada
 export interface UserProfile {

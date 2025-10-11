@@ -5,7 +5,7 @@ import * as SQLite from 'expo-sqlite';
 
 // --- NOME DO BANCO ---
 const DB_NAME = 'glucocare.db';
-let dbInstance: SQLite.Database | null = null; 
+let dbInstance: any | null = null; 
 
 // ----------------------
 // TIPAGEM (Fonte Única da Verdade)
@@ -50,9 +50,9 @@ export interface Reading {
 // FUNÇÕES DE SERVIÇO BÁSICAS (SQLite)
 // ----------------------
 
-export function getDB(): SQLite.Database {
+export function getDB(): any {
     if (!dbInstance) {
-        dbInstance = SQLite.openDatabase(DB_NAME);
+        dbInstance = SQLite.openDatabaseSync(DB_NAME);
     }
     return dbInstance;
 }
@@ -62,7 +62,7 @@ export function getDB(): SQLite.Database {
  * Centraliza a lógica de execução de transações SQL, retornando uma Promise.
  * Isso elimina a repetição de código em todas as outras funções.
  */
-export async function executeTransaction(sql: string, args: any[] = []): Promise<SQLite.SQLResultSet> {
+export async function executeTransaction(sql: string, args: any[] = []): Promise<any> {
     const database = getDB();
     return new Promise((resolve, reject) => {
         database.transaction(

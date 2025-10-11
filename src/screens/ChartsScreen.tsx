@@ -138,8 +138,9 @@ const ChartsScreen: React.FC = () => {
 
   const chartData = useMemo(() => {
     return filteredReadings.map((r: Reading) => {
-      const period = getPeriodFromTime(r.measurement_time || r.timestamp);
-      const idealRange = getIdealRangeForPeriod(r.measurement_time || r.timestamp);
+      const timestamp = r.measurement_time || new Date(r.timestamp).toISOString();
+      const period = getPeriodFromTime(timestamp);
+      const idealRange = getIdealRangeForPeriod(timestamp);
       const isInIdealRange = r.glucose_level >= idealRange.min && r.glucose_level <= idealRange.max;
       
       return {
@@ -163,7 +164,8 @@ const ChartsScreen: React.FC = () => {
         (showLowestGlucose && r.id === glucoseStats.lowest?.id)
         ? 8
         : 5,
-    }));
+      };
+    });
   }, [filteredReadings, glucoseStats, showHighestGlucose, showLowestGlucose, user?.glycemicGoals, user?.condition]);
 
   if (loading) {
@@ -202,8 +204,9 @@ const ChartsScreen: React.FC = () => {
         <Text style={styles.pageTitle}>Gráfico de Glicose</Text>
         <View style={styles.tooltipContainer}>
           {focusedDataPoint ? (() => {
-            const period = getPeriodFromTime(focusedDataPoint.measurement_time || focusedDataPoint.timestamp);
-            const idealRange = getIdealRangeForPeriod(focusedDataPoint.measurement_time || focusedDataPoint.timestamp);
+            const timestamp = focusedDataPoint.measurement_time || new Date(focusedDataPoint.timestamp).toISOString();
+            const period = getPeriodFromTime(timestamp);
+            const idealRange = getIdealRangeForPeriod(timestamp);
             const isInIdealRange = focusedDataPoint.glucose_level >= idealRange.min && focusedDataPoint.glucose_level <= idealRange.max;
             const periodNames = {
               preMeal: 'Pré-refeição',

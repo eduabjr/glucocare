@@ -32,12 +32,14 @@ const GlucoseStatusIndicator = ({
   glucoseValue, 
   mealContext, 
   user, 
-  theme 
+  theme,
+  styles
 }: { 
   glucoseValue: number; 
   mealContext: string; 
   user: any; 
-  theme: any; 
+  theme: any;
+  styles: any;
 }) => {
   const { getUserGlycemicGoals, classifyGlucoseReading } = require('../utils/glycemicGoals');
   
@@ -322,6 +324,7 @@ export default function AddReadingScreen({ navigation, route }: AddReadingScreen
               mealContext={mealContext}
               user={user}
               theme={theme}
+              styles={styles}
             />
           )}
 

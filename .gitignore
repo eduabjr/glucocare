@@ -69,3 +69,5 @@ firebase-debug.log
 
 # EAS
 .easignore
+node_modules
+node_modules

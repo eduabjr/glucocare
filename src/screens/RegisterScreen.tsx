@@ -359,7 +359,7 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
                     keyboardShouldPersistTaps="handled"
                 >
                     <AntDesign
-                        name="adduser"
+                        name="user-add"
                         size={52}
                         color={theme.primary}
                         style={{ alignSelf: 'center', marginBottom: 12 }}

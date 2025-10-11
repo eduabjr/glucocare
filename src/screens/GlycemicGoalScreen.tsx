@@ -399,7 +399,7 @@ export default function GlycemicGoalScreen({ navigation }: GlycemicGoalScreenPro
                 <Switch
                     value={reminder.enabled}
                     onValueChange={() => toggleReminder(reminder.id)}
-                    trackColor={{ false: theme.border, true: theme.primary }}
+                    trackColor={{ false: theme.secundaryText, true: theme.primary }}
                     thumbColor={reminder.enabled ? '#fff' : theme.secundaryText}
                 />
             </View>
@@ -419,7 +419,7 @@ export default function GlycemicGoalScreen({ navigation }: GlycemicGoalScreenPro
                         <Switch
                             value={reminder.notificationEnabled}
                             onValueChange={() => toggleNotification(reminder.id)}
-                            trackColor={{ false: theme.border, true: theme.primary }}
+                            trackColor={{ false: theme.secundaryText, true: theme.primary }}
                             thumbColor={reminder.notificationEnabled ? '#fff' : theme.secundaryText}
                         />
                     </View>
@@ -468,7 +468,7 @@ export default function GlycemicGoalScreen({ navigation }: GlycemicGoalScreenPro
     return (
         <SafeAreaView style={styles.container}>
             <LinearGradient
-                colors={[theme.primary, theme.primaryDark]}
+                colors={[theme.primary, theme.secundary]}
                 style={styles.header}
             >
                 <TouchableOpacity
@@ -684,7 +684,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     },
     input: {
         borderWidth: 1,
-        borderColor: theme.border,
+        borderColor: theme.secundaryText,
         borderRadius: 8,
         paddingHorizontal: 12,
         paddingVertical: 12,
@@ -715,7 +715,7 @@ const getStyles = (theme: any) => StyleSheet.create({
         paddingVertical: 16,
         backgroundColor: theme.background,
         borderTopWidth: 1,
-        borderTopColor: theme.border,
+        borderTopColor: theme.secundaryText,
     },
     button: {
         flex: 1,
@@ -727,7 +727,7 @@ const getStyles = (theme: any) => StyleSheet.create({
     cancelButton: {
         backgroundColor: 'transparent',
         borderWidth: 1,
-        borderColor: theme.border,
+        borderColor: theme.secundaryText,
     },
     cancelButtonText: {
         fontSize: 16,
@@ -784,7 +784,7 @@ const getStyles = (theme: any) => StyleSheet.create({
         padding: 12,
         marginBottom: 8,
         borderWidth: 1,
-        borderColor: theme.border,
+        borderColor: theme.secundaryText,
     },
     reminderHeader: {
         flexDirection: 'row',

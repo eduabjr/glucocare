@@ -156,9 +156,34 @@ class NotificationService {
 
   // Formatar caminho do arquivo para exibição amigável
   formatFilePath(filePath: string): string {
-    // Remove o prefixo do FileSystem.documentDirectory para mostrar caminho mais amigável
-    const friendlyPath = filePath.replace(FileSystem.documentDirectory || '', '');
-    return friendlyPath || filePath;
+    try {
+      // Remove caminhos comuns do sistema para mostrar caminho mais amigável
+      const commonPaths = [
+        '/storage/emulated/0/Android/data/com.expo.modules.expoview/files/',
+        '/var/mobile/Containers/Data/Application/',
+        '/Users/',
+        'file://'
+      ];
+      
+      let friendlyPath = filePath;
+      for (const commonPath of commonPaths) {
+        if (friendlyPath.includes(commonPath)) {
+          friendlyPath = friendlyPath.replace(commonPath, '');
+          break;
+        }
+      }
+      
+      // Se o caminho ainda é muito longo, mostra apenas o nome do arquivo
+      if (friendlyPath.length > 50) {
+        const fileName = friendlyPath.split('/').pop() || friendlyPath;
+        return `.../${fileName}`;
+      }
+      
+      return friendlyPath || filePath;
+    } catch (error) {
+      console.warn('Erro ao formatar caminho do arquivo:', error);
+      return filePath;
+    }
   }
 }
 

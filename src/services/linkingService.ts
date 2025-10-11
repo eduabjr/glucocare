@@ -3,6 +3,7 @@ import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
 import { GlucoseReading } from './bluetoothService';
 import { parseFileContent } from './fileParsingService';
+import { useAuth } from '../context/AuthContext';
 
 export interface FileLinkingResult {
   success: boolean;
@@ -73,7 +74,7 @@ class LinkingService {
     return filePath ? decodeURIComponent(filePath) : null;
   }
 
-  public async processFileFromDeepLink(filePath: string): Promise<FileLinkingResult> {
+  public async processFileFromDeepLink(filePath: string, userId?: string): Promise<FileLinkingResult> {
     try {
       console.log('📁 Processando arquivo do deep link:', filePath);
 
@@ -88,14 +89,14 @@ class LinkingService {
 
       // Lê o conteúdo do arquivo
       const content = await FileSystem.readAsStringAsync(filePath, {
-        encoding: FileSystem.EncodingType.UTF8,
+        encoding: 'utf8',
       });
 
       // Extrai o nome do arquivo
       const fileName = filePath.split('/').pop() || 'arquivo_importado';
 
       // Processa o conteúdo baseado na extensão
-      const readings = await parseFileContent(content, fileName);
+      const readings = await parseFileContent(content, fileName, userId || 'temp-user');
 
       if (readings.length === 0) {
         return {
@@ -107,9 +108,19 @@ class LinkingService {
 
       console.log(`✅ ${readings.length} leituras processadas do arquivo: ${fileName}`);
 
+      // Converte Reading[] para GlucoseReading[]
+      const glucoseReadings: GlucoseReading[] = readings.map((reading, index) => ({
+        id: reading.id || `reading-${index}`,
+        timestamp: new Date(reading.measurement_time || reading.timestamp),
+        value: reading.glucose_level,
+        mealContext: reading.meal_context as 'jejum' | 'pre-refeicao' | 'pos-refeicao' | 'antes-dormir' | 'madrugada' | undefined,
+        notes: reading.notes || undefined,
+        deviceName: 'imported-file'
+      }));
+
       return {
         success: true,
-        readings,
+        readings: glucoseReadings,
         fileName
       };
 
@@ -122,7 +133,7 @@ class LinkingService {
     }
   }
 
-  public async processSharedFile(): Promise<FileLinkingResult> {
+  public async processSharedFile(userId?: string): Promise<FileLinkingResult> {
     try {
       // Usa o DocumentPicker para pegar o arquivo compartilhado
       const result = await DocumentPicker.getDocumentAsync({
@@ -139,10 +150,10 @@ class LinkingService {
 
       const file = result.assets[0];
       const content = await FileSystem.readAsStringAsync(file.uri, {
-        encoding: FileSystem.EncodingType.UTF8,
+        encoding: 'utf8',
       });
 
-      const readings = await parseFileContent(content, file.name || 'arquivo_importado');
+      const readings = await parseFileContent(content, file.name || 'arquivo_importado', userId || 'temp-user');
 
       if (readings.length === 0) {
         return {
@@ -152,9 +163,19 @@ class LinkingService {
         };
       }
 
+      // Converte Reading[] para GlucoseReading[]
+      const glucoseReadings: GlucoseReading[] = readings.map((reading, index) => ({
+        id: reading.id || `reading-${index}`,
+        timestamp: new Date(reading.measurement_time || reading.timestamp),
+        value: reading.glucose_level,
+        mealContext: reading.meal_context as 'jejum' | 'pre-refeicao' | 'pos-refeicao' | 'antes-dormir' | 'madrugada' | undefined,
+        notes: reading.notes || undefined,
+        deviceName: 'imported-file'
+      }));
+
       return {
         success: true,
-        readings,
+        readings: glucoseReadings,
         fileName: file.name || 'arquivo_importado'
       };
 
@@ -168,7 +189,7 @@ class LinkingService {
   }
 
   public cleanup() {
-    Linking.removeAllListeners('url');
+    // Expo-linking não tem removeAllListeners, então apenas marca como não inicializado
     this.isInitialized = false;
   }
 }

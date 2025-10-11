@@ -168,20 +168,6 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "compileSdkVersion": 35,
-            "targetSdkVersion": 34,
-            "minSdkVersion": 24,
-            "buildToolsVersion": "35.0.0"
-          },
-          "ios": {
-            "deploymentTarget": "15.1"
-          }
-        }
-      ],
       "expo-local-authentication",
       "expo-font",
       "expo-secure-store",
