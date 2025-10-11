@@ -1,11 +1,16 @@
 import * as SQLite from 'expo-sqlite';
 // Importa as instâncias e funções do Firebase/Firestore
 
-
+// Tipos de compatibilidade para SQLite
+type SQLiteDatabase = any;
 
 // --- NOME DO BANCO ---
 const DB_NAME = 'glucocare.db';
+<<<<<<< HEAD
 let dbInstance: any | null = null; 
+=======
+let dbInstance: SQLiteDatabase | null = null; 
+>>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
 
 // ----------------------
 // TIPAGEM (Fonte Única da Verdade)
@@ -50,9 +55,16 @@ export interface Reading {
 // FUNÇÕES DE SERVIÇO BÁSICAS (SQLite)
 // ----------------------
 
+<<<<<<< HEAD
 export function getDB(): any {
     if (!dbInstance) {
         dbInstance = SQLite.openDatabaseSync(DB_NAME);
+=======
+export function getDB(): SQLiteDatabase {
+    if (!dbInstance) {
+        // Versões mais recentes do expo-sqlite usam openDatabaseSync
+        dbInstance = (SQLite as any).openDatabaseSync ? (SQLite as any).openDatabaseSync(DB_NAME) : (SQLite as any).openDatabase(DB_NAME);
+>>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
     }
     return dbInstance;
 }

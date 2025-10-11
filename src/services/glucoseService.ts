@@ -1,7 +1,12 @@
 import 'react-native-get-random-values'; // CORREÇÃO: Adicionada para suportar uuidv4
 import { getDB, initDB } from './dbService';
 import { v4 as uuidv4 } from 'uuid';
-import * as SQLite from 'expo-sqlite';  // Corrigido para importar corretamente
+import * as SQLite from 'expo-sqlite';
+
+// Tipos de compatibilidade
+type SQLTransaction = any;
+type SQLError = any;
+type SQLResultSetRowList = any;  // Corrigido para importar corretamente
 
 // Tipo para a leitura de glicemia
 interface GlucoseReading {
@@ -47,12 +52,21 @@ export async function createReading({
     const level = validateGlucoseValue(glucose_level);
 
     return new Promise((resolve, reject) => {
+<<<<<<< HEAD
       db.transaction((tx: any) => {
         tx.executeSql(
           `INSERT INTO readings (id, measurement_time, glucose_level, meal_context, time_since_meal, notes) VALUES (?, ?, ?, ?, ?, ?);`,
           [id, normalizedTime, level, meal_context, time_since_meal, notes],
           (_, _result) => resolve({ id, measurement_time: normalizedTime, glucose_level: level, meal_context, time_since_meal, notes }),
           (_, error: any) => {
+=======
+      db.transaction((tx: SQLTransaction) => {  // Usando o tipo correto SQLTransaction
+        tx.executeSql(
+          `INSERT INTO readings (id, measurement_time, glucose_level, meal_context, time_since_meal, notes) VALUES (?, ?, ?, ?, ?, ?);`,
+          [id, normalizedTime, level, meal_context, time_since_meal, notes],
+          (_, _result) => resolve({ id, measurement_time: normalizedTime, glucose_level: level, meal_context, time_since_meal, notes }), // Garantir que todas as propriedades sejam passadas
+          (_, error: SQLError) => {
+>>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
             console.error('createReading - sql error:', error);
             reject(error);
             return true;
@@ -82,12 +96,21 @@ export async function listReadings(): Promise<GlucoseReading[]> {
   await initDB();
   const db = getDB();
   return new Promise((resolve, reject) => {
+<<<<<<< HEAD
     db.transaction((tx: any) => {
       tx.executeSql(
         'SELECT * FROM readings ORDER BY measurement_time DESC;',
         [],
         (_, { rows }: any) => resolve(rows._array),
         (_, error: any) => {
+=======
+    db.transaction((tx: SQLTransaction) => {  // Usando o tipo correto SQLTransaction
+      tx.executeSql(
+        'SELECT * FROM readings ORDER BY measurement_time DESC;',
+        [],
+        (_, { rows }: { rows: SQLResultSetRowList }) => resolve(rows._array),  // Tipagem de rows
+        (_, error: SQLError) => {
+>>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
           console.error('listReadings - sql error:', error);
           reject(error);
           return true;

@@ -1,10 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged, User, signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential, signOut, reload } from 'firebase/auth';
-import { auth, db } from '../config/firebase'; // ✨ ADICIONADO: Importar 'db' do Firebase
+import { auth, db, waitForFirebase } from '../config/firebase-config'; // ✨ ADICIONADO: Importar configuração atualizada
 import { doc, getDoc, setDoc } from 'firebase/firestore'; // ✨ ADICIONADO: Funções do Firestore
 import { initDB } from '../services/dbService'; // ✨ ADICIONADO: Importar initDB
 import AsyncStorage from '@react-native-async-storage/async-storage'; // ✅ NOVO: Para persistir estado
+<<<<<<< HEAD
 import * as SecureStore from 'expo-secure-store'; // ✅ NOVO: Para armazenamento seguro
+=======
+import * as SecureStore from 'expo-secure-store'; // ✅ CORREÇÃO: Importar SecureStore
+>>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
 
 // A sua interface de perfil de utilizador detalhada
 export interface UserProfile {
@@ -51,6 +55,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Initialize database on app start
         const initializeApp = async () => {
             try {
+                // Aguardar Firebase estar pronto
+                await waitForFirebase();
+                
                 await initDB();
                 console.log('Database initialized successfully');
                 
@@ -78,148 +85,157 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         initializeApp();
         
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
-            try {
-                if (firebaseUser) {
-                    console.log('🔥 Firebase User autenticado:', firebaseUser.uid);
-                    
-                    // ✨ ATUALIZAÇÃO: Lógica para carregar ou criar o perfil no Firestore
-                    const userRef = doc(db, 'users', firebaseUser.uid);
-                    
-                    try {
-                        const userDoc = await getDoc(userRef);
-                        console.log('📄 Documento do usuário existe:', userDoc.exists());
+        // Aguardar Firebase estar pronto antes de configurar o listener
+        waitForFirebase().then(() => {
+            const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
+                try {
+                    if (firebaseUser) {
+                        console.log('🔥 Firebase User autenticado:', firebaseUser.uid);
+                        
+                        // ✨ ATUALIZAÇÃO: Lógica para carregar ou criar o perfil no Firestore
+                        const userRef = doc(db, 'users', firebaseUser.uid);
+                        
+                        try {
+                            const userDoc = await getDoc(userRef);
+                            console.log('📄 Documento do usuário existe:', userDoc.exists());
 
-                        if (userDoc.exists()) {
-                            // Se o utilizador já existe na base de dados, carrega o perfil completo
-                            const userData = userDoc.data();
-                            console.log('👤 Dados do usuário carregados:', userData);
-                            
-                            // ✅ NOVO: Marca que existe conta cadastrada e salva no AsyncStorage
-                            setHasExistingAccount(true);
-                            await AsyncStorage.setItem('hasExistingAccount', JSON.stringify(true));
-                            console.log('💾 Estado de conta existente salvo: true');
-                            
-                            // ✅ CORREÇÃO: Verifica se o usuário tem dados para considerar onboarding completo
-                            const hasBasicInfo = userData?.['full_name'] || userData?.['name'];
-                            const hasMedicalInfo = userData?.['diabetes_condition'] || userData?.['condition'];
-                            const hasPhysicalInfo = userData?.['weight'] && userData?.['height'];
-                            const explicitOnboardingFlag = userData?.['onboarding_completed'];
-                            
-                            // ✅ NOVA LÓGICA CORRIGIDA: Para usuários existentes, assume onboarding completo
-                            // a menos que explicitamente marcado como false
-                            // ✅ CORREÇÃO: Só considera onboarding completo se flag explícita for true
-                            const isOnboardingComplete = explicitOnboardingFlag === true;
-                            
-                            console.log('🔍 Debug do onboarding:', {
-                                explicitOnboardingFlag,
-                                hasBasicInfo,
-                                hasMedicalInfo,
-                                hasPhysicalInfo,
-                                isOnboardingComplete,
-                                userDataKeys: Object.keys(userData || {}),
-                                userData: userData
-                            });
-                            
-                            const userProfile: UserProfile = { 
-                                id: firebaseUser.uid, 
-                                emailVerified: firebaseUser.emailVerified,
-                                name: userData?.['full_name'] || userData?.['name'] || 'Utilizador',
-                                email: userData?.['email'] || firebaseUser.email || '',
-                                googleId: userData?.['google_id'] || userData?.['googleId'] || '',
-                                onboardingCompleted: isOnboardingComplete,
-                                biometricEnabled: userData?.['biometric_enabled'] || userData?.['biometricEnabled'] || false,
-                                weight: userData?.['weight'] || null,
-                                height: userData?.['height'] || null,
-                                birthDate: userData?.['birth_date'] || userData?.['birthDate'] || '',
-                                condition: userData?.['diabetes_condition'] || userData?.['condition'] || '',
-                                restriction: userData?.['restriction'] || '',
-                                glycemicGoals: userData?.['glycemic_goals'] || '',
-                            };
-                            
-                            console.log('📋 Status do onboarding:', {
-                                hasBasicInfo,
-                                hasMedicalInfo,
-                                hasPhysicalInfo,
-                                explicitOnboardingFlag,
-                                isOnboardingComplete,
-                                userDataKeys: Object.keys(userData || {}),
-                                userData: userData
-                            });
-                            
-                            // ✅ CORREÇÃO: Não força onboarding completo automaticamente
-                            // Deixa o usuário decidir quando completar o onboarding
-                            console.log('📋 Status do onboarding:', {
-                                hasBasicInfo,
-                                hasMedicalInfo,
-                                hasPhysicalInfo,
-                                explicitOnboardingFlag,
-                                isOnboardingComplete,
-                                userDataKeys: Object.keys(userData || {}),
-                                userData: userData
-                            });
-                            
-                            console.log('🔐 Status da biometria:', userProfile.biometricEnabled);
-                            setUser(userProfile);
-                        } else {
-                            console.log('🆕 Criando novo perfil para usuário');
-                            // ✅ NOVO: Marca que NÃO existe conta cadastrada (primeira vez) e salva no AsyncStorage
-                            setHasExistingAccount(false);
-                            await AsyncStorage.setItem('hasExistingAccount', JSON.stringify(false));
-                            console.log('💾 Estado de conta existente salvo: false');
-                            
-                            // Se for um novo utilizador (ex: primeiro login com Google), cria um perfil básico
-                            const googleId = firebaseUser.providerData.find(p => p.providerId === 'google.com')?.uid;
-                            const newUserProfile: UserProfile = {
+                            if (userDoc.exists()) {
+                                // Se o utilizador já existe na base de dados, carrega o perfil completo
+                                const userData = userDoc.data();
+                                console.log('👤 Dados do usuário carregados:', userData);
+                                
+                                // ✅ NOVO: Marca que existe conta cadastrada e salva no AsyncStorage
+                                setHasExistingAccount(true);
+                                await AsyncStorage.setItem('hasExistingAccount', JSON.stringify(true));
+                                console.log('💾 Estado de conta existente salvo: true');
+                                
+                                // ✅ CORREÇÃO: Verifica se o usuário tem dados para considerar onboarding completo
+                                const hasBasicInfo = userData?.['full_name'] || userData?.['name'];
+                                const hasMedicalInfo = userData?.['diabetes_condition'] || userData?.['condition'];
+                                const hasPhysicalInfo = userData?.['weight'] && userData?.['height'];
+                                const explicitOnboardingFlag = userData?.['onboarding_completed'];
+                                
+                                // ✅ NOVA LÓGICA CORRIGIDA: Para usuários existentes, assume onboarding completo
+                                // a menos que explicitamente marcado como false
+                                // ✅ CORREÇÃO: Só considera onboarding completo se flag explícita for true
+                                const isOnboardingComplete = explicitOnboardingFlag === true;
+                                
+                                console.log('🔍 Debug do onboarding:', {
+                                    explicitOnboardingFlag,
+                                    hasBasicInfo,
+                                    hasMedicalInfo,
+                                    hasPhysicalInfo,
+                                    isOnboardingComplete,
+                                    userDataKeys: Object.keys(userData || {}),
+                                    userData: userData
+                                });
+                                
+                                const userProfile: UserProfile = { 
+                                    id: firebaseUser.uid, 
+                                    emailVerified: firebaseUser.emailVerified,
+                                    name: userData?.['full_name'] || userData?.['name'] || 'Utilizador',
+                                    email: userData?.['email'] || firebaseUser.email || '',
+                                    googleId: userData?.['google_id'] || userData?.['googleId'] || '',
+                                    onboardingCompleted: isOnboardingComplete,
+                                    biometricEnabled: userData?.['biometric_enabled'] || userData?.['biometricEnabled'] || false,
+                                    weight: userData?.['weight'] || null,
+                                    height: userData?.['height'] || null,
+                                    birthDate: userData?.['birth_date'] || userData?.['birthDate'] || '',
+                                    condition: userData?.['diabetes_condition'] || userData?.['condition'] || '',
+                                    restriction: userData?.['restriction'] || '',
+                                    glycemicGoals: userData?.['glycemic_goals'] || '',
+                                };
+                                
+                                console.log('📋 Status do onboarding:', {
+                                    hasBasicInfo,
+                                    hasMedicalInfo,
+                                    hasPhysicalInfo,
+                                    explicitOnboardingFlag,
+                                    isOnboardingComplete,
+                                    userDataKeys: Object.keys(userData || {}),
+                                    userData: userData
+                                });
+                                
+                                // ✅ CORREÇÃO: Não força onboarding completo automaticamente
+                                // Deixa o usuário decidir quando completar o onboarding
+                                console.log('📋 Status do onboarding:', {
+                                    hasBasicInfo,
+                                    hasMedicalInfo,
+                                    hasPhysicalInfo,
+                                    explicitOnboardingFlag,
+                                    isOnboardingComplete,
+                                    userDataKeys: Object.keys(userData || {}),
+                                    userData: userData
+                                });
+                                
+                                console.log('🔐 Status da biometria:', userProfile.biometricEnabled);
+                                setUser(userProfile);
+                            } else {
+                                console.log('🆕 Criando novo perfil para usuário');
+                                // ✅ NOVO: Marca que NÃO existe conta cadastrada (primeira vez) e salva no AsyncStorage
+                                setHasExistingAccount(false);
+                                await AsyncStorage.setItem('hasExistingAccount', JSON.stringify(false));
+                                console.log('💾 Estado de conta existente salvo: false');
+                                
+                                // Se for um novo utilizador (ex: primeiro login com Google), cria um perfil básico
+                                const googleId = firebaseUser.providerData.find(p => p.providerId === 'google.com')?.uid;
+                                const newUserProfile: UserProfile = {
+                                    id: firebaseUser.uid,
+                                    name: firebaseUser.displayName || 'Utilizador',
+                                    email: firebaseUser.email || '',
+                                    emailVerified: firebaseUser.emailVerified,
+                                    onboardingCompleted: false, // O fluxo de onboarding irá atualizar isto
+                                    biometricEnabled: false,
+                                };
+                                if (googleId) {
+                                    newUserProfile.googleId = googleId;
+                                }
+                                // ✅ CORREÇÃO: Salva este novo perfil na base de dados com campos corretos
+                                const firestoreProfile = {
+                                    ...newUserProfile,
+                                    full_name: newUserProfile.name,
+                                    created_at: new Date().toISOString(),
+                                    provider: 'google',
+                                    email_verified: newUserProfile.emailVerified
+                                };
+                                await setDoc(userRef, firestoreProfile);
+                                console.log('💾 Novo perfil salvo no Firestore');
+                                setUser(newUserProfile);
+                            }
+                        } catch (firestoreError) {
+                            console.error('❌ Erro ao acessar Firestore:', firestoreError);
+                            // Fallback: cria perfil básico sem Firestore
+                            const fallbackProfile: UserProfile = {
                                 id: firebaseUser.uid,
                                 name: firebaseUser.displayName || 'Utilizador',
                                 email: firebaseUser.email || '',
                                 emailVerified: firebaseUser.emailVerified,
-                                onboardingCompleted: false, // O fluxo de onboarding irá atualizar isto
+                                onboardingCompleted: false,
                                 biometricEnabled: false,
                             };
-                            if (googleId) {
-                                newUserProfile.googleId = googleId;
-                            }
-                            // ✅ CORREÇÃO: Salva este novo perfil na base de dados com campos corretos
-                            const firestoreProfile = {
-                                ...newUserProfile,
-                                full_name: newUserProfile.name,
-                                created_at: new Date().toISOString(),
-                                provider: 'google',
-                                email_verified: newUserProfile.emailVerified
-                            };
-                            await setDoc(userRef, firestoreProfile);
-                            console.log('💾 Novo perfil salvo no Firestore');
-                            setUser(newUserProfile);
+                            setUser(fallbackProfile);
                         }
-                    } catch (firestoreError) {
-                        console.error('❌ Erro ao acessar Firestore:', firestoreError);
-                        // Fallback: cria perfil básico sem Firestore
-                        const fallbackProfile: UserProfile = {
-                            id: firebaseUser.uid,
-                            name: firebaseUser.displayName || 'Utilizador',
-                            email: firebaseUser.email || '',
-                            emailVerified: firebaseUser.emailVerified,
-                            onboardingCompleted: false,
-                            biometricEnabled: false,
-                        };
-                        setUser(fallbackProfile);
+                    } else {
+                        console.log('🚪 Usuário não autenticado');
+                        setUser(null);
+                        // ✅ CORREÇÃO: NÃO resetar hasExistingAccount no logout
+                        // O estado deve persistir para controlar a visibilidade do botão Google
                     }
-                } else {
-                    console.log('🚪 Usuário não autenticado');
+                } catch (error) {
+                    console.error('❌ Erro geral no AuthContext:', error);
                     setUser(null);
-                    // ✅ CORREÇÃO: NÃO resetar hasExistingAccount no logout
-                    // O estado deve persistir para controlar a visibilidade do botão Google
+                } finally {
+                    setIsLoading(false);
                 }
-            } catch (error) {
-                console.error('❌ Erro geral no AuthContext:', error);
-                setUser(null);
-            } finally {
-                setIsLoading(false);
-            }
+            });
+        }).catch((error) => {
+            console.error('❌ Erro ao aguardar Firebase:', error);
+            setIsLoading(false);
         });
-        return () => unsubscribe();
+        
+        return () => {
+            // Cleanup function
+        };
     }, []);
 
     const signInWithGoogle = async (idToken: string) => {

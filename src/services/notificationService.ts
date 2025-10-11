@@ -156,6 +156,7 @@ class NotificationService {
 
   // Formatar caminho do arquivo para exibição amigável
   formatFilePath(filePath: string): string {
+<<<<<<< HEAD
     try {
       // Remove caminhos comuns do sistema para mostrar caminho mais amigável
       const commonPaths = [
@@ -182,6 +183,15 @@ class NotificationService {
       return friendlyPath || filePath;
     } catch (error) {
       console.warn('Erro ao formatar caminho do arquivo:', error);
+=======
+    // Remove o prefixo do diretório de documentos para mostrar caminho mais amigável
+    try {
+      // Em versões mais recentes do expo-file-system, use FileSystem.documentDirectory se existir
+      const docDir = (FileSystem as any).documentDirectory || '';
+      const friendlyPath = filePath.replace(docDir, '');
+      return friendlyPath || filePath;
+    } catch (error) {
+>>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
       return filePath;
     }
   }

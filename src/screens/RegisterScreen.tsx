@@ -359,7 +359,11 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
                     keyboardShouldPersistTaps="handled"
                 >
                     <AntDesign
+<<<<<<< HEAD
                         name="user-add"
+=======
+                        name="user"
+>>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
                         size={52}
                         color={theme.primary}
                         style={{ alignSelf: 'center', marginBottom: 12 }}

@@ -106,9 +106,16 @@ const GlucoseStatusIndicator = ({
   }
 
   return (
-    <View style={[styles.statusIndicator, { backgroundColor: statusBg }]}>
-      <Text style={[styles.statusIcon]}>{statusIcon}</Text>
-      <Text style={[styles.statusText, { color: statusColor }]}>
+    <View style={{
+      padding: 12,
+      borderRadius: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginVertical: 8,
+      backgroundColor: statusBg
+    }}>
+      <Text style={{ fontSize: 20, marginRight: 8 }}>{statusIcon}</Text>
+      <Text style={{ fontSize: 14, fontWeight: '500', color: statusColor }}>
         Status: {status} ({glucoseValue} mg/dL)
       </Text>
     </View>

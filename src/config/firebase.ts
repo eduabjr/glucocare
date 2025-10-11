@@ -29,14 +29,31 @@ const firebaseConfig: FirebaseOptions = {
 };
 
 // 3. Inicializa o aplicativo Firebase
-const app = initializeApp(firebaseConfig);
+let app;
+let auth;
+let db;
 
-// 4. Obtém o serviço de Autenticação
-export const auth: Auth = getAuth(app);
+try {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+  console.log('🔥 Firebase inicializado com sucesso');
+} catch (error) {
+  console.error('❌ Erro ao inicializar Firebase:', error);
+}
 
-// ✅ NOVO: 5. Obtém e exporta o objeto do Cloud Firestore
-// O objeto 'db' está pronto para ser importado em dbService.ts ou RegisterScreen.tsx
-export const db: Firestore = getFirestore(app);
+// 4. Exporta os serviços
+export { auth, db };
+
+// Função para verificar se o Firebase está inicializado
+export const isFirebaseInitialized = () => {
+  try {
+    return app !== null && auth !== null && db !== null;
+  } catch (error) {
+    console.error('Firebase initialization error:', error);
+    return false;
+  }
+};
 
 // Se precisar do objeto app em outro lugar
 export default app;

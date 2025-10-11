@@ -34,7 +34,11 @@ export function useGoogleAuth(): UseGoogleAuthReturn {
     // Configuração da requisição de autenticação do Google
     const [request, response, promptAsync] = Google.useAuthRequest({
         // ======================= CORREÇÃO PRINCIPAL =======================
+<<<<<<< HEAD
         // Usa clientId para o Expo Client ID conforme sugerido pelo TypeScript
+=======
+        // Os nomes das chaves agora correspondem exatamente ao que está no app.json
+>>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
         clientId: Constants.expoConfig?.extra?.['expoClientId'],
         iosClientId: Constants.expoConfig?.extra?.['iosClientId'],
         androidClientId: Constants.expoConfig?.extra?.['androidClientId'],

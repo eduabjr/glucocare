@@ -138,9 +138,15 @@ const ChartsScreen: React.FC = () => {
 
   const chartData = useMemo(() => {
     return filteredReadings.map((r: Reading) => {
+<<<<<<< HEAD
       const timestamp = r.measurement_time || new Date(r.timestamp).toISOString();
       const period = getPeriodFromTime(timestamp);
       const idealRange = getIdealRangeForPeriod(timestamp);
+=======
+      const timeValue = (r.measurement_time || r.timestamp).toString();
+      const period = getPeriodFromTime(timeValue);
+      const idealRange = getIdealRangeForPeriod(timeValue);
+>>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
       const isInIdealRange = r.glucose_level >= idealRange.min && r.glucose_level <= idealRange.max;
       
       return {
@@ -156,6 +162,7 @@ const ChartsScreen: React.FC = () => {
           isInIdealRange ? '#10B981' : '#EF4444', // Verde se dentro da faixa ideal, vermelho se fora
         dataPointShape:
           (showHighestGlucose && r.id === glucoseStats.highest?.id) ||
+<<<<<<< HEAD
         (showLowestGlucose && r.id === glucoseStats.lowest?.id)
         ? 'diamond'
         : 'circular',
@@ -164,6 +171,16 @@ const ChartsScreen: React.FC = () => {
         (showLowestGlucose && r.id === glucoseStats.lowest?.id)
         ? 8
         : 5,
+=======
+          (showLowestGlucose && r.id === glucoseStats.lowest?.id)
+            ? 'diamond'
+            : 'circular',
+        dataPointRadius:
+          (showHighestGlucose && r.id === glucoseStats.highest?.id) ||
+          (showLowestGlucose && r.id === glucoseStats.lowest?.id)
+            ? 8
+            : 5,
+>>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
       };
     });
   }, [filteredReadings, glucoseStats, showHighestGlucose, showLowestGlucose, user?.glycemicGoals, user?.condition]);
@@ -204,9 +221,15 @@ const ChartsScreen: React.FC = () => {
         <Text style={styles.pageTitle}>Gráfico de Glicose</Text>
         <View style={styles.tooltipContainer}>
           {focusedDataPoint ? (() => {
+<<<<<<< HEAD
             const timestamp = focusedDataPoint.measurement_time || new Date(focusedDataPoint.timestamp).toISOString();
             const period = getPeriodFromTime(timestamp);
             const idealRange = getIdealRangeForPeriod(timestamp);
+=======
+            const timeValue = (focusedDataPoint.measurement_time || focusedDataPoint.timestamp).toString();
+            const period = getPeriodFromTime(timeValue);
+            const idealRange = getIdealRangeForPeriod(timeValue);
+>>>>>>> 2eab2aa8527fe58ddf195b904f8e4f2f28cb5f09
             const isInIdealRange = focusedDataPoint.glucose_level >= idealRange.min && focusedDataPoint.glucose_level <= idealRange.max;
             const periodNames = {
               preMeal: 'Pré-refeição',
