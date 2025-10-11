@@ -6,20 +6,34 @@
 
 ## Sumário
 
+### 🚀 **CONFIGURAÇÃO E INSTALAÇÃO**
+- [Guia de Configuração Completo - Ordem Correta](#-guia-de-configuração-completo---ordem-correta)
+- [Instrução de Instalação](#instrução-de-instalação)
+- [Configuração do Google Login (Expo Go)](#configuração-do-google-login-expo-go)
+- [Configuração da Tela de Consentimento OAuth](#-configuração-da-tela-de-consentimento-oauth-branding)
+- [Configuração do Firebase - Passo a Passo Completo](#configuração-do-firebase---passo-a-passo-completo)
+
+### 📱 **SOBRE O PROJETO**
 - [Sobre](#sobre)
 - [Objetivos do Projeto](#objetivos-do-projeto)
 - [Membros do Grupo](#membros-do-grupo)
 - [Começando](#começando)
+
+### 🛠️ **TECNOLOGIAS E ARQUITETURA**
 - [Tecnologias Empregadas](#tecnologias-empregadas)
 - [Modelagem do Banco de Dados](#modelagem-do-banco-de-dados)
 - [Collections e Estrutura](#collections-e-estrutura)
+
+### 📖 **GUIA DE USO**
 - [Instrução de Uso](#instrução-de-uso)
 - [Pré-requisitos](#pré-requisitos)
-- [Instrução de Instalação](#instrução-de-instalação)
-- [Configuração do Firebase](#configuração-do-firebase)
-- [Comandos e Scripts](#comandos-e-scripts)
 - [Roteiro de Testes da Aplicação](#roteiro-de-testes-da-aplicação)
+
+### ⚙️ **DESENVOLVIMENTO**
+- [Comandos e Scripts](#comandos-e-scripts)
 - [Build e Deploy](#build-e-deploy)
+
+### 📞 **SUPORTE E LICENÇA**
 - [Suporte](#suporte)
 - [Licença](#licença)
 - [Referência](#referência)
@@ -791,6 +805,141 @@ SettingsScreen → ProfileEditScreen / GlycemicGoalScreen / DeviceConnectionScre
 - **React**: Conceitos fundamentais
 - **Terminal/CMD**: Comandos básicos
 - **Git**: Conceitos básicos
+
+## 🚀 **GUIA DE CONFIGURAÇÃO COMPLETO - ORDEM CORRETA**
+
+### 📋 **SEQUÊNCIA DE PASSOS OBRIGATÓRIOS**
+
+Para configurar o projeto GlucoCare completamente, siga **EXATAMENTE** esta ordem:
+
+| # | Passo | Seção | Tempo Estimado |
+|---|-------|--------|----------------|
+| **1** | **Preparar Ambiente** | [Instrução de Instalação](#instrução-de-instalação) | 15 min |
+| **2** | **Clonar Repositório** | [Instrução de Instalação](#instrução-de-instalação) | 5 min |
+| **3** | **Instalar Dependências** | [Instrução de Instalação](#instrução-de-instalação) | 10 min |
+| **4** | **Configurar Firebase** | [Configuração do Firebase](#configuração-do-firebase---passo-a-passo-completo) | 30 min |
+| **5** | **Configurar Google Cloud Console** | [Configuração do Google Login](#configuração-do-google-login-expo-go) | 20 min |
+| **6** | **Configurar Tela de Consentimento** | [Configuração da Tela de Consentimento](#-configuração-da-tela-de-consentimento-oauth-branding) | 10 min |
+| **7** | **Testar Aplicação** | [Roteiro de Testes](#roteiro-de-testes-da-aplicação) | 15 min |
+
+### ⚠️ **IMPORTANTE: ORDEM OBRIGATÓRIA**
+
+**❌ NÃO PULE NENHUM PASSO** - Cada passo depende do anterior:
+- **Passo 4** (Firebase) deve ser feito **ANTES** do Passo 5 (Google Cloud)
+- **Passo 5** (Google Cloud) deve ser feito **ANTES** do Passo 6 (Consentimento)
+- **Passo 6** (Consentimento) deve ser feito **ANTES** do Passo 7 (Testes)
+
+### 🎯 **RESULTADO ESPERADO**
+
+Após seguir todos os passos, você terá:
+- ✅ **Aplicação funcionando** no Expo Go
+- ✅ **Google Login funcionando** perfeitamente
+- ✅ **Firebase configurado** e sincronizando dados
+- ✅ **Tela de consentimento** personalizada
+- ✅ **Todas as funcionalidades** testadas
+
+### 📋 **CHECKLIST GERAL DE CONFIGURAÇÃO**
+
+Use esta lista para verificar se todos os passos foram concluídos:
+
+#### **✅ FASE 1: PREPARAÇÃO (30 min)**
+- [ ] **Passo 1:** Node.js instalado e funcionando
+- [ ] **Passo 2:** Repositório clonado com sucesso
+- [ ] **Passo 3:** Dependências instaladas sem erros
+- [ ] **Verificação:** `npm start` executa sem erros
+
+#### **✅ FASE 2: FIREBASE (30 min)**
+- [ ] **Passo 4.1:** Projeto Firebase criado (`glucocare-e68c8`)
+- [ ] **Passo 4.2:** Authentication configurado (Google + Email/Senha)
+- [ ] **Passo 4.3:** Firestore Database criado
+- [ ] **Passo 4.4:** Regras de segurança configuradas
+- [ ] **Passo 4.5:** App Android registrado
+- [ ] **Passo 4.6:** `google-services.json` baixado e colocado
+- [ ] **Passo 4.7:** App Web registrado
+- [ ] **Passo 4.8:** Chaves de configuração copiadas
+- [ ] **Passo 4.9:** Coleções do Firestore criadas
+
+#### **✅ FASE 3: GOOGLE CLOUD (20 min)**
+- [ ] **Passo 5.1:** Google Cloud Console acessado
+- [ ] **Passo 5.2:** OAuth 2.0 Client IDs criados
+- [ ] **Passo 5.3:** Web Client ID configurado (`360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com`)
+- [ ] **Passo 5.4:** Android Client ID configurado (`360317541807-19cbu2121eftbm4d9p50mk3okma4bhtj.apps.googleusercontent.com`)
+- [ ] **Passo 5.5:** URIs de redirecionamento adicionadas
+- [ ] **Passo 5.6:** Origens JavaScript autorizadas
+- [ ] **Passo 5.7:** Google People API ativada
+
+#### **✅ FASE 4: BRANDING (10 min)**
+- [ ] **Passo 6.1:** Nome do aplicativo configurado (`GlucoCare`)
+- [ ] **Passo 6.2:** Logotipo adicionado
+- [ ] **Passo 6.3:** Domínio do aplicativo configurado (`https://glucocare.com`)
+- [ ] **Passo 6.4:** Política de privacidade configurada
+- [ ] **Passo 6.5:** Termos de serviço configurados
+- [ ] **Passo 6.6:** Domínios autorizados adicionados (`expo.lo`, `glucocare.com`)
+- [ ] **Passo 6.7:** E-mail de suporte configurado
+- [ ] **Passo 6.8:** Dados de contato preenchidos
+
+#### **✅ FASE 5: TESTES (15 min)**
+- [ ] **Passo 7.1:** Expo iniciado na porta 8098
+- [ ] **Passo 7.2:** Google Login testado e funcionando
+- [ ] **Passo 7.3:** Firebase Authentication testado
+- [ ] **Passo 7.4:** Firestore Database testado
+- [ ] **Passo 7.5:** Adição de leituras testada
+- [ ] **Passo 7.6:** Sincronização testada
+
+### 🚨 **VERIFICAÇÕES FINAIS**
+
+Antes de considerar a configuração completa, verifique:
+
+#### **Código Funcionando**
+- [ ] `npx expo start --clear --port 8098` executa sem erros
+- [ ] App carrega no Expo Go sem crashes
+- [ ] Google Login abre e redireciona corretamente
+- [ ] Dados são salvos no Firebase após login
+
+#### **Configurações Corretas**
+- [ ] `androidClientId` em `authService.ts` usa o Web Client ID
+- [ ] `redirectUri` aponta para `@anonymous/glucocare`
+- [ ] `google-services.json` está em `android/app/`
+- [ ] Firebase config está correto em `firebase-config.ts`
+
+#### **Testes de Funcionalidade**
+- [ ] Login com Google funciona
+- [ ] Adicionar leitura funciona
+- [ ] Dados aparecem no Dashboard
+- [ ] Dados sincronizam com Firebase
+- [ ] App funciona offline
+
+### ⏱️ **TEMPO TOTAL ESTIMADO: 1h 45min**
+
+- **Preparação:** 30 minutos
+- **Firebase:** 30 minutos  
+- **Google Cloud:** 20 minutos
+- **Branding:** 10 minutos
+- **Testes:** 15 minutos
+
+### ⚡ **QUICK START (Para Desenvolvedores Experientes)**
+
+Se você já tem experiência com React Native/Expo, pode usar este resumo rápido:
+
+```bash
+# 1. Clonar e instalar
+git clone https://github.com/eduardofamilia01-hub/glucocare.git
+cd glucocare
+npm install --legacy-peer-deps
+npm install -g @expo/cli eas-cli
+
+# 2. Configurar Firebase (criar projeto, auth, firestore)
+# 3. Configurar Google Cloud Console (OAuth 2.0)
+# 4. Configurar Tela de Consentimento (branding)
+# 5. Testar aplicação
+
+# Iniciar aplicação
+npx expo start --clear --port 8098
+```
+
+**⚠️ IMPORTANTE:** Mesmo para usuários experientes, siga os passos detalhados para evitar problemas de configuração.
+
+---
 
 ## Instrução de Instalação
 
