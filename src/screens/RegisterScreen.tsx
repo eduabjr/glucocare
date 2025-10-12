@@ -125,8 +125,8 @@ const PasswordRequirements: React.FC<PasswordRequirementsProps> = ({ rules }) =>
 async function syncUserProfileToFirestore(uid: string, profile: any) {
     try {
         // ✅ CORREÇÃO: Verifica se Firestore está disponível (não é mock)
-        if (!db || typeof doc !== 'function' || typeof setDoc !== 'function') {
-            console.log("Firestore não disponível no Expo Go. Salvando apenas localmente.");
+        if (!db || typeof doc !== 'function' || typeof setDoc !== 'function' || __DEV__) {
+            console.log("Firestore não disponível no Development Build. Salvando apenas localmente.");
             return;
         }
 
@@ -245,9 +245,10 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
             setIsLoading(true);
 
             // ✅ CORREÇÃO: Verifica se Firebase Auth está disponível (não é mock)
-            if (!auth || typeof auth.createUserWithEmailAndPassword !== 'function') {
-                // ✅ EXPO GO: Cria usuário mock localmente
-                console.log('📱 Expo Go detectado - criando usuário mock');
+            // No Development Build, sempre usar mock para evitar erros de Firebase
+            if (!auth || typeof auth.createUserWithEmailAndPassword !== 'function' || __DEV__) {
+                // ✅ EXPO GO/DEVELOPMENT BUILD: Cria usuário mock localmente
+                console.log('📱 Development Build detectado - criando usuário mock');
                 
                 const mockUser = {
                     uid: 'mock_user_' + Date.now(),
@@ -272,8 +273,8 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
                     emailVerified: mockUser.emailVerified,
                 };
 
-                // 4. Sincroniza o perfil com o Firestore (se disponível)
-                await syncUserProfileToFirestore(mockUser.uid, profile);
+                // 4. Sincroniza o perfil com o Firestore (se disponível) - PULADO no mock
+                // await syncUserProfileToFirestore(mockUser.uid, profile); // Desabilitado para mock
 
                 // 5. Armazenamento Seguro (Apenas dados de login e perfil)
                 await SecureStore.setItemAsync('registered_email', email.trim());
@@ -299,7 +300,7 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
 
                 Alert.alert(
                     'Sucesso', 
-                    'Conta criada com sucesso no Expo Go! (Para Firebase completo, use build nativo)'
+                    'Conta criada com sucesso no Development Build! (Para Firebase completo, use build de produção)'
                 );
                 return; // Sai da função aqui para Expo Go
             }

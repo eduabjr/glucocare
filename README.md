@@ -30,6 +30,7 @@
 - [Roteiro de Testes da Aplicação](#roteiro-de-testes-da-aplicação)
 
 ### ⚙️ **DESENVOLVIMENTO**
+- [Development Build vs Production Build](#development-build-vs-production-build)
 - [Comandos e Scripts](#comandos-e-scripts)
 - [Build e Deploy](#build-e-deploy)
 
@@ -68,10 +69,17 @@ glucocare/
 ├── 📁 Documentação/              # Documentação do projeto
 │   ├── 📄 ai-setup.md            # Configuração de IA
 │   ├── 📄 bluetooth-implementation.md # Implementação Bluetooth
+│   ├── 📄 checklist-seguranca-oauth.md # Checklist segurança OAuth
+│   ├── 📄 configurar-fluxos-seguros-oauth.md # Configuração fluxos seguros
+│   ├── 📄 configurar-protecao-entre-contas.md # Proteção entre contas
+│   ├── 📄 eas-workflows.md       # Workflows EAS
 │   ├── 📄 firebase-firestore-setup.md # Setup Firebase
+│   ├── 📄 gemini-setup-guide.md  # Guia setup Gemini
 │   ├── 📄 google-oauth-setup.md  # Setup Google OAuth
 │   ├── 📄 oauth-consent-setup.md # Setup tela de consentimento
-│   └── 📄 relatorio-fluxo-navegacao.md # Relatório de navegação
+│   ├── 📄 oauth-security-best-practices.md # Melhores práticas OAuth
+│   ├── 📄 relatorio-fluxo-navegacao.md # Relatório de navegação
+│   └── 📄 sistema-alertas-glicemia.md # Sistema de alertas
 ├── 📁 src/                       # Código fonte principal
 │   ├── 📁 components/            # Componentes reutilizáveis
 │   │   ├── 📁 dashboard/         # Componentes do dashboard
@@ -146,7 +154,9 @@ glucocare/
 ├── 📄 babel.config.js            # Configuração Babel
 ├── 📄 commit.bat                 # Script de commit automático
 ├── 📄 eas.json                   # Configuração EAS Build
+├── 📄 easignore                  # Ignore patterns para EAS
 ├── 📄 eslint.config.js           # Configuração ESLint
+├── 📄 firestore-rules-corrected.rules # Regras Firestore corrigidas
 ├── 📄 index.js                   # Ponto de entrada
 ├── 📄 INSTRUÇÕES.md              # Instruções do projeto
 ├── 📄 LICENSE                    # Licença MIT
@@ -208,15 +218,51 @@ export default {
   expo: {
     name: "GlucoCare",
     slug: "glucocare",
+    version: "1.0.0",
+    orientation: "portrait",
+    userInterfaceStyle: "light",
+    icon: "./assets/icon.png",
+    splash: {
+      image: "./assets/splash.png",
+      resizeMode: "contain",
+      backgroundColor: "#ffffff"
+    },
+    assetBundlePatterns: [
+      "**/*"
+    ],
     scheme: "glucocare",
+    platforms: ["ios", "android", "web"],
+    // ✅ EAS Project ID para builds nativos
+    extra: {
+      eas: {
+        projectId: "2d82c0cb-e0fd-40f3-bb50-abd697fa4e8d"
+      }
+    },
+    ios: {
+      bundleIdentifier: "com.glucocare.app"
+    },
     android: {
       package: "com.glucocare.app",
+      adaptiveIcon: {
+        foregroundImage: "./assets/adaptive-icon.png",
+        backgroundColor: "#ffffff"
+      },
       config: {
         googleSignIn: {
           androidClientId: "360317541807-19cbu2121eftbm4d9p50mk3okma4bhtj.apps.googleusercontent.com"
         }
       }
-    }
+    },
+    web: {
+      favicon: "./assets/favicon.png"
+    },
+    plugins: [
+      "expo-local-authentication",
+      "expo-secure-store",
+      "expo-sqlite",
+      "expo-file-system",
+      "expo-document-picker"
+    ]
   }
 };
 ```
@@ -227,15 +273,20 @@ Dependências e scripts NPM:
 {
   "scripts": {
     "start": "expo start",
-    "push:quick": "commit.bat",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-    "test": "jest"
+    "start:dev": "expo start --dev-client",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "lint": "eslint . --fix",
+    "format": "prettier --write .",
+    "test": "jest",
+    "push:quick": "commit.bat"
   },
   "dependencies": {
-    "expo": "~51.0.0",
-    "react": "18.2.0",
-    "react-native": "0.74.5",
-    "firebase": "^10.14.1"
+    "expo": "~54.0.0",
+    "react": "19.1.0",
+    "react-native": "0.81.4",
+    "firebase": "^10.7.1",
+    "expo-dev-client": "~6.0.15"
   }
 }
 ```
@@ -1001,8 +1052,10 @@ ReportScreen → ViewReportScreen → DashboardScreen
 ## Pré-requisitos
 
 ### Desenvolvimento
-- **Node.js**: Versão 18 ou superior
+- **Node.js**: Versão 20.9.0+ recomendada
   - Download: [https://nodejs.org/](https://nodejs.org/)
+  - Versão atual: `v20.9.0` (para compatibilidade com Expo SDK 54)
+  - Versão mínima: `v18.0.0` | Versão recomendada: `v20.9.0+`
   - Verificação: `node --version`
 - **npm**: Gerenciador de pacotes (vem com Node.js)
   - Verificação: `npm --version`
@@ -1154,6 +1207,9 @@ git clone https://github.com/eduardofamilia01-hub/glucocare.git
 cd glucocare
 npm install --legacy-peer-deps
 npm install -g @expo/cli eas-cli
+
+# Para Development Build (opcional)
+npx expo install expo-dev-client
 
 # 2. Configurar Firebase (criar projeto, auth, firestore)
 # 3. Configurar Google Cloud Console (OAuth 2.0)
@@ -1724,6 +1780,71 @@ export default {
 **Causa:** Origens JavaScript não autorizadas  
 **Solução:** Adicionar `https://auth.expo.io` nas origens autorizadas
 
+#### Erro: `TypeError: Cannot read property 'settings' of undefined` (Development Build)
+**Causa:** Firebase Auth não inicializado corretamente no Development Build  
+**Solução:** Implementado mock do Firebase Auth para Development Build  
+**Localização:** `src/config/firebase-config.ts`
+
+#### Erro: `FirebaseError: Missing or insufficient permissions` (Development Build)
+**Causa:** Tentativa de sincronização com Firestore sem permissões  
+**Solução:** Desabilitada sincronização Firestore no Development Build  
+**Localização:** `src/screens/RegisterScreen.tsx`
+
+#### Erro: `Falha ao salvar o perfil na nuvem` (Development Build)
+**Causa:** Função `syncUserProfileToFirestore` tentando usar Firestore real  
+**Solução:** Adicionada verificação `|| __DEV__` para pular sincronização  
+**Localização:** `src/screens/RegisterScreen.tsx`
+
+#### Erro: `Custom scheme URIs are not allowed for 'WEB' client type` (Development Build)
+**Causa:** Tentativa de usar Web Client ID em Development Build Android  
+**Solução:** Criar Android Client OAuth no Google Cloud Console com package name `com.glucocare.app`  
+**Configuração:** Adicionar SHA-1 debug do Development Build
+
+#### Erro: `@types/react-native should not be installed directly` (expo doctor)
+**Causa:** Pacote `@types/react-native` instalado diretamente (desnecessário)  
+**Solução:** Remover o pacote pois os tipos já vêm com `react-native`  
+**Comando:** `npm uninstall @types/react-native`
+
+#### Erro: `.expo/ not ignored by Git` (expo doctor)
+**Causa:** Diretório `.expo/` sendo rastreado pelo Git  
+**Solução:** Remover do rastreamento do Git  
+**Comando:** `git rm -r --cached .expo`
+
+#### Erro: `Unable to open 'C:\Users\Usurio\...': Illegal byte sequence` (EAS Build)
+**Causa:** Problema de encoding no Windows com caracteres especiais no nome do usuário  
+**Solução:** Configurar variáveis de ambiente para diretório temporário  
+**Comando:** 
+```bash
+# Definir diretório temporário alternativo
+set TMPDIR=C:\temp
+set TEMP=C:\temp
+set TMP=C:\temp
+mkdir C:\temp
+```
+
+### 🔐 **Segurança OAuth 2.0 - Melhores Práticas**
+
+O projeto implementa as melhores práticas de segurança OAuth 2.0 conforme recomendado pelo Google:
+
+#### **Documentação de Segurança:**
+- **`checklist-seguranca-oauth.md`** - Checklist completo de segurança
+- **`configurar-fluxos-seguros-oauth.md`** - Configuração de fluxos seguros (PKCE)
+- **`configurar-protecao-entre-contas.md`** - Proteção entre contas (RISC)
+- **`oauth-security-best-practices.md`** - Melhores práticas gerais
+
+#### **Implementações de Segurança:**
+- ✅ **PKCE (Proof Key for Code Exchange)** - Implementado no `authService.ts`
+- ✅ **Authorization Code Flow** - Fluxo de autorização seguro
+- ✅ **Token Storage Seguro** - Armazenamento via `expo-secure-store`
+- ✅ **Cross-Account Protection** - Detecção de atividades suspeitas
+- ✅ **Secure Flows** - Configuração de fluxos seguros no Google Cloud
+
+#### **Serviços de Segurança:**
+- **`securityService.ts`** - Serviço dedicado para segurança OAuth
+- **Token Management** - Gerenciamento seguro de tokens
+- **RISC Events** - Processamento de eventos de segurança
+- **Audit Logging** - Logs de auditoria para segurança
+
 ### 🎨 **Configuração da Tela de Consentimento OAuth (Branding)**
 
 Esta seção detalha as informações de branding e domínio do seu aplicativo, que são exibidas aos usuários na tela de consentimento do Google.
@@ -2248,6 +2369,96 @@ service cloud.firestore {
 - [ ] Operações CRUD funcionam para dados próprios
 - [ ] Acesso negado para dados de outros usuários
 
+## 🔄 **Development Build vs Production Build**
+
+### **📱 Development Build**
+
+**Características:**
+- ✅ **Hot Reload** - Mudanças aparecem instantaneamente
+- ✅ **Debug completo** - Console logs, breakpoints, React DevTools
+- ✅ **Conecta ao servidor Expo** - Código é executado do computador
+- ✅ **Modo desenvolvimento** (`__DEV__ = true`)
+- ✅ **Ferramentas de debug** disponíveis
+- ✅ **Atualizações instantâneas** via Metro Bundler
+
+**Limitações:**
+- ❌ **Firebase usa Mock** (dados locais apenas)
+- ❌ **Performance reduzida** (código não otimizado)
+- ❌ **Tamanho maior** (inclui ferramentas de debug)
+- ❌ **Depende de conexão** com servidor de desenvolvimento
+
+**Como usar:**
+```bash
+# Criar Development Build
+eas build --profile development --platform android
+
+# Conectar ao servidor Expo
+npx expo start --port 19006
+# No app: http://192.168.x.x:19006
+```
+
+### **🚀 Production Build**
+
+**Características:**
+- ✅ **Código otimizado** - Minificado e compilado
+- ✅ **Performance máxima** - Execução nativa completa
+- ✅ **Firebase completo** - Todas as funcionalidades funcionam
+- ✅ **Google Auth nativo** - Funciona perfeitamente
+- ✅ **Modo produção** (`__DEV__ = false`)
+- ✅ **Tamanho otimizado** - APK/IPA menor
+- ✅ **Independente** - Não precisa de servidor
+
+**Limitações:**
+- ❌ **Sem hot reload** - Precisa rebuildar para mudanças
+- ❌ **Sem debug tools** - Console logs removidos
+- ❌ **Build demorado** - 10-30 minutos para compilar
+
+**Como usar:**
+```bash
+# Criar Production Build
+eas build --profile production --platform android
+
+# Instalar APK no dispositivo
+# Download do EAS Dashboard ou link direto
+```
+
+### **📊 Comparação Prática**
+
+| **Aspecto** | **Development** | **Production** |
+|-------------|----------------|----------------|
+| **Firebase Auth** | Mock local | Real |
+| **Firestore** | Desabilitado | Funcionando |
+| **Google Login** | Limitado | Completo |
+| **Performance** | Lenta | Rápida |
+| **Debug** | Completo | Removido |
+| **Hot Reload** | ✅ | ❌ |
+| **Tamanho** | Grande | Otimizado |
+| **Tempo Build** | 5-10 min | 15-30 min |
+
+### **🔧 Problemas Resolvidos**
+
+#### **Erro: `TypeError: Cannot read property 'settings' of undefined`**
+- **Causa:** Firebase Auth não inicializado corretamente no Development Build
+- **Solução:** Implementado mock do Firebase Auth para Development Build
+- **Localização:** `src/config/firebase-config.ts`
+
+#### **Erro: `FirebaseError: Missing or insufficient permissions`**
+- **Causa:** Tentativa de sincronização com Firestore sem permissões
+- **Solução:** Desabilitada sincronização Firestore no Development Build
+- **Localização:** `src/screens/RegisterScreen.tsx`
+
+#### **Erro: `Falha ao salvar o perfil na nuvem`**
+- **Causa:** Função `syncUserProfileToFirestore` tentando usar Firestore real
+- **Solução:** Adicionada verificação `|| __DEV__` para pular sincronização
+- **Localização:** `src/screens/RegisterScreen.tsx`
+
+### **💡 Recomendações**
+
+1. **Use Development Build** para desenvolvimento e testes rápidos
+2. **Use Production Build** para testes finais e demonstrações
+3. **Faça Production Build** quando quiser testar Firebase real
+4. **Mantenha Development Build** para desenvolvimento contínuo
+
 ## Comandos e Scripts
 
 ### 📦 **Scripts NPM Disponíveis**
@@ -2257,7 +2468,7 @@ service cloud.firestore {
 # Iniciar aplicação em modo desenvolvimento
 npm start
 
-# Iniciar com dev client (para builds customizados)
+# Iniciar com dev client (para Development Build)
 npm run start:dev
 
 # Executar no navegador
@@ -2265,6 +2476,10 @@ npm run web
 
 # Build para iOS (requer Xcode)
 npm run ios
+
+# Executar linting e formatação
+npm run lint
+npm run format
 
 # Executar linting e corrigir erros automaticamente
 npm run lint
@@ -2360,8 +2575,11 @@ npx expo start --clear --port 8098
 # Iniciar no navegador
 npx expo start --web
 
-# Iniciar com dev client
+# Iniciar com dev client (Development Build)
 npx expo start --dev-client
+
+# Iniciar Development Build em porta específica
+npx expo start --dev-client --port 19006
 ```
 
 #### Build e Deploy
@@ -2409,6 +2627,9 @@ npx expo --version
 
 # Verificar configuração do projeto
 npx expo config
+
+# Verificar problemas no projeto (recomendado)
+npx expo doctor
 
 # Verificar status do Git
 git status
@@ -2700,23 +2921,82 @@ eas build --platform ios --profile production
 
 ### Configuração EAS
 
+#### firestore-rules-corrected.rules
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Usuários - apenas o próprio usuário
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Leituras - apenas o próprio usuário
+    match /readings/{readingId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    // Relatórios - apenas o próprio usuário
+    match /reports/{reportId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    // Notificações - apenas o próprio usuário
+    match /notifications/{notificationId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+    
+    // Metadados de sincronização - apenas o próprio usuário
+    match /sync_meta/{metaId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+  }
+}
+```
+
 #### eas.json
 ```json
 {
   "cli": {
-    "version": ">= 12.0.0"
+    "version": ">= 3.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "test": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      },
+      "env": {
+        "NODE_ENV": "production"
+      }
     },
     "production": {
-      "distribution": "store"
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      },
+      "env": {
+        "EXPO_USE_HERMES": "true"
+      }
     }
+  },
+  "submit": {
+    "production": {}
   }
 }
 ```

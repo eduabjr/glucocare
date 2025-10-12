@@ -31,10 +31,12 @@ export function useGoogleAuth(): UseGoogleAuthReturn {
     const [error, setError] = useState<AuthError | null>(null);
     const [loading, setLoading] = useState<boolean>(false);
     
-           // ✅ CONFIGURAÇÃO FUNCIONAL PARA EXPO GO
+           // ✅ CONFIGURAÇÃO PARA DEVELOPMENT BUILD (Android)
            const [request, response, promptAsync] = Google.useAuthRequest({
                    androidClientId: "360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com",
-                   scopes: ["profile", "email"]
+                   webClientId: "360317541807-i8qgcvkit3vsv8s7did5rgjod17eld77.apps.googleusercontent.com",
+                   scopes: ["profile", "email"],
+                   useProxy: false // ✅ IMPORTANTE: Desabilita proxy para Development Build
            });
 
     // Função de promptAsync encapsulada para gerenciar o estado de 'loading'

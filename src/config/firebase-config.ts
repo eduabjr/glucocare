@@ -20,7 +20,7 @@ let db: any = null;
 
 export async function initFirebase(): Promise<boolean> {
     try {
-        console.log('🔥 Inicializando Firebase para Expo Go...');
+        console.log('🔥 Inicializando Firebase com mock para Development Build...');
         
         // ✅ CORREÇÃO: Verifica se já existe uma instância do Firebase
         const existingApps = getApps();
@@ -36,18 +36,18 @@ export async function initFirebase(): Promise<boolean> {
             console.log('♻️ Firebase App reutilizado');
         }
         
-        // ✅ EXPO GO: Inicializa Auth com mock funcional (Firebase Auth não funciona no Expo Go)
-        console.log('⚠️ Expo Go detectado - usando mock do Firebase Auth');
+        // ✅ EXPO GO/DEVELOPMENT BUILD: Inicializa Auth com mock funcional (Firebase Auth pode ter problemas no Development Build)
+        console.log('⚠️ Development Build - usando mock do Firebase Auth para evitar erros');
         auth = {
             currentUser: null,
-            signInWithEmailAndPassword: () => Promise.reject(new Error('Firebase Auth não disponível no Expo Go')),
-            createUserWithEmailAndPassword: () => Promise.reject(new Error('Firebase Auth não disponível no Expo Go')),
+            signInWithEmailAndPassword: () => Promise.reject(new Error('Firebase Auth usando mock no Development Build')),
+            createUserWithEmailAndPassword: () => Promise.reject(new Error('Firebase Auth usando mock no Development Build')),
             signOut: () => Promise.resolve(),
             onAuthStateChanged: () => () => {},
-            updatePassword: () => Promise.reject(new Error('Firebase Auth não disponível no Expo Go')),
-            updateEmail: () => Promise.reject(new Error('Firebase Auth não disponível no Expo Go'))
+            updatePassword: () => Promise.reject(new Error('Firebase Auth usando mock no Development Build')),
+            updateEmail: () => Promise.reject(new Error('Firebase Auth usando mock no Development Build'))
         };
-        console.log('✅ Firebase Auth mock inicializado para Expo Go');
+        console.log('✅ Firebase Auth mock inicializado para Development Build');
         
         // Inicializa Firestore
         try {
@@ -58,7 +58,7 @@ export async function initFirebase(): Promise<boolean> {
             db = null;
         }
         
-        console.log('✅ Firebase inicializado com sucesso para Expo Go!');
+        console.log('✅ Firebase inicializado com mock para Development Build!');
         return true;
         
     } catch (error: any) {
