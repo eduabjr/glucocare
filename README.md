@@ -39,9 +39,221 @@
 - [Referência](#referência)
 - [Agradecimento](#agradecimento)
 
+### 📁 **ESTRUTURA DO PROJETO**
+- [Estrutura de Arquivos](#estrutura-de-arquivos)
+- [Organização de Pastas](#organização-de-pastas)
+- [Arquivos de Configuração](#arquivos-de-configuração)
+
 ## Sobre
 
 O **GlucoCare** é um aplicativo móvel desenvolvido em React Native com Expo que permite o monitoramento completo da glicemia. A aplicação oferece funcionalidades avançadas para usuários diabéticos, incluindo registro de leituras, análise de tendências, alertas personalizados e integração com dispositivos Bluetooth.
+
+## 📁 **Estrutura de Arquivos**
+
+### **Organização Geral do Projeto**
+```
+glucocare/
+├── 📁 android/                    # Configurações Android nativas
+│   ├── 📁 app/
+│   │   ├── 📄 google-services.json    # Configuração Firebase Android
+│   │   └── 📁 src/main/
+│   │       ├── 📄 AndroidManifest.xml # Manifest Android
+│   │       └── 📁 java/com/glucocare/ # Código Java/Kotlin
+│   └── 📄 build.gradle           # Configurações de build Android
+├── 📁 assets/                     # Recursos estáticos
+│   ├── 🖼️ icon.png               # Ícone do aplicativo
+│   ├── 🖼️ splash.png             # Tela de splash
+│   ├── 🖼️ adaptive-icon.png      # Ícone adaptativo Android
+│   └── 🖼️ favicon.png            # Favicon para web
+├── 📁 Documentação/              # Documentação do projeto
+│   ├── 📄 ai-setup.md            # Configuração de IA
+│   ├── 📄 bluetooth-implementation.md # Implementação Bluetooth
+│   ├── 📄 firebase-firestore-setup.md # Setup Firebase
+│   ├── 📄 google-oauth-setup.md  # Setup Google OAuth
+│   ├── 📄 oauth-consent-setup.md # Setup tela de consentimento
+│   └── 📄 relatorio-fluxo-navegacao.md # Relatório de navegação
+├── 📁 src/                       # Código fonte principal
+│   ├── 📁 components/            # Componentes reutilizáveis
+│   │   ├── 📁 dashboard/         # Componentes do dashboard
+│   │   │   ├── 📄 RecentReadings.tsx
+│   │   │   └── 📄 StatsCard.tsx
+│   │   ├── 📁 device/            # Componentes de dispositivos
+│   │   │   ├── 📄 BluetoothConnection.tsx
+│   │   │   ├── 📄 FileImport.tsx
+│   │   │   └── 📄 GitImport.tsx
+│   │   ├── 📁 utils/             # Utilitários
+│   │   │   ├── 📄 BLEMock.tsx
+│   │   │   └── 📄 getReadingStatus.ts
+│   │   └── 📄 MenuButton.tsx
+│   ├── 📁 config/                # Configurações
+│   │   ├── 📄 asyncStorage.ts    # Configuração AsyncStorage
+│   │   ├── 📄 firebase-config.ts # Configuração Firebase
+│   │   └── 📄 firebase.ts        # Inicialização Firebase
+│   ├── 📁 context/               # Contextos React
+│   │   ├── 📄 AuthContext.tsx    # Contexto de autenticação
+│   │   ├── 📄 ReadingsContext.tsx # Contexto de leituras
+│   │   └── 📄 ThemeContext.tsx   # Contexto de tema
+│   ├── 📁 navigation/            # Navegação
+│   │   ├── 📄 CustomDrawer.tsx   # Drawer personalizado
+│   │   ├── 📄 DrawerRoutes.tsx   # Rotas do drawer
+│   │   ├── 📄 RootNavigator.tsx  # Navegador principal
+│   │   └── 📄 types.ts           # Tipos de navegação
+│   ├── 📁 screens/               # Telas da aplicação
+│   │   ├── 📄 AddReadingScreen.tsx      # Adicionar leitura
+│   │   ├── 📄 BiometricSetupScreen.tsx  # Setup biométrico
+│   │   ├── 📄 ChangeEmailScreen.tsx     # Alterar email
+│   │   ├── 📄 ChartsScreen.tsx          # Gráficos
+│   │   ├── 📄 DashboardScreen.tsx       # Dashboard principal
+│   │   ├── 📄 DeviceConnectionScreen.tsx # Conexão dispositivos
+│   │   ├── 📄 ForgotPasswordScreen.tsx  # Esqueci senha
+│   │   ├── 📄 GlycemicGoalScreen.tsx    # Metas glicêmicas
+│   │   ├── 📄 LoadingScreen.tsx         # Tela de carregamento
+│   │   ├── 📄 LoginScreen.tsx           # Login
+│   │   ├── 📄 NutritionScreen.tsx       # Nutrição com IA
+│   │   ├── 📄 ProfileEditScreen.tsx     # Editar perfil
+│   │   ├── 📄 ProfileSetupScreen.tsx    # Setup perfil
+│   │   ├── 📄 RegisterScreen.tsx        # Registro
+│   │   ├── 📄 ReportScreen.tsx          # Relatórios
+│   │   ├── 📄 ResetPasswordScreen.tsx   # Reset senha
+│   │   ├── 📄 SettingsScreen.tsx        # Configurações
+│   │   └── 📄 ViewReportScreen.tsx      # Visualizar relatório
+│   ├── 📁 services/              # Serviços e APIs
+│   │   ├── 📄 aiService.ts               # Serviço de IA
+│   │   ├── 📄 authService.ts             # Serviço de autenticação
+│   │   ├── 📄 bluetoothAnalysisService.ts # Análise Bluetooth
+│   │   ├── 📄 bluetoothService.ts        # Serviço Bluetooth
+│   │   ├── 📄 dbService.ts               # Serviço banco dados
+│   │   ├── 📄 fileAnalysisService.ts     # Análise arquivos
+│   │   ├── 📄 fileParsingService.ts      # Parsing arquivos
+│   │   ├── 📄 gitImportService.ts        # Importação Git
+│   │   ├── 📄 glucoseRecommendationService.ts # Recomendações
+│   │   ├── 📄 glucoseService.ts          # Serviço glicemia
+│   │   ├── 📄 glucoseSyncService.ts      # Sincronização
+│   │   ├── 📄 googleSync.ts              # Sync Google
+│   │   ├── 📄 linkingService.ts          # Deep linking
+│   │   ├── 📄 measurementRecommendationService.ts # Recomendações
+│   │   ├── 📄 notificationService.ts     # Notificações
+│   │   ├── 📄 securityService.ts         # Segurança OAuth
+│   │   ├── 📄 syncService.ts             # Sincronização geral
+│   │   └── 📄 syncStateService.ts        # Estado sincronização
+│   └── 📁 utils/                 # Utilitários
+│       ├── 📄 firestoreTest.ts   # Testes Firestore
+│       ├── 📄 glycemicGoals.ts   # Metas glicêmicas
+│       └── 📄 testNavigationFlow.ts # Testes navegação
+├── 📄 App.tsx                    # Componente principal
+├── 📄 app.config.js              # Configuração Expo
+├── 📄 app.json                   # Configuração Expo (legado)
+├── 📄 babel.config.js            # Configuração Babel
+├── 📄 commit.bat                 # Script de commit automático
+├── 📄 eas.json                   # Configuração EAS Build
+├── 📄 eslint.config.js           # Configuração ESLint
+├── 📄 index.js                   # Ponto de entrada
+├── 📄 INSTRUÇÕES.md              # Instruções do projeto
+├── 📄 LICENSE                    # Licença MIT
+├── 📄 metro.config.js            # Configuração Metro
+├── 📄 package.json               # Dependências e scripts
+├── 📄 README.md                  # Documentação principal
+└── 📄 tsconfig.json              # Configuração TypeScript
+```
+
+### **Organização de Pastas**
+
+#### **📁 src/components/**
+Componentes reutilizáveis organizados por funcionalidade:
+- **`dashboard/`**: Componentes específicos do dashboard
+- **`device/`**: Componentes para integração com dispositivos
+- **`utils/`**: Componentes utilitários e helpers
+
+#### **📁 src/config/**
+Configurações centralizadas:
+- **`firebase-config.ts`**: Configuração e inicialização do Firebase
+- **`asyncStorage.ts`**: Configuração do armazenamento local
+- **`firebase.ts`**: Instâncias do Firebase
+
+#### **📁 src/context/**
+Contextos React para gerenciamento de estado:
+- **`AuthContext.tsx`**: Estado de autenticação
+- **`ReadingsContext.tsx`**: Estado das leituras
+- **`ThemeContext.tsx`**: Estado do tema
+
+#### **📁 src/navigation/**
+Sistema de navegação:
+- **`RootNavigator.tsx`**: Navegador principal
+- **`DrawerRoutes.tsx`**: Configuração das rotas
+- **`CustomDrawer.tsx`**: Drawer personalizado
+- **`types.ts`**: Tipos TypeScript para navegação
+
+#### **📁 src/screens/**
+Todas as telas da aplicação (18 telas):
+- **Autenticação**: Login, Register, ForgotPassword, ResetPassword
+- **Onboarding**: Loading, ProfileSetup, BiometricSetup, GlycemicGoal
+- **Principais**: Dashboard, AddReading, Charts, Nutrition, Report, Settings
+- **Integração**: DeviceConnection, ProfileEdit, ChangeEmail, ViewReport
+
+#### **📁 src/services/**
+Serviços e integrações com APIs:
+- **Autenticação**: `authService.ts`, `securityService.ts`
+- **Banco de Dados**: `dbService.ts`, `glucoseService.ts`
+- **Sincronização**: `syncService.ts`, `glucoseSyncService.ts`
+- **Dispositivos**: `bluetoothService.ts`, `fileAnalysisService.ts`
+- **IA**: `aiService.ts`, `glucoseRecommendationService.ts`
+- **Notificações**: `notificationService.ts`
+
+### **Arquivos de Configuração**
+
+#### **📄 app.config.js**
+Configuração principal do Expo:
+```javascript
+export default {
+  expo: {
+    name: "GlucoCare",
+    slug: "glucocare",
+    scheme: "glucocare",
+    android: {
+      package: "com.glucocare.app",
+      config: {
+        googleSignIn: {
+          androidClientId: "360317541807-19cbu2121eftbm4d9p50mk3okma4bhtj.apps.googleusercontent.com"
+        }
+      }
+    }
+  }
+};
+```
+
+#### **📄 package.json**
+Dependências e scripts NPM:
+```json
+{
+  "scripts": {
+    "start": "expo start",
+    "push:quick": "commit.bat",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "test": "jest"
+  },
+  "dependencies": {
+    "expo": "~51.0.0",
+    "react": "18.2.0",
+    "react-native": "0.74.5",
+    "firebase": "^10.14.1"
+  }
+}
+```
+
+#### **📄 tsconfig.json**
+Configuração TypeScript:
+```json
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  }
+}
+```
 
 ### Conhecendo as tecnologias empregadas
 
@@ -740,12 +952,12 @@ O GlucoCare possui **18 telas principais** organizadas em diferentes fluxos de n
 
 ## 🎯 **FLUXO DE NAVEGAÇÃO**
 
-### **Fluxo de Primeiro Uso**:
+### **Fluxo de Primeiro Uso (1º Ciclo)**:
 ```
 LoginScreen → ProfileSetupScreen → BiometricSetupScreen → GlycemicGoalScreen → DashboardScreen
 ```
 
-### **Fluxo de Usuário Logado**:
+### **Fluxo de Usuário Logado (2º Ciclo de Uso)**:
 ```
 DashboardScreen ↔ ChartsScreen ↔ AddReadingScreen ↔ NutritionScreen ↔ ReportScreen ↔ SettingsScreen
 ```
@@ -753,6 +965,21 @@ DashboardScreen ↔ ChartsScreen ↔ AddReadingScreen ↔ NutritionScreen ↔ Re
 ### **Fluxo de Configuração**:
 ```
 SettingsScreen → ProfileEditScreen / GlycemicGoalScreen / DeviceConnectionScreen
+```
+
+### **Fluxo de Autenticação**:
+```
+LoginScreen → RegisterScreen → ForgotPasswordScreen → ResetPasswordScreen → DashboardScreen
+```
+
+### **Fluxo de Integração**:
+```
+DeviceConnectionScreen → FileImportScreen → GitImportScreen → DashboardScreen
+```
+
+### **Fluxo de Relatórios**:
+```
+ReportScreen → ViewReportScreen → DashboardScreen
 ```
 
 ---
@@ -1442,7 +1669,7 @@ const [request, response, promptAsync] = Google.useAuthRequest({
 
 **Importante:**
 - O `androidClientId` usa o **Web Client ID** para compatibilidade com Expo Go
-- O `redirectUri` aponta para `@anonymous` quando não logado no Expo CLI
+- O `redirectUri` aponta para `@eduabjr` (seu usuário Expo específico)
 
 #### `app.config.js`
 
@@ -1838,6 +2065,188 @@ service cloud.firestore {
 #### Configurações de Domínio
 - **Domínios autorizados**: Configurados automaticamente ✅
 - **Redirecionamento**: Configurado para o app ✅
+
+## 🔥 **Configuração do Firebase - Guia Completo**
+
+### **Visão Geral do Firebase no GlucoCare**
+
+O GlucoCare utiliza o Firebase como plataforma principal para:
+- 🔐 **Autenticação**: Login com Google e Email/Senha
+- 🗄️ **Firestore Database**: Armazenamento de dados em nuvem
+- ☁️ **Sincronização**: Backup automático entre dispositivos
+- 🔒 **Segurança**: Regras de acesso personalizadas
+
+### **📱 Como Configurar a Autenticação**
+
+#### **1. Ativar Email/Senha**
+1. **Acesse** o Firebase Console: https://console.firebase.google.com/
+2. **Selecione** seu projeto: `glucocare-e68c8`
+3. **Vá para** Authentication > Sign-in method
+4. **Clique em** "Email/senha"
+5. **Ative** o toggle "Habilitar"
+6. **Clique em** "Salvar"
+
+#### **2. Ativar Google Sign-In**
+1. **Na mesma página** (Sign-in method)
+2. **Clique em** "Google"
+3. **Ative** o toggle "Habilitar"
+4. **Configure**:
+   - **Nome do projeto**: `GlucoCare`
+   - **E-mail de suporte**: `eduardo.junior1@uscsonline.com.br`
+5. **Clique em** "Salvar"
+
+### **📊 Configuração das Collections do Firestore**
+
+Baseado nas imagens do Firebase Console que você compartilhou, o projeto possui **5 coleções principais**:
+
+#### **Coleção 1: `users` (Coleção Principal)**
+```json
+{
+  "id": "U5ThTBs7a3mtnDeElhsW",
+  "name": "Usuario Teste",
+  "email": "teste@glucocare.com",
+  "created_at": "11 de outubro de 2025 às 13:44:00 UTC-3"
+}
+```
+
+#### **Coleção 2: `users/{userId}/readings` (Subcoleção)**
+```json
+{
+  "id": "X0S01pnybxV1TZeKZT4o",
+  "user_id": "U5ThTBs7a3mtnDeElhsW",
+  "glucose_level": 120,
+  "meal_context": "Em jejum",
+  "measurement_time": "11 de outubro de 2025 às 13:54:00 UTC-3"
+}
+```
+
+#### **Coleção 3: `notifications` (Coleção Principal)**
+```json
+{
+  "id": "thue5tDOmivYsRDXfwWi",
+  "user_id": "user_uid_aqui",
+  "message": "Hora de medir a glicemia",
+  "scheduled_time": "2024-01-15T14:30:00Z",
+  "status": "scheduled",
+  "type": "medication_reminder"
+}
+```
+
+#### **Coleção 4: `reports` (Coleção Principal)**
+```json
+{
+  "id": "aJzO6JkeeilKv6eWfMRz",
+  "user_id": "user_uid_aqui",
+  "title": "Relatório Mensal - Janeiro 2024",
+  "type": "monthly",
+  "start_date": "2024-01-01T00:00:00Z",
+  "end_date": "2024-01-31T23:59:59Z"
+}
+```
+
+#### **Coleção 5: `sync_meta` (Coleção Principal)**
+```json
+{
+  "id": "wAgfSmtcgqWgUgutGkGc",
+  "user_id": "9Fz97YAMUNgZwmGRMISN",
+  "last_sync": "2024-01-15T14:30:00Z",
+  "sync_status": "success",
+  "error_message": ""
+}
+```
+
+### **🔒 Regras do Banco de Dados**
+
+As regras de segurança do Firestore garantem que cada usuário acesse apenas seus próprios dados:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ==================================================================
+    // REGRAS PARA USUÁRIOS (users)
+    // ==================================================================
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+      
+      // ==================================================================
+      // REGRAS PARA LEITURAS DE GLICOSE (subcoleção readings)
+      // ==================================================================
+      match /readings/{readingId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow update: if request.auth != null && request.auth.uid == userId;
+        allow delete: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    // ==================================================================
+    // REGRAS PARA RELATÓRIOS (reports)
+    // ==================================================================
+    match /reports/{reportId} {
+      allow read: if request.auth != null && 
+                     resource.data.user_id == request.auth.uid;
+      allow create: if request.auth != null && 
+                       request.resource.data.user_id == request.auth.uid;
+      allow update: if request.auth != null && 
+                       resource.data.user_id == request.auth.uid;
+      allow delete: if request.auth != null && 
+                       resource.data.user_id == request.auth.uid;
+    }
+    
+    // ==================================================================
+    // REGRAS PARA NOTIFICAÇÕES (notifications)
+    // ==================================================================
+    match /notifications/{notificationId} {
+      allow read: if request.auth != null && 
+                     resource.data.user_id == request.auth.uid;
+      allow create: if request.auth != null && 
+                       request.resource.data.user_id == request.auth.uid;
+      allow update: if request.auth != null && 
+                       resource.data.user_id == request.auth.uid;
+      allow delete: if request.auth != null && 
+                       resource.data.user_id == request.auth.uid;
+    }
+    
+    // ==================================================================
+    // REGRAS PARA SINCRONIZAÇÃO (sync_meta)
+    // ==================================================================
+    match /sync_meta/{syncId} {
+      allow read: if request.auth != null && request.auth.uid == syncId;
+      allow write: if request.auth != null && request.auth.uid == syncId;
+    }
+  }
+}
+```
+
+### **🎯 Como Aplicar as Regras**
+
+1. **Acesse** o Firebase Console
+2. **Vá para** Firestore Database > Regras
+3. **Substitua** o código existente pelas regras acima
+4. **Clique em** "Publicar"
+
+### **✅ Verificação da Configuração**
+
+#### **Teste de Autenticação**
+- [ ] Login com Google funciona
+- [ ] Login com Email/Senha funciona
+- [ ] Logout funciona corretamente
+
+#### **Teste das Collections**
+- [ ] Dados são salvos em `users`
+- [ ] Leituras são salvas em `readings` (subcoleção)
+- [ ] Notificações são criadas em `notifications`
+- [ ] Relatórios são gerados em `reports`
+- [ ] Sincronização é registrada em `sync_meta`
+
+#### **Teste das Regras de Segurança**
+- [ ] Usuário A não pode acessar dados do Usuário B
+- [ ] Apenas dados próprios são visíveis
+- [ ] Operações CRUD funcionam para dados próprios
+- [ ] Acesso negado para dados de outros usuários
 
 ## Comandos e Scripts
 
@@ -2342,14 +2751,25 @@ R: Os dados são automaticamente sincronizados com o Firebase
 
 ## Licença
 
-Este projeto está licenciado sob a licença MIT. Sinta-se à vontade para editar e distribuir este modelo como desejar.
+Este projeto está licenciado sob a **Licença MIT**. Você pode usar, modificar e distribuir este software livremente, desde que mantenha os avisos de copyright e licença.
 
-Veja a [licença](./LICENSE) aqui para mais informações.
+Veja o arquivo [LICENSE](./LICENSE) para mais informações.
 
-### Detalhes da Licença MIT
+### 📄 **Licença MIT - Português**
 
-```
-MIT License
+**Licença MIT**
+
+Copyright (c) 2024 Eduardo Família
+
+É concedida permissão, gratuitamente, a qualquer pessoa que obtenha uma cópia deste software e dos arquivos de documentação associados (o "Software"), para lidar com o Software sem restrições, incluindo, sem limitação, os direitos de usar, copiar, modificar, mesclar, publicar, distribuir, sublicenciar e/ou vender cópias do Software, e permitir que pessoas a quem o Software é fornecido o façam, sujeito às seguintes condições:
+
+O aviso de copyright acima e este aviso de permissão devem ser incluídos em todas as cópias ou partes substanciais do Software.
+
+O SOFTWARE É FORNECIDO "COMO ESTÁ", SEM GARANTIA DE QUALQUER TIPO, EXPRESSA OU IMPLÍCITA, INCLUINDO, MAS NÃO SE LIMITANDO ÀS GARANTIAS DE COMERCIALIZAÇÃO, ADEQUAÇÃO A UM PROPÓSITO ESPECÍFICO E NÃO VIOLAÇÃO. EM NENHUM CASO OS AUTORES OU DETENTORES DE COPYRIGHT SERÃO RESPONSÁVEIS POR QUALQUER REIVINDICAÇÃO, DANOS OU OUTRA RESPONSABILIDADE, SEJA EM UMA AÇÃO DE CONTRATO, DELITO OU DE OUTRA FORMA, DECORRENTE DE, FORA DE OU EM CONEXÃO COM O SOFTWARE OU O USO OU OUTRAS NEGOCIAÇÕES NO SOFTWARE.
+
+### 📄 **MIT License - English**
+
+**MIT License**
 
 Copyright (c) 2024 Eduardo Família
 
@@ -2370,7 +2790,27 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-```
+
+### 🎯 **O que você pode fazer:**
+
+✅ **Usar** o projeto para fins comerciais  
+✅ **Modificar** o código conforme necessário  
+✅ **Distribuir** o software livremente  
+✅ **Criar** projetos derivados  
+✅ **Vender** o software  
+
+### ⚠️ **O que você deve fazer:**
+
+📋 **Incluir** o aviso de copyright original  
+📋 **Incluir** o texto da licença MIT  
+📋 **Manter** os avisos de "sem garantia"  
+
+### 🚫 **O que você NÃO precisa fazer:**
+
+❌ **Não** é necessário pedir permissão  
+❌ **Não** é necessário fornecer código fonte  
+❌ **Não** é necessário usar a mesma licença  
+❌ **Não** é necessário notificar mudanças  
 
 ## Referência
 
