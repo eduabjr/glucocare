@@ -28,6 +28,12 @@ export default {
       }
     },
     platforms: ["ios", "android", "web"],
+    // ✅ EAS Project ID para builds nativos
+    extra: {
+      eas: {
+        projectId: "2d82c0cb-e0fd-40f3-bb50-abd697fa4e8d"
+      }
+    },
     // ✅ FORÇAR EXPO GO - Remover configurações que causam development build
     ios: {
       bundleIdentifier: "com.glucocare.app"

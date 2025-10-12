@@ -124,6 +124,12 @@ const PasswordRequirements: React.FC<PasswordRequirementsProps> = ({ rules }) =>
  */
 async function syncUserProfileToFirestore(uid: string, profile: any) {
     try {
+        // ✅ CORREÇÃO: Verifica se Firestore está disponível (não é mock)
+        if (!db || typeof doc !== 'function' || typeof setDoc !== 'function') {
+            console.log("Firestore não disponível no Expo Go. Salvando apenas localmente.");
+            return;
+        }
+
         // Define o documento na coleção 'users' usando o UID do Firebase como ID do documento
         const userRef = doc(db, 'users', uid);
         await setDoc(userRef, {
@@ -144,8 +150,13 @@ async function syncUserProfileToFirestore(uid: string, profile: any) {
 async function sendVerificationEmail(user: User) {
     if (user && !user.emailVerified) {
         try {
-            await sendEmailVerification(user);
-            console.log("E-mail de verificação enviado com sucesso.");
+            // ✅ CORREÇÃO: Verifica se sendEmailVerification está disponível
+            if (typeof sendEmailVerification === 'function') {
+                await sendEmailVerification(user);
+                console.log("E-mail de verificação enviado com sucesso.");
+            } else {
+                console.log("E-mail de verificação não disponível no Expo Go.");
+            }
             // Removido o Alert aqui para evitar duplicação
         } catch (error) {
             console.error('Erro ao enviar e-mail de verificação:', error);
@@ -179,7 +190,9 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
     const { promptAsync: promptGoogle, loading: googleLoading, error: googleError } = useGoogleAuth();
     
     // Auth context para atualizar o usuário após registro
-    const { setUser, hasExistingAccount } = useAuth();
+    const authContext = useAuth();
+    const setUser = authContext?.setUser;
+    const hasExistingAccount = authContext?.hasExistingAccount;
 
     // Usando o hook para as regras de validação
     const { rules, isPasswordValid } = usePasswordValidation(password);
@@ -231,7 +244,67 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
             
             setIsLoading(true);
 
-            // 1. CRIAÇÃO DE CONTA NO FIREBASE AUTH
+            // ✅ CORREÇÃO: Verifica se Firebase Auth está disponível (não é mock)
+            if (!auth || typeof auth.createUserWithEmailAndPassword !== 'function') {
+                // ✅ EXPO GO: Cria usuário mock localmente
+                console.log('📱 Expo Go detectado - criando usuário mock');
+                
+                const mockUser = {
+                    uid: 'mock_user_' + Date.now(),
+                    email: email.trim(),
+                    emailVerified: false
+                };
+                
+                // 3. Criação do Perfil Básico (compatível com UserProfile)
+                const profile = {
+                    id: mockUser.uid,
+                    name: 'Usuário GlucoCare',
+                    email: email.trim(),
+                    googleId: '',
+                    onboardingCompleted: false,
+                    biometricEnabled: false,
+                    weight: null,
+                    height: null,
+                    birthDate: new Date(1990, 0, 1).toISOString(),
+                    condition: '',
+                    restriction: '',
+                    syncedAt: new Date().toISOString(),
+                    emailVerified: mockUser.emailVerified,
+                };
+
+                // 4. Sincroniza o perfil com o Firestore (se disponível)
+                await syncUserProfileToFirestore(mockUser.uid, profile);
+
+                // 5. Armazenamento Seguro (Apenas dados de login e perfil)
+                await SecureStore.setItemAsync('registered_email', email.trim());
+                await SecureStore.setItemAsync('user_profile', JSON.stringify(profile));
+
+                // 6. Checagem e Habilitação (ou Desabilitação) da Biometria 
+                try {
+                    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+                    const supported =
+                        await LocalAuthentication.supportedAuthenticationTypesAsync();
+                    await SecureStore.setItemAsync(
+                        'biometric_enabled',
+                        hasHardware && supported.length > 0 ? 'true' : 'false'
+                    );
+                } catch {
+                    await SecureStore.setItemAsync('biometric_enabled', 'false');
+                }
+
+                // ✅ CORREÇÃO: Atualiza o contexto de autenticação
+                if (setUser) {
+                    setUser(profile);
+                }
+
+                Alert.alert(
+                    'Sucesso', 
+                    'Conta criada com sucesso no Expo Go! (Para Firebase completo, use build nativo)'
+                );
+                return; // Sai da função aqui para Expo Go
+            }
+
+            // 1. CRIAÇÃO DE CONTA NO FIREBASE AUTH (Build Nativo)
             const userCredential = await createUserWithEmailAndPassword(
                 auth,
                 email.trim(),
@@ -280,7 +353,9 @@ export default function RegisterScreen({ navigation }: { navigation: NavigationP
             }
 
             // ✅ CORREÇÃO: Atualiza o contexto de autenticação
-            setUser(profile);
+            if (setUser) {
+                setUser(profile);
+            }
 
             Alert.alert(
                 'Sucesso', 
