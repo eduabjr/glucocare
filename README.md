@@ -7,11 +7,11 @@
 ## Sumário
 
 ### 🚀 **CONFIGURAÇÃO E INSTALAÇÃO**
-- [Guia de Configuração Completo - Ordem Correta](#-guia-de-configuração-completo---ordem-correta)
 - [Instrução de Instalação](#instrução-de-instalação)
 - [Configuração do Google Login (Expo Go)](#configuração-do-google-login-expo-go)
-- [Configuração da Tela de Consentimento OAuth](#-configuração-da-tela-de-consentimento-oauth-branding)
+- [Configuração da Tela de Consentimento OAuth (Branding)](#-configuração-da-tela-de-consentimento-oauth-branding)
 - [Configuração do Firebase - Passo a Passo Completo](#configuração-do-firebase---passo-a-passo-completo)
+- [Configuração do Firebase - Guia Completo](#-configuração-do-firebase---guia-completo)
 
 ### 📱 **SOBRE O PROJETO**
 - [Sobre](#sobre)
@@ -30,7 +30,7 @@
 - [Roteiro de Testes da Aplicação](#roteiro-de-testes-da-aplicação)
 
 ### ⚙️ **DESENVOLVIMENTO**
-- [Development Build vs Production Build](#development-build-vs-production-build)
+- [Development Build vs Production Build](#-development-build-vs-production-build)
 - [Comandos e Scripts](#comandos-e-scripts)
 - [Build e Deploy](#build-e-deploy)
 
@@ -1822,6 +1822,47 @@ set TMP=C:\temp
 mkdir C:\temp
 ```
 
+#### Erro: `Development Build não conecta ao servidor` (QR Code)
+**Causa:** Problemas de rede ou configuração do servidor Expo  
+**Solução:** Verificar conexão e configurações  
+**Comando:** 
+```powershell
+# Verificar se servidor está rodando
+npx expo start --dev-client --port 19006
+
+# Verificar IP local
+ipconfig
+
+# Usar IP específico se necessário
+npx expo start --dev-client --host tunnel
+```
+
+#### Erro: `Production Build não mostra erros` (Debug difícil)
+**Causa:** Código otimizado remove logs de debug  
+**Solução:** Implementar logging condicional  
+**Código:** 
+```typescript
+// Adicionar em componentes críticos
+if (__DEV__) {
+  console.log('Debug info:', dados);
+} else {
+  // Em produção, usar Alert para erros importantes
+  Alert.alert('Erro', 'Algo deu errado. Verifique os logs.');
+}
+```
+
+#### Erro: `Build falha com timeout` (EAS Build)
+**Causa:** Build muito demorado ou problemas de rede  
+**Solução:** Otimizar build ou tentar novamente  
+**Comando:** 
+```powershell
+# Tentar build novamente
+eas build --profile development --platform android --clear-cache
+
+# Para Production Build
+eas build --profile production --platform android --clear-cache
+```
+
 ### 🔐 **Segurança OAuth 2.0 - Melhores Práticas**
 
 O projeto implementa as melhores práticas de segurança OAuth 2.0 conforme recomendado pelo Google:
@@ -2422,18 +2463,77 @@ eas build --profile production --platform android
 # Download do EAS Dashboard ou link direto
 ```
 
-### **📊 Comparação Prática**
+### **📊 Comparação Detalhada - Development vs Production Build**
 
-| **Aspecto** | **Development** | **Production** |
-|-------------|----------------|----------------|
+| **Aspecto** | **Development Build** | **Production Build** |
+|-------------|----------------------|---------------------|
 | **Firebase Auth** | Mock local | Real |
 | **Firestore** | Desabilitado | Funcionando |
 | **Google Login** | Limitado | Completo |
 | **Performance** | Lenta | Rápida |
 | **Debug** | Completo | Removido |
+| **Console Logs** | ✅ Detalhados | ❌ Removidos |
+| **Stack Traces** | ✅ Completos | ❌ Simplificados |
+| **React DevTools** | ✅ Disponível | ❌ Não disponível |
 | **Hot Reload** | ✅ | ❌ |
-| **Tamanho** | Grande | Otimizado |
+| **Tamanho** | Grande (~50MB) | Otimizado (~30MB) |
 | **Tempo Build** | 5-10 min | 15-30 min |
+| **Resultado** | **APK + QR Code** | **APK de Instalação** |
+| **Instalação** | QR Code + Expo Go | APK direto no dispositivo |
+| **Erros Visíveis** | ✅ Todos os erros | ❌ Apenas erros críticos |
+| **Uso Recomendado** | Desenvolvimento | Teste final/Demonstração |
+
+### **🔧 Comandos PowerShell para Gerar Builds**
+
+#### **📱 Development Build (APK + QR Code)**
+```powershell
+# Criar Development Build
+eas build --profile development --platform android
+
+# Resultado: APK + QR Code para conectar ao servidor Expo
+# Instalação: Escanear QR Code com Expo Go ou Development Build
+```
+
+**Características do Development Build:**
+- ✅ **Gera APK** para instalação no dispositivo
+- ✅ **Gera QR Code** para conectar ao servidor Expo
+- ✅ **Conecta ao Metro Bundler** do seu computador
+- ✅ **Mostra todos os erros** em tempo real
+- ✅ **Hot Reload** funciona perfeitamente
+- ✅ **Debug completo** disponível
+
+#### **🚀 Production Build (APK de Instalação)**
+```powershell
+# Criar Production Build
+eas build --profile production --platform android
+
+# Resultado: APK otimizado para instalação direta
+# Instalação: Download direto do APK no dispositivo
+```
+
+**Características do Production Build:**
+- ✅ **Gera APK otimizado** para instalação direta
+- ❌ **Não gera QR Code** (não precisa de servidor)
+- ❌ **Não conecta ao Metro Bundler** (código compilado)
+- ❌ **Erros ocultos** (apenas erros críticos)
+- ❌ **Sem Hot Reload** (precisa rebuildar para mudanças)
+- ✅ **Performance máxima** (código otimizado)
+
+### **📲 Diferenças na Instalação**
+
+#### **Development Build:**
+1. **Build gera:** APK + QR Code
+2. **Instalação:** Escanear QR Code com Expo Go
+3. **Funcionamento:** Conecta ao servidor Expo do seu computador
+4. **Debug:** Todos os logs e erros visíveis
+5. **Atualizações:** Automáticas via Hot Reload
+
+#### **Production Build:**
+1. **Build gera:** APK otimizado
+2. **Instalação:** Download direto do APK
+3. **Funcionamento:** Independente (não precisa de computador)
+4. **Debug:** Apenas erros críticos
+5. **Atualizações:** Precisa rebuildar e reinstalar
 
 ### **🔧 Problemas Resolvidos**
 
@@ -2452,12 +2552,69 @@ eas build --profile production --platform android
 - **Solução:** Adicionada verificação `|| __DEV__` para pular sincronização
 - **Localização:** `src/screens/RegisterScreen.tsx`
 
+### **📋 Guia Passo a Passo - Como Usar os Builds**
+
+#### **🔧 Passo 1: Gerar Development Build**
+```powershell
+# 1. Executar comando de build
+eas build --profile development --platform android
+
+# 2. Aguardar conclusão (5-10 minutos)
+# 3. Baixar APK do link fornecido
+# 4. Instalar APK no dispositivo Android
+```
+
+#### **📱 Passo 2: Conectar Development Build ao Servidor**
+```powershell
+# 1. Iniciar servidor Expo
+npx expo start --dev-client --port 19006
+
+# 2. Abrir Development Build no dispositivo
+# 3. Escanear QR Code que aparece no terminal
+# 4. App conecta ao servidor e carrega código atualizado
+```
+
+#### **🚀 Passo 3: Gerar Production Build**
+```powershell
+# 1. Executar comando de build
+eas build --profile production --platform android
+
+# 2. Aguardar conclusão (15-30 minutos)
+# 3. Baixar APK do link fornecido
+# 4. Instalar APK diretamente no dispositivo
+```
+
+#### **⚡ Passo 4: Testar Production Build**
+```powershell
+# 1. APK funciona independentemente
+# 2. Não precisa de servidor Expo
+# 3. Não mostra logs detalhados
+# 4. Performance otimizada
+```
+
+### **🎯 Quando Usar Cada Build**
+
+#### **📱 Use Development Build quando:**
+- ✅ **Desenvolvendo** novas funcionalidades
+- ✅ **Debugando** problemas
+- ✅ **Testando** mudanças rápidas
+- ✅ **Demonstrando** para stakeholders
+- ✅ **Fazendo** testes de integração
+
+#### **🚀 Use Production Build quando:**
+- ✅ **Testando** performance final
+- ✅ **Demonstrando** para usuários finais
+- ✅ **Preparando** para publicação
+- ✅ **Testando** em dispositivos diferentes
+- ✅ **Validando** experiência do usuário
+
 ### **💡 Recomendações**
 
 1. **Use Development Build** para desenvolvimento e testes rápidos
 2. **Use Production Build** para testes finais e demonstrações
 3. **Faça Production Build** quando quiser testar Firebase real
 4. **Mantenha Development Build** para desenvolvimento contínuo
+5. **Sempre teste em Development Build primeiro** antes de Production Build
 
 ## Comandos e Scripts
 
@@ -3151,20 +3308,3 @@ Obrigado por esses recursos incríveis que foram usados durante o desenvolviment
 **Desenvolvido com ❤️ por Eduardo Família**
 
 *GlucoCare - Monitoramento inteligente da glicemia*
-
----
-
-## Sobre
-
-Este projeto foi desenvolvido como uma solução completa para monitoramento de glicemia, combinando tecnologias modernas com uma interface intuitiva. A arquitetura híbrida (SQLite + Firestore) garante performance local e sincronização em nuvem, oferecendo a melhor experiência possível para usuários diabéticos.
-
-### Características Técnicas:
-- **Offline-First**: Funciona sem conexão com internet
-- **Sincronização Inteligente**: Backup automático na nuvem
-- **Performance Otimizada**: Acesso instantâneo aos dados
-- **Escalabilidade**: Suporte a milhões de usuários
-- **Segurança**: Autenticação e dados criptografados
-- **Acessibilidade**: Interface adaptável e inclusiva
-
-### Impacto Social:
-O GlucoCare visa melhorar a qualidade de vida de pessoas com diabetes, oferecendo uma ferramenta completa para monitoramento e controle da glicemia, com insights baseados em dados e alertas personalizados.
